@@ -1,0 +1,16 @@
+# Archivos temporales de Office
+~$*
+*.tmp
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Entornos y dependencias (para cuando se sume el código del sistema)
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.sqlite3
+.env
