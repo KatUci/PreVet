@@ -1,4 +1,4 @@
-# VetRisk
+# PreVet
 
 **Sistema predictivo de gestión del riesgo de inasistencia para clínicas veterinarias**
 
@@ -64,7 +64,7 @@ Fase 1/
 └── Evidencias Grupales/
     ├── 1.4_APT122_FormativaFase1.docx          Informe técnico
     ├── 1.5_GuiaEstudiante_Fase 1_...docx       Definición del Proyecto APT
-    └── Presentacion_VetRisk_Fase1.pptx         Presentación del proyecto
+    └── Presentacion_PreVet_Fase1.pptx         Presentación del proyecto
 ```
 
 ## Tecnologías
