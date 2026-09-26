@@ -15,5 +15,5 @@ __pycache__/
 *.sqlite3
 .env
 
-# El codigo del sistema se trabaja localmente y se publica por partes
-sistema/
+# Sistema anterior, se conserva solo como material de consulta
+_referencia/
