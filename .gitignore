@@ -14,3 +14,6 @@ __pycache__/
 *.pyc
 *.sqlite3
 .env
+
+# El codigo del sistema se trabaja localmente y se publica por partes
+sistema/
