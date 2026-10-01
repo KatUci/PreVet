@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block titulo %}Inicio{% endblock %}
+{% block encabezado %}Hola, {{ user.get_full_name|default:user.username }}{% endblock %}
+{% block subtitulo %}Gestión del riesgo de inasistencia{% endblock %}
+
+{% block contenido %}
+
+{# ---------- Los cuatro indicadores ---------- #}
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:1rem; margin-bottom:1.6rem">
+
+    <div class="card">
+        <div style="font-size:.82rem; color:var(--gris); margin-bottom:.4rem">Citas ya ocurridas</div>
+        <div style="font-size:2rem; font-weight:700; color:var(--titulo)">{{ total_ocurridas }}</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">últimos 90 días</div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:.82rem; color:var(--gris); margin-bottom:.4rem">Inasistencias</div>
+        <div style="font-size:2rem; font-weight:700; color:var(--mal-txt)">{{ total_faltas }}</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">horas que se perdieron</div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:.82rem; color:var(--gris); margin-bottom:.4rem">Tasa de inasistencia</div>
+        <div style="font-size:2rem; font-weight:700; color:var(--mal-txt)">{{ tasa }}%</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">del total agendado</div>
+    </div>
+
+    <div class="card" style="background:var(--acento-bg); border-color:transparent">
+        <div style="font-size:.82rem; color:var(--gris); margin-bottom:.4rem">Ingresos no percibidos</div>
+        <div style="font-size:2rem; font-weight:700; color:var(--acento-osc)">${{ perdido|intcomma }}</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">lo que costaron esas faltas</div>
+    </div>
+
+</div>
+
+{# ---------- Patrón por día ---------- #}
+<div class="card" style="margin-bottom:1.6rem">
+    <div class="card-titulo">
+        <h2>¿Qué días falta más la gente?</h2>
+    </div>
+
+    <div style="display:flex; align-items:flex-end; gap:1.2rem; height:170px; padding:1rem .5rem 0">
+        {% for d in por_dia %}
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%">
+            <div style="font-size:.85rem; font-weight:700; color:var(--titulo); margin-bottom:.35rem">{{ d.tasa }}%</div>
+            <div style="width:100%; max-width:52px; height:{{ d.alto }}%; min-height:4px;
+                        background:var(--acento); border-radius:4px 4px 0 0"></div>
+            <div style="font-size:.78rem; color:var(--gris); margin-top:.5rem">{{ d.dia }}</div>
+            <div style="font-size:.7rem; color:var(--gris-claro)">{{ d.faltas }}/{{ d.total }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div style="font-size:.8rem; color:var(--gris); margin-top:.8rem; padding-top:.8rem; border-top:1px solid var(--borde)">
+        El porcentaje es sobre las citas de ese día. Abajo, cuántas faltaron de cuántas hubo.
+    </div>
+</div>
+
+{# ---------- Próximas citas ---------- #}
+<div class="card">
+    <div class="card-titulo">
+        <h2>Próximas citas</h2>
+        <a href="/admin/citas/cita/">Ver todas <svg class="icono-sm"><use href="#i-flecha"/></svg></a>
+    </div>
+
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Mascota</th>
+                    <th>Atención</th>
+                    <th>Profesional</th>
+                    <th style="text-align:right">Reservada con</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in proximas %}
+                <tr>
+                    <td>{{ c.fecha|date:"D d/m" }}</td>
+                    <td>{{ c.hora|time:"H:i" }}</td>
+                    <td style="font-weight:600">{{ c.mascota.nombre }}</td>
+                    <td>{{ c.tipo_atencion.nombre }}</td>
+                    <td>{{ c.veterinario.get_full_name }}</td>
+                    <td style="text-align:right; color:var(--gris)">{{ c.dias_anticipacion }} días</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" style="color:var(--gris)">No hay citas pendientes.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

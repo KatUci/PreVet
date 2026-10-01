@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Iniciar sesión{% endblock %}
+
+{% block contenido %}
+
+<div style="max-width:380px; margin:3rem auto">
+
+    <div style="text-align:center; margin-bottom:1.8rem">
+        <div style="font-size:1.8rem; font-weight:700; color:var(--titulo)">
+            Pre<span style="color:var(--acento)">Vet</span>
+        </div>
+        <div style="color:var(--gris); font-size:.9rem; margin-top:.3rem">
+            Gestión del riesgo de inasistencia
+        </div>
+    </div>
+
+    <div class="card">
+
+        {% if form.errors %}
+        <div class="alerta alerta-error" style="margin-bottom:1rem">
+            <div>Usuario o contraseña incorrectos. Inténtalo de nuevo.</div>
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div style="margin-bottom:1rem">
+                <label for="id_username" style="display:block; font-size:.85rem;
+                       color:var(--gris); margin-bottom:.35rem">Usuario</label>
+                <input type="text" name="username" id="id_username" autofocus required
+                       style="width:100%; padding:.65rem .8rem; border:1px solid var(--borde-fuerte);
+                              border-radius:6px; background:var(--card); color:var(--texto)">
+            </div>
+
+            <div style="margin-bottom:1.3rem">
+                <label for="id_password" style="display:block; font-size:.85rem;
+                       color:var(--gris); margin-bottom:.35rem">Contraseña</label>
+                <input type="password" name="password" id="id_password" required
+                       style="width:100%; padding:.65rem .8rem; border:1px solid var(--borde-fuerte);
+                              border-radius:6px; background:var(--card); color:var(--texto)">
+            </div>
+
+            <button type="submit" class="btn btn-primario" style="width:100%; justify-content:center">
+                Entrar
+            </button>
+
+            <input type="hidden" name="next" value="{{ next }}">
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}
