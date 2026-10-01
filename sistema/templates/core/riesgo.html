@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Horas en riesgo{% endblock %}
+{% block encabezado %}Horas en riesgo{% endblock %}
+{% block subtitulo %}Citas pendientes ordenadas por probabilidad de inasistencia{% endblock %}
+
+{% block contenido %}
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:1.6rem">
+    <div class="card" style="border-left:4px solid var(--mal-txt)">
+        <div style="font-size:.82rem; color:var(--gris)">Riesgo alto</div>
+        <div style="font-size:1.9rem; font-weight:700; color:var(--mal-txt)">{{ altos }}</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">requieren acción hoy</div>
+    </div>
+    <div class="card" style="border-left:4px solid var(--acento)">
+        <div style="font-size:.82rem; color:var(--gris)">Riesgo medio</div>
+        <div style="font-size:1.9rem; font-weight:700; color:var(--acento)">{{ medios }}</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">reforzar recordatorio</div>
+    </div>
+    <div class="card" style="border-left:4px solid var(--ok-txt)">
+        <div style="font-size:.82rem; color:var(--gris)">Riesgo bajo</div>
+        <div style="font-size:1.9rem; font-weight:700; color:var(--ok-txt)">{{ bajos }}</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">sin acción</div>
+    </div>
+</div>
+
+{% for e in evaluadas %}
+<div class="card" style="margin-bottom:.9rem; display:flex; gap:1.2rem; align-items:flex-start;
+     {% if e.nivel == 'alto' %}border-left:4px solid var(--mal-txt)
+     {% elif e.nivel == 'medio' %}border-left:4px solid var(--acento)
+     {% else %}border-left:4px solid var(--ok-txt){% endif %}">
+
+    <div style="text-align:center; min-width:62px">
+        <div style="font-size:1.7rem; font-weight:700; line-height:1;
+             {% if e.nivel == 'alto' %}color:var(--mal-txt)
+             {% elif e.nivel == 'medio' %}color:var(--acento)
+             {% else %}color:var(--ok-txt){% endif %}">{{ e.puntaje }}</div>
+        <div style="font-size:.7rem; color:var(--gris-claro); text-transform:uppercase;
+                    letter-spacing:.5px; margin-top:.2rem">{{ e.nivel }}</div>
+    </div>
+
+    <div style="flex:1; min-width:0">
+        <div style="font-weight:600; color:var(--titulo); margin-bottom:.2rem">
+            {{ e.cita.mascota.nombre }}
+            <span style="font-weight:400; color:var(--gris)">
+                · {{ e.cita.fecha|date:"l d/m" }} a las {{ e.cita.hora|time:"H:i" }}
+            </span>
+        </div>
+        <div style="font-size:.85rem; color:var(--gris); margin-bottom:.5rem">
+            {{ e.cita.tipo_atencion.nombre }} ·
+            {{ e.cita.veterinario.get_full_name }} ·
+            tutor: {{ e.cita.mascota.dueno.get_full_name }}
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:.4rem">
+            {% for d in e.detalle %}
+            <span style="font-size:.74rem; background:var(--panel); color:var(--gris);
+                         border:1px solid var(--borde); border-radius:20px;
+                         padding:.18rem .6rem">{{ d }}</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div style="min-width:220px; text-align:right">
+        <div style="font-size:.72rem; color:var(--gris-claro); margin-bottom:.2rem">ACCIÓN SUGERIDA</div>
+        <div style="font-size:.86rem; color:var(--titulo); font-weight:500">{{ e.accion }}</div>
+    </div>
+
+</div>
+{% empty %}
+<div class="card" style="color:var(--gris)">No hay citas pendientes por evaluar.</div>
+{% endfor %}
+
+{% endblock %}

@@ -54,3 +54,36 @@ def inicio(request):
                                 .order_by('fecha', 'hora')[:8],
     }
     return render(request, 'core/inicio.html', contexto)
+
+@login_required
+def riesgo(request):
+    """Citas pendientes ordenadas por su riesgo de inasistencia."""
+
+    from citas.riesgo import estadisticas, puntuar
+
+    hoy = timezone.localdate()
+    pendientes = (Cita.objects
+                      .filter(fecha__gte=hoy, estado='pendiente')
+                      .select_related('mascota__dueno', 'veterinario', 'tipo_atencion'))
+
+    stats = estadisticas()
+    evaluadas = []
+    for cita in pendientes:
+        puntaje, nivel, accion, detalle = puntuar(cita, stats)
+        evaluadas.append({
+            'cita': cita,
+            'puntaje': puntaje,
+            'nivel': nivel,
+            'accion': accion,
+            'detalle': detalle,
+        })
+
+    evaluadas.sort(key=lambda e: -e['puntaje'])
+
+    return render(request, 'core/riesgo.html', {
+        'seccion': 'riesgo',
+        'evaluadas': evaluadas,
+        'altos': sum(1 for e in evaluadas if e['nivel'] == 'alto'),
+        'medios': sum(1 for e in evaluadas if e['nivel'] == 'medio'),
+        'bajos': sum(1 for e in evaluadas if e['nivel'] == 'bajo'),
+    })
