@@ -84,16 +84,24 @@ class Command(BaseCommand):
                     veterinario=v, dia_semana=dia, hora_inicio='15:00',
                     defaults={'hora_fin': '19:00'})
 
-        # --- mascotas ---
+                # --- mascotas ---
+        # Generador aparte para las fechas de nacimiento: así no se altera la
+        # secuencia de random que arma las citas, y los indicadores del informe
+        # siguen dando los mismos números.
+        rnd_nac = random.Random(7)
+
         mascotas = []
         for i, (nombre, esp) in enumerate(MASCOTAS):
-            m, _ = Mascota.objects.get_or_create(
+            meses = rnd_nac.randint(8, 150)
+            m, _ = Mascota.objects.update_or_create(
                 nombre=nombre,
                 dueno=duenos[i % len(duenos)],
                 defaults={
                     'especie': especies[esp],
                     'sexo': random.choice(['macho', 'hembra']),
-                })
+                    'fecha_nacimiento': timezone.localdate() - timedelta(days=meses * 30),
+                },
+            )
             mascotas.append(m)
 
         # --- citas ---
