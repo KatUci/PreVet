@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Indicadores{% endblock %}
+{% block encabezado %}Indicadores{% endblock %}
+{% block subtitulo %}Qué explica las inasistencias, factor por factor{% endblock %}
+
+{% block contenido %}
+
+{# ---------- Resumen general ---------- #}
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr));
+            gap:1rem; margin-bottom:1.6rem">
+
+    <div class="card">
+        <div style="font-size:.82rem; color:var(--gris); margin-bottom:.4rem">Citas analizadas</div>
+        <div style="font-size:2rem; font-weight:700; color:var(--titulo)">{{ general.total }}</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">las que ya ocurrieron</div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:.82rem; color:var(--gris); margin-bottom:.4rem">Inasistencias</div>
+        <div style="font-size:2rem; font-weight:700; color:var(--error-txt)">{{ general.faltas }}</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">horas que se perdieron</div>
+    </div>
+
+    <div class="card">
+        <div style="font-size:.82rem; color:var(--gris); margin-bottom:.4rem">Tasa general</div>
+        <div style="font-size:2rem; font-weight:700; color:var(--error-txt)">{{ general.tasa }}%</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">del total agendado</div>
+    </div>
+
+    <div class="card" style="background:var(--acento-bg); border-color:transparent">
+        <div style="font-size:.82rem; color:var(--gris); margin-bottom:.4rem">No percibido</div>
+        <div style="font-size:2rem; font-weight:700; color:var(--acento-osc)">${{ general.perdido_txt }}</div>
+        <div style="font-size:.78rem; color:var(--gris-claro)">lo que costaron esas faltas</div>
+    </div>
+
+</div>
+
+{# ---------- 1. Por tipo de atención ---------- #}
+<div class="card" style="margin-bottom:1.6rem">
+    <div class="card-titulo">
+        <h2>¿Qué atenciones se faltan más?</h2>
+        <span class="badge badge-neutro">peso 20 en el modelo</span>
+    </div>
+
+    {% for f in por_tipo %}
+    <div style="display:grid; grid-template-columns:190px 1fr 110px;
+                align-items:center; gap:1rem; padding:.5rem 0">
+        <div style="font-size:.9rem; color:var(--titulo)">{{ f.nombre }}</div>
+        <div style="background:var(--tinte); height:24px; position:relative">
+            <div style="width:{{ f.ancho }}%; height:100%; background:var(--acento)"></div>
+            <span style="position:absolute; left:.6rem; top:3px; font-size:.78rem;
+                         font-weight:700; color:var(--sobre-acento)">{{ f.tasa }}%</span>
+        </div>
+        <div style="font-size:.78rem; color:var(--gris); text-align:right">
+            {{ f.faltas }} de {{ f.total }}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div style="font-size:.8rem; color:var(--gris); margin-top:.9rem;
+                padding-top:.8rem; border-top:1px solid var(--borde)">
+        El modelo no supone cuál atención se falta más: aprende la tasa de estos
+        mismos datos y la compara contra la peor observada. Por eso el tipo de
+        atención pesa en el puntaje sin que haya que ajustarlo a mano.
+    </div>
+</div>
+
+{# ---------- 2. Por anticipación ---------- #}
+<div class="card" style="margin-bottom:1.6rem">
+    <div class="card-titulo">
+        <h2>¿Influye cuánto antes se pidió la hora?</h2>
+        <span class="badge badge-neutro">peso 20 en el modelo</span>
+    </div>
+
+    {% for f in por_anticipacion %}
+    <div style="display:grid; grid-template-columns:190px 1fr 110px;
+                align-items:center; gap:1rem; padding:.5rem 0">
+        <div style="font-size:.9rem; color:var(--titulo)">{{ f.nombre }}</div>
+        <div style="background:var(--tinte); height:24px; position:relative">
+            <div style="width:{{ f.ancho }}%; height:100%; background:var(--acento)"></div>
+            <span style="position:absolute; left:.6rem; top:3px; font-size:.78rem;
+                         font-weight:700; color:var(--sobre-acento)">{{ f.tasa }}%</span>
+        </div>
+        <div style="font-size:.78rem; color:var(--gris); text-align:right">
+            {{ f.faltas }} de {{ f.total }}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div style="font-size:.8rem; color:var(--gris); margin-top:.9rem;
+                padding-top:.8rem; border-top:1px solid var(--borde)">
+        Acá los datos no muestran una relación lineal: el tramo más corto, de 1 a
+        3 días, es el que más falla. El modelo, en cambio, asume que a mayor
+        anticipación mayor riesgo, y mide hasta los 21 días. La diferencia está
+        detectada y es uno de los puntos a contrastar con datos reales.
+    </div>
+</div>
+
+{# ---------- 3. Tutores reincidentes ---------- #}
+<div class="card">
+    <div class="card-titulo">
+        <h2>¿Quiénes faltan más de una vez?</h2>
+        <span class="badge badge-azul">peso 40, el más alto</span>
+    </div>
+
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Tutor</th>
+                    <th style="text-align:right">Citas</th>
+                    <th style="text-align:right">Faltas</th>
+                    <th style="text-align:right">Tasa</th>
+                    <th style="text-align:right">No percibido</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in reincidentes %}
+                <tr>
+                    <td style="font-weight:600">{{ f.nombre }}</td>
+                    <td style="text-align:right; color:var(--gris)">{{ f.total }}</td>
+                    <td style="text-align:right">
+                        {% if f.faltas %}
+                        <span class="badge badge-no-asistio">{{ f.faltas }}</span>
+                        {% else %}
+                        <span style="color:var(--gris-claro)">0</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:right; font-weight:600">{{ f.tasa }}%</td>
+                    <td style="text-align:right; color:var(--gris)">${{ f.perdido_txt }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="vacio">Sin datos suficientes.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="font-size:.8rem; color:var(--gris); margin-top:.9rem;
+                padding-top:.8rem; border-top:1px solid var(--borde)">
+        El historial del tutor es el factor que más predice: quien faltó antes tiende
+        a faltar de nuevo. Por eso vale el doble que los demás en el puntaje.
+    </div>
+</div>
+
+{% endblock %}
