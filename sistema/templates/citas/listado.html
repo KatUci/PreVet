@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Citas{% endblock %}
+{% block encabezado %}Citas{% endblock %}
+{% block subtitulo %}{{ total }} cita{{ total|pluralize }} en la agenda{% endblock %}
+
+{% block contenido %}
+
+{# ---------- Filtros por estado ---------- #}
+<div class="chips" style="margin-bottom:1.3rem">
+    <a href="/citas/" style="text-decoration:none"
+       class="badge {% if not estado_activo %}badge-azul{% else %}badge-neutro{% endif %}">
+        Todas · {{ total_general }}
+    </a>
+    {% for f in filtros %}
+    <a href="/citas/?estado={{ f.valor }}" style="text-decoration:none"
+       class="badge {% if estado_activo == f.valor %}badge-azul{% else %}badge-neutro{% endif %}">
+        {{ f.etiqueta }} · {{ f.conteo }}
+    </a>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Mascota</th>
+                    <th>Tutor</th>
+                    <th>Atención</th>
+                    <th>Profesional</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in citas %}
+                <tr>
+                    <td style="white-space:nowrap">
+                        {{ c.fecha|date:"d/m/Y" }}
+                        {% if c.fecha == hoy %}
+                        <span style="color:var(--acento); font-weight:600; font-size:.78rem">· hoy</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ c.hora|time:"H:i" }}</td>
+                    <td style="font-weight:600">{{ c.mascota.nombre }}</td>
+                    <td style="color:var(--gris)">{{ c.mascota.dueno.get_full_name }}</td>
+                    <td>{{ c.tipo_atencion.nombre }}</td>
+                    <td style="color:var(--gris)">{{ c.veterinario.get_full_name }}</td>
+                    <td>
+                        <span class="badge badge-{% if c.estado == 'no_asistio' %}no-asistio{% else %}{{ c.estado }}{% endif %}"></span>
+                            {{ c.get_estado_display }}
+                        </span>
+                    </td>
+                    <td style="text-align:right">
+                        {% if c.estado == 'pendiente' and c.fecha <= hoy %}
+                        <form method="post" action="/citas/{{ c.pk }}/no-asistio/" style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-suave" style="font-size:.78rem">
+                                No asistió
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" style="color:var(--gris)">No hay citas con ese filtro.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
