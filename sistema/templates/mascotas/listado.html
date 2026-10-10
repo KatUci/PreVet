@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Mascotas{% endblock %}
+{% block encabezado %}Mascotas{% endblock %}
+{% block subtitulo %}{{ total }} paciente{{ total|pluralize }} en ficha{% endblock %}
+
+{% block contenido %}
+
+{# ---------- Buscador ---------- #}
+<form method="get" style="display:flex; gap:.6rem; max-width:440px; margin-bottom:1.4rem">
+    <input type="text" name="buscar" value="{{ buscar }}"
+           placeholder="Buscar por nombre"
+           style="flex:1; padding:.6rem .8rem; border:1px solid var(--borde);
+                  border-radius:var(--radio); background:var(--card);
+                  color:var(--texto); font-size:.9rem; font-family:inherit">
+    <button type="submit" class="btn btn-primario">Buscar</button>
+    {% if buscar %}
+    <a href="/mascotas/" class="btn btn-suave">Limpiar</a>
+    {% endif %}
+</form>
+
+{# ---------- Fichas ---------- #}
+<div class="grilla-adopcion">
+    {% for m in mascotas %}
+    <div class="tarjeta-animal">
+
+        <div class="ta-foto">
+            <span class="ta-emoji">{% if m.especie.nombre == 'Gato' %}🐱{% else %}🐶{% endif %}</span>
+            {% if m.inasistencias %}
+            <span class="badge badge-no-asistio ta-estado">
+                {{ m.inasistencias }} falta{{ m.inasistencias|pluralize }}
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="ta-cuerpo">
+            <div class="ta-nombre">{{ m.nombre }}</div>
+            <div class="ta-meta">
+                {{ m.especie.nombre }}{% if m.raza %} · {{ m.raza.nombre }}{% endif %} · {{ m.get_sexo_display }}
+            </div>
+
+            <div class="ta-caracter">
+                {{ m.edad|default:"Edad no registrada" }}<br>
+                Tutor: {{ m.dueno.get_full_name|default:m.dueno.username }}
+            </div>
+
+            <div class="ta-pie">
+                <span>{{ m.total_citas }} cita{{ m.total_citas|pluralize }}</span>
+                {% if m.inasistencias %}
+                <span style="color:var(--error-txt); font-weight:600">
+                    {{ m.inasistencias }} sin avisar
+                </span>
+                {% else %}
+                <span style="color:var(--ok-txt); font-weight:600">Siempre asiste</span>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+    {% empty %}
+    <p class="vacio">No hay mascotas que coincidan con la búsqueda.</p>
+    {% endfor %}
+</div>
+
+{% endblock %}

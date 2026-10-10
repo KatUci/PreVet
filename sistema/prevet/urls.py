@@ -9,5 +9,6 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='/login/'), name='logout'),
 
     path('citas/', include('citas.urls')),
+    path('mascotas/', include('mascotas.urls')),
     path('', include('core.urls')),
 ]

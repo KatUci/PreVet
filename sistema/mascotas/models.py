@@ -1,3 +1,4 @@
+from datetime import date
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -57,6 +58,26 @@ class Mascota(models.Model):
     activo = models.BooleanField(default=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def edad(self):
+        """Edad en años y meses, calculada desde la fecha de nacimiento."""
+        if not self.fecha_nacimiento:
+            return None
+
+        hoy = date.today()
+        meses = ((hoy.year - self.fecha_nacimiento.year) * 12
+                 + hoy.month - self.fecha_nacimiento.month)
+        if hoy.day < self.fecha_nacimiento.day:
+            meses -= 1
+
+        anos, resto = divmod(max(meses, 0), 12)
+
+        if anos and resto:
+            return f"{anos} año{'s' if anos > 1 else ''} y {resto} mes{'es' if resto > 1 else ''}"
+        if anos:
+            return f"{anos} año{'s' if anos > 1 else ''}"
+        return f"{resto} mes{'es' if resto != 1 else ''}"
+    
     def __str__(self):
         return f"{self.nombre} · {self.especie.nombre}"
 
