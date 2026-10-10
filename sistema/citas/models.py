@@ -73,6 +73,8 @@ class Cita(models.Model):
         User,
         on_delete=models.PROTECT,
         related_name='citas_atendidas',
+        # Solo puede atender quien tiene el rol de veterinario.
+        limit_choices_to={'perfil__rol': 'veterinario'},
     )
     mascota = models.ForeignKey(
         Mascota,

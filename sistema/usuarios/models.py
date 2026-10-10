@@ -33,3 +33,13 @@ class Perfil(models.Model):
     class Meta:
         verbose_name = "Perfil"
         verbose_name_plural = "Perfiles"
+
+
+# Django muestra a los usuarios por su nombre de cuenta: dmunoz, paz.herrera.
+# Acá le decimos que use el nombre completo, y que recurra al nombre de cuenta
+# solo si la persona no lo tiene registrado.
+def _mostrar_nombre_completo(self):
+    return self.get_full_name() or self.username
+
+
+User.add_to_class('__str__', _mostrar_nombre_completo)
