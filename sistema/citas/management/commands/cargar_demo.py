@@ -15,6 +15,14 @@ BLOQUES = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30
 VETERINARIOS = [('paz.herrera', 'Paz', 'Herrera'),
                 ('luis.contreras', 'Luis', 'Contreras')]
 
+# Profesionales que se incorporaron después del período analizado. Quedan en el
+# sistema con su horario, y se les puede agendar de aquí en adelante, pero no
+# participan del histórico: si se repartieran las citas pasadas entre cinco en
+# vez de dos, los indicadores del informe dejarían de cuadrar.
+VETERINARIOS_NUEVOS = [('carolina.fuentes', 'Carolina', 'Fuentes'),
+                       ('sebastian.rios', 'Sebastián', 'Ríos'),
+                       ('antonia.lagos', 'Antonia', 'Lagos')]
+
 DUENOS = [('jperez', 'Javiera', 'Pérez'), ('msilva', 'Matías', 'Silva'),
           ('crivas', 'Camila', 'Rivas'), ('psoto', 'Pablo', 'Soto'),
           ('dmunoz', 'Daniela', 'Muñoz'), ('rtapia', 'Rodrigo', 'Tapia'),
@@ -49,6 +57,16 @@ class Command(BaseCommand):
             Perfil.objects.get_or_create(usuario=u, defaults={'rol': 'veterinario'})
             vets.append(u)
 
+        # Se crean aparte, y a propósito no entran en 'vets': así tienen ficha y
+        # horario sin alterar el reparto de las citas históricas.
+        vets_nuevos = []
+        for username, nombre, apellido in VETERINARIOS_NUEVOS:
+            u, _ = User.objects.get_or_create(
+                username=username,
+                defaults={'first_name': nombre, 'last_name': apellido})
+            Perfil.objects.get_or_create(usuario=u, defaults={'rol': 'veterinario'})
+            vets_nuevos.append(u)
+
         duenos = []
         for username, nombre, apellido in DUENOS:
             u, _ = User.objects.get_or_create(
@@ -75,7 +93,8 @@ class Command(BaseCommand):
             tipos.append(t)
 
         # --- horarios ---
-        for v in vets:
+        # Los nuevos también atienden: tienen agenda disponible de aquí en adelante.
+        for v in vets + vets_nuevos:
             for dia in range(5):
                 HorarioAtencion.objects.get_or_create(
                     veterinario=v, dia_semana=dia, hora_inicio='09:00',
@@ -84,7 +103,7 @@ class Command(BaseCommand):
                     veterinario=v, dia_semana=dia, hora_inicio='15:00',
                     defaults={'hora_fin': '19:00'})
 
-                # --- mascotas ---
+        # --- mascotas ---
         # Generador aparte para las fechas de nacimiento: así no se altera la
         # secuencia de random que arma las citas, y los indicadores del informe
         # siguen dando los mismos números.
@@ -156,4 +175,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f"Listo: {creadas} citas, {len(mascotas)} mascotas, "
-            f"{len(vets)} veterinarios, {len(tipos)} tipos de atención."))
+            f"{len(vets) + len(vets_nuevos)} veterinarios "
+            f"({len(vets)} con histórico), {len(tipos)} tipos de atención."))
