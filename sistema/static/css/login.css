@@ -1,0 +1,206 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Los colores del login, todos en un solo lugar. */
+:root {
+    --fondo-1: #1a1338;
+    --fondo-2: #2b2160;
+    --violeta: #a594f2;
+    --violeta-fuerte: #8b78e6;
+    --texto: #ece9f5;
+    --texto-suave: #c9c2e6;
+    --borde: rgba(165, 148, 242, .35);
+    --vidrio: rgba(255, 255, 255, .06);
+    --error: #f094a4;
+}
+
+body {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+    color: var(--texto);
+    background:
+        radial-gradient(circle at 15% 20%, rgba(139, 120, 230, .35), transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(107, 90, 212, .30), transparent 45%),
+        linear-gradient(135deg, var(--fondo-1), var(--fondo-2));
+    overflow: hidden;
+    position: relative;
+}
+
+/* Huellas grandes y borrosas de fondo, solo decorativas.
+   Cada una flota a su propio ritmo: --giro es su inclinación,
+   y la animación la sube y la baja sin perder ese giro. */
+.huella-fondo {
+    position: absolute;
+    fill: rgba(165, 148, 242, .22);
+    filter: blur(2px);
+    pointer-events: none;
+    transform: rotate(var(--giro));
+    animation: flotar 9s ease-in-out infinite;
+}
+.huella-1 { --giro: 18deg;  width: 260px; top: -30px;    right: -40px; }
+.huella-2 { --giro: -20deg; width: 300px; bottom: -60px; left: -70px;  animation-duration: 11s; }
+.huella-3 { --giro: 35deg;  width: 180px; bottom: 40px;  right: 6%;    opacity: .6; animation-delay: -3s; }
+.huella-4 { --giro: -35deg; width: 130px; top: 12%;      left: 8%;     opacity: .5; animation-duration: 12s; animation-delay: -5s; }
+.huella-5 { --giro: 10deg;  width: 90px;  top: 55%;      left: 3%;     opacity: .4; animation-delay: -7s; }
+.huella-6 { --giro: -8deg;  width: 110px; top: 6%;       left: 42%;    opacity: .35; animation-duration: 13s; animation-delay: -2s; }
+.huella-7 { --giro: 28deg;  width: 150px; bottom: -40px; left: 38%;    opacity: .45; animation-duration: 10s; animation-delay: -6s; }
+.huella-8 { --giro: -25deg; width: 80px;  top: 40%;      right: 4%;    opacity: .4; animation-duration: 8s; animation-delay: -4s; }
+
+@keyframes flotar {
+    0%, 100% { transform: translateY(0)     rotate(var(--giro)); }
+    50%      { transform: translateY(-22px) rotate(calc(var(--giro) + 6deg)); }
+}
+
+/* Caminito de huellas chicas que aparecen una tras otra,
+   como una mascota cruzando la pantalla en diagonal. */
+.camino { position: absolute; inset: 0; pointer-events: none; }
+.pisada {
+    position: absolute;
+    width: 26px;
+    fill: rgba(196, 184, 247, .55);
+    opacity: 0;
+    transform: rotate(35deg);
+    animation: pisar 8s linear infinite;
+}
+.pisada:nth-child(1) { left: 6%;  top: 88%; animation-delay: 0s; }
+.pisada:nth-child(2) { left: 11%; top: 80%; animation-delay: .5s; }
+.pisada:nth-child(3) { left: 14%; top: 71%; animation-delay: 1s; }
+.pisada:nth-child(4) { left: 19%; top: 63%; animation-delay: 1.5s; }
+.pisada:nth-child(5) { left: 22%; top: 54%; animation-delay: 2s; }
+.pisada:nth-child(6) { left: 27%; top: 46%; animation-delay: 2.5s; }
+.pisada:nth-child(7) { left: 30%; top: 37%; animation-delay: 3s; }
+.pisada:nth-child(8) { left: 35%; top: 29%; animation-delay: 3.5s; }
+
+@keyframes pisar {
+    0%        { opacity: 0; }
+    5%        { opacity: 1; }
+    35%       { opacity: .6; }
+    55%, 100% { opacity: 0; }
+}
+
+/* Si la persona pidió menos movimiento en su computador, se respeta. */
+@media (prefers-reduced-motion: reduce) {
+    .huella-fondo, .pisada { animation: none; }
+    .pisada { opacity: .35; }
+}
+
+/* La tarjeta de vidrio. */
+.tarjeta {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    padding: 44px 40px 32px;
+    background: var(--vidrio);
+    border: 1px solid var(--borde);
+    border-radius: 22px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 20px 60px rgba(10, 6, 30, .45);
+    text-align: center;
+}
+
+.marca {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+.marca-logo {
+    width: 56px; height: 56px;
+    display: grid; place-items: center;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #b7a9f7, var(--violeta-fuerte));
+}
+.marca-logo svg { width: 30px; height: 30px; fill: #1a1338; }
+.marca-nombre { font-size: 2.3rem; font-weight: 700; letter-spacing: -.8px; }
+.marca-nombre span { color: var(--violeta); }
+
+.frase {
+    margin: 12px 0 30px;
+    color: var(--texto-suave);
+    font-size: .98rem;
+}
+
+/* Mensaje cuando el usuario o la contraseña no coinciden. */
+.error {
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    border: 1px solid rgba(240, 148, 164, .45);
+    border-radius: 10px;
+    background: rgba(240, 148, 164, .10);
+    color: var(--error);
+    font-size: .9rem;
+}
+
+/* Campos con su ícono a la izquierda. */
+.campo { position: relative; margin-bottom: 14px; }
+.campo svg {
+    position: absolute;
+    left: 16px; top: 50%;
+    width: 20px; height: 20px;
+    transform: translateY(-50%);
+    fill: var(--violeta);
+}
+.campo input {
+    width: 100%;
+    padding: 15px 16px 15px 50px;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .04);
+    color: var(--texto);
+    font-size: 1rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.campo input::placeholder { color: var(--texto-suave); opacity: .8; }
+.campo input:focus {
+    border-color: var(--violeta);
+    box-shadow: 0 0 0 3px rgba(165, 148, 242, .25);
+}
+
+/* Esconde la etiqueta a la vista pero la deja para los lectores de pantalla. */
+.oculto {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+.boton {
+    width: 100%;
+    margin-top: 8px;
+    padding: 15px;
+    border: none;
+    border-radius: 10px;
+    background: var(--violeta);
+    color: #1a1338;
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s, transform .05s;
+}
+.boton:hover { background: #b7a9f7; }
+.boton:active { transform: translateY(1px); }
+
+/* Línea con la huellita al pie de la tarjeta. */
+.pie {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 34px;
+    padding: 0 30px;
+}
+.pie::before, .pie::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--borde);
+}
+.pie svg { width: 22px; height: 22px; fill: var(--violeta); }
+
+@media (max-width: 480px) {
+    .tarjeta { padding: 36px 22px 26px; }
+    .marca-nombre { font-size: 2rem; }
+}
