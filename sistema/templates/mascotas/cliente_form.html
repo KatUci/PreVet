@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Nuevo cliente{% endblock %}
+{% block encabezado %}Nuevo cliente{% endblock %}
+{% block subtitulo %}Persona que trae mascotas a la clínica{% endblock %}
+
+{% block acciones %}
+<a href="{% if next %}{{ next }}{% else %}{% url 'agendar' %}{% endif %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-atras"/></svg> Volver
+</a>
+{% endblock %}
+
+{% block contenido %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+    <div class="card">
+        <div class="card-titulo"><h2><svg class="icono"><use href="#i-vet"/></svg> Datos del cliente</h2></div>
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.rut %}
+            {% include 'usuarios/_campo.html' with campo=form.nombres %}
+            {% include 'usuarios/_campo.html' with campo=form.apellidos %}
+            {% include 'usuarios/_campo.html' with campo=form.telefono %}
+            {% include 'usuarios/_campo.html' with campo=form.email %}
+            {% include 'usuarios/_campo.html' with campo=form.direccion %}
+        </div>
+
+        <div class="form-acciones">
+            <a href="{% url 'agendar' %}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Registrar cliente</button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

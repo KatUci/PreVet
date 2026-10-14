@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Nueva mascota{% endblock %}
+{% block encabezado %}Nueva mascota{% endblock %}
+{% block subtitulo %}A nombre de {{ cliente.nombre_completo }} · RUT {{ cliente.rut_formateado }}{% endblock %}
+
+{% block acciones %}
+<a href="{% if next %}{{ next }}{% else %}{% url 'agendar' %}?rut={{ cliente.rut }}{% endif %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-atras"/></svg> Volver
+</a>
+{% endblock %}
+
+{% block contenido %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+    <div class="card">
+        <div class="card-titulo"><h2><svg class="icono"><use href="#i-paw"/></svg> Datos de la mascota</h2></div>
+
+        {# Primero el tipo: según lo que se elija, la lista de razas se ajusta. #}
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.especie %}
+            {% include 'usuarios/_campo.html' with campo=form.raza %}
+            {% include 'usuarios/_campo.html' with campo=form.nombre %}
+            {% include 'usuarios/_campo.html' with campo=form.sexo %}
+            {% include 'usuarios/_campo.html' with campo=form.fecha_nacimiento %}
+            {% include 'usuarios/_campo.html' with campo=form.relacion %}
+        </div>
+
+        <div class="form-acciones">
+            <a href="{% url 'agendar' %}?rut={{ cliente.rut }}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Registrar mascota</button>
+        </div>
+    </div>
+</form>
+
+{# Qué raza pertenece a qué tipo, para que el navegador filtre la lista. #}
+{{ form.razas_por_tipo|json_script:"razas-por-tipo" }}
+<script src="{% static 'js/mascota_form.js' %}"></script>
+
+{% endblock %}

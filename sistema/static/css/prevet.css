@@ -1486,3 +1486,51 @@ table tbody tr:hover { background: var(--hover); }
 @media (max-width: 640px) {
     .permisos-fila { grid-template-columns: 1fr; gap: .5rem; }
 }
+
+/* --- agendar hora --- */
+.paso-num {
+    display: inline-grid;
+    place-items: center;
+    width: 24px; height: 24px;
+    background: var(--acento);
+    color: var(--sobre-acento);
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+.cliente-resumen { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.cliente-nombre { font-weight: 700; color: var(--titulo); font-size: 1.05rem; }
+.cliente-datos { color: var(--gris); font-size: .86rem; margin-top: .2rem; }
+
+.grupo-tipo { margin-bottom: 1rem; }
+.grupo-tipo:last-of-type { margin-bottom: 0; }
+.grupo-tipo-titulo {
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--gris);
+    margin-bottom: .55rem;
+}
+
+/* Cada mascota es una tarjeta que se elige con un clic. */
+.opciones-mascota {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: .7rem;
+}
+.opcion-mascota {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .85rem 1rem;
+    border: 1.5px solid var(--borde);
+    background: var(--card);
+    cursor: pointer;
+    transition: border-color .16s, background .16s;
+}
+.opcion-mascota:hover { border-color: var(--borde-fuerte); background: var(--hover); }
+.opcion-mascota input { width: 18px; height: 18px; accent-color: var(--acento); flex-shrink: 0; }
+.opcion-mascota strong { display: block; color: var(--titulo); }
+.opcion-mascota small { display: block; color: var(--gris); font-size: .8rem; margin-top: .15rem; }
+.opcion-mascota:has(input:checked) { border-color: var(--acento); background: var(--acento-bg); }

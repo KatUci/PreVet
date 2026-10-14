@@ -4,6 +4,14 @@
 {% block encabezado %}Citas{% endblock %}
 {% block subtitulo %}{{ total }} cita{{ total|pluralize }} en la agenda{% endblock %}
 
+{% block acciones %}
+{% if perms.citas.add_cita %}
+<a href="{% url 'agendar' %}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-mas"/></svg> Agendar hora
+</a>
+{% endif %}
+{% endblock %}
+
 {% block contenido %}
 
 {# ---------- Filtros por estado ---------- #}

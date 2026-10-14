@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block titulo %}Agendar hora{% endblock %}
+{% block encabezado %}Agendar hora{% endblock %}
+{% block subtitulo %}Busca al cliente por su RUT y elige a cuál de sus mascotas atender{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'citas' %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-atras"/></svg> Volver a citas
+</a>
+{% endblock %}
+
+{% block contenido %}
+
+{# ---------- Paso 1: el cliente ---------- #}
+<div class="card" style="margin-bottom:1.2rem">
+    <div class="card-titulo"><h2><span class="paso-num">1</span> Cliente</h2></div>
+
+    {% if cliente %}
+    <div class="cliente-resumen">
+        <div class="sb-avatar">{{ cliente.nombres|slice:":1" }}{{ cliente.apellidos|slice:":1" }}</div>
+        <div style="flex:1; min-width:0">
+            <div class="cliente-nombre">{{ cliente.nombre_completo }}</div>
+            <div class="cliente-datos">
+                RUT {{ cliente.rut_formateado }}
+                {% if cliente.telefono %} · {{ cliente.telefono }}{% endif %}
+                {% if cliente.email %} · {{ cliente.email }}{% endif %}
+            </div>
+        </div>
+        <a href="{% url 'agendar' %}" class="btn btn-suave">Cambiar cliente</a>
+    </div>
+    {% else %}
+    <form method="get" class="buscador-linea" style="margin-bottom:0">
+        <input type="text" name="rut" value="{{ rut_escrito }}" placeholder="RUT del cliente, ej: 12.345.678-5"
+               autofocus autocomplete="off">
+        <button type="submit" class="btn btn-primario">
+            <svg class="icono-sm"><use href="#i-lupa"/></svg> Buscar
+        </button>
+    </form>
+
+    {% if error_rut %}
+    <div class="alerta alerta-error" style="margin-top:1rem">
+        <svg class="icono"><use href="#i-alerta"/></svg>
+        <div>{{ error_rut }}</div>
+    </div>
+    {% elif rut_escrito %}
+    <div class="alerta alerta-info" style="margin-top:1rem">
+        <svg class="icono"><use href="#i-alerta"/></svg>
+        <div style="flex:1">No hay ningún cliente con el RUT <strong>{{ rut_escrito }}</strong>.</div>
+        <a href="{% url 'cliente_nuevo' %}?rut={{ rut_limpio|urlencode }}" class="btn btn-primario">
+            <svg class="icono-sm"><use href="#i-mas"/></svg> Registrar cliente
+        </a>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+
+{% if cliente %}
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alerta alerta-error">
+        <svg class="icono"><use href="#i-alerta"/></svg>
+        <div>{{ form.non_field_errors|join:" " }}</div>
+    </div>
+    {% endif %}
+
+    {# ---------- Paso 2: primero el tipo de mascota, después la mascota ---------- #}
+    <div class="card" style="margin-bottom:1.2rem">
+        <div class="card-titulo">
+            <h2><span class="paso-num">2</span> Mascota</h2>
+            <a href="{% url 'mascota_nueva' cliente.pk %}">+ Registrar otra mascota</a>
+        </div>
+
+        {% with grupos=form.mascotas_por_tipo %}
+        {% if grupos %}
+
+        {% if grupos|length > 1 %}
+        <div class="campo" style="margin-bottom:1rem">
+            <label>Tipo de mascota</label>
+            <div class="chips" id="filtroTipo">
+                <label class="chip"><input type="radio" name="_tipo" value="" checked><span>Todos</span></label>
+                {% for tipo, mascotas in grupos %}
+                <label class="chip"><input type="radio" name="_tipo" value="{{ tipo.pk }}"><span>{{ tipo.emoji }} {{ tipo.nombre }}</span></label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% for tipo, mascotas in grupos %}
+        <div class="grupo-tipo" data-tipo="{{ tipo.pk }}">
+            <div class="grupo-tipo-titulo">{{ tipo.emoji }} {{ tipo.nombre }}</div>
+            <div class="opciones-mascota">
+                {% for opcion, m in mascotas %}
+                <label class="opcion-mascota">
+                    {{ opcion.tag }}
+                    <span>
+                        <strong>{{ m.nombre }}</strong>
+                        <small>{{ m.raza.nombre|default:"Sin raza" }} · {{ m.get_sexo_display }}{% if m.edad %} · {{ m.edad }}{% endif %}</small>
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% for error in form.mascota.errors %}
+        <div class="ayuda" style="color:var(--error-txt); font-weight:600">{{ error }}</div>
+        {% endfor %}
+        {% for error in form.cliente.errors %}
+        <div class="ayuda" style="color:var(--error-txt); font-weight:600">{{ error }}</div>
+        {% endfor %}
+
+        {% else %}
+        <p class="vacio" style="padding:1.5rem">
+            {{ cliente.nombres }} todavía no tiene mascotas registradas.<br><br>
+            <a href="{% url 'mascota_nueva' cliente.pk %}" class="btn btn-primario">
+                <svg class="icono-sm"><use href="#i-mas"/></svg> Registrar mascota
+            </a>
+        </p>
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    {# ---------- Paso 3: los detalles de la hora ---------- #}
+    <div class="card">
+        <div class="card-titulo"><h2><span class="paso-num">3</span> Detalles de la hora</h2></div>
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.tipo_atencion %}
+            {% include 'usuarios/_campo.html' with campo=form.veterinario %}
+            {% include 'usuarios/_campo.html' with campo=form.fecha %}
+            {% include 'usuarios/_campo.html' with campo=form.hora %}
+            {% include 'usuarios/_campo.html' with campo=form.notas ancho=True %}
+        </div>
+
+        <div class="form-acciones">
+            <a href="{% url 'citas' %}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">
+                <svg class="icono-sm"><use href="#i-calendario"/></svg> Agendar hora
+            </button>
+        </div>
+    </div>
+</form>
+
+<script src="{% static 'js/agendar.js' %}"></script>
+{% endif %}
+
+{% endblock %}
