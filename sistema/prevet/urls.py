@@ -15,5 +15,6 @@ urlpatterns = [
 
     path('citas/', include('citas.urls')),
     path('mascotas/', include('mascotas.urls')),
+    path('administracion/', include('usuarios.urls')),
     path('', include('core.urls')),
 ]

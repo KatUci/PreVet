@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Personal{% endblock %}
+{% block encabezado %}Personal de la clínica{% endblock %}
+{% block subtitulo %}{{ total }} persona{{ total|pluralize }} en el equipo{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'personal_nuevo' %}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-mas"/></svg> Nuevo integrante
+</a>
+{% endblock %}
+
+{% block contenido %}
+
+{# ---------- Filtros por rol ---------- #}
+<div class="chips" style="margin-bottom:1rem">
+    <a href="{% url 'personal' %}" style="text-decoration:none"
+       class="badge {% if not rol_activo %}badge-azul{% else %}badge-neutro{% endif %}">
+        Todos · {{ total }}
+    </a>
+    {% for f in filtros %}
+    <a href="?rol={{ f.valor }}" style="text-decoration:none"
+       class="badge {% if rol_activo == f.valor %}badge-azul{% else %}badge-neutro{% endif %}">
+        {{ f.etiqueta }} · {{ f.conteo }}
+    </a>
+    {% endfor %}
+</div>
+
+{# ---------- Buscador ---------- #}
+<form method="get" class="buscador-linea">
+    {% if rol_activo %}<input type="hidden" name="rol" value="{{ rol_activo }}">{% endif %}
+    <input type="text" name="buscar" value="{{ buscar }}" placeholder="Buscar por nombre o usuario">
+    <button type="submit" class="btn btn-primario">Buscar</button>
+    {% if buscar %}<a href="?{% if rol_activo %}rol={{ rol_activo }}{% endif %}" class="btn btn-suave">Limpiar</a>{% endif %}
+</form>
+
+<div class="card">
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th>Grupos de permisos</th>
+                    <th>Teléfono</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in personal %}
+                <tr>
+                    <td style="font-weight:600">{{ p.get_full_name|default:p.username }}</td>
+                    <td style="color:var(--gris)">{{ p.username }}</td>
+                    <td><span class="badge badge-azul">{{ p.perfil.get_rol_display }}</span></td>
+                    <td>
+                        {% for g in p.groups.all %}
+                        <span class="badge badge-neutro">{{ g.name }}</span>
+                        {% empty %}
+                        <span style="color:var(--gris)">Sin grupo</span>
+                        {% endfor %}
+                    </td>
+                    <td style="color:var(--gris)">{{ p.perfil.telefono|default:"—" }}</td>
+                    <td>
+                        {% if p.is_active %}
+                        <span class="badge badge-completada">Activo</span>
+                        {% else %}
+                        <span class="badge badge-cancelada">Sin acceso</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:right">
+                        <a href="{% url 'personal_editar' p.pk %}" class="btn btn-suave" style="font-size:.78rem">
+                            <svg class="icono-sm"><use href="#i-editar"/></svg> Editar
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="color:var(--gris)">No hay personas que coincidan.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

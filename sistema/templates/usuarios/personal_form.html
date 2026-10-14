@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{% if persona %}Editar personal{% else %}Nuevo integrante{% endif %}{% endblock %}
+{% block encabezado %}{% if persona %}{{ persona.get_full_name }}{% else %}Nuevo integrante del personal{% endif %}{% endblock %}
+{% block subtitulo %}{% if persona %}Usuario: {{ persona.username }}{% else %}Crea la cuenta de alguien que trabaja en la clínica{% endif %}{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'personal' %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-atras"/></svg> Volver
+</a>
+{% endblock %}
+
+{% block contenido %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alerta alerta-error">
+        <svg class="icono"><use href="#i-alerta"/></svg>
+        <div>{{ form.non_field_errors|join:" " }}</div>
+    </div>
+    {% endif %}
+
+    <div class="card" style="margin-bottom:1.2rem">
+        <div class="card-titulo"><h2><svg class="icono"><use href="#i-vet"/></svg> Datos personales</h2></div>
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.first_name %}
+            {% include 'usuarios/_campo.html' with campo=form.last_name %}
+            {% include 'usuarios/_campo.html' with campo=form.email %}
+            {% include 'usuarios/_campo.html' with campo=form.telefono %}
+            {% include 'usuarios/_campo.html' with campo=form.direccion ancho=True %}
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.2rem">
+        <div class="card-titulo"><h2><svg class="icono"><use href="#i-salir"/></svg> Acceso al sistema</h2></div>
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.username %}
+            {% include 'usuarios/_campo.html' with campo=form.password1 %}
+            {% include 'usuarios/_campo.html' with campo=form.password2 %}
+        </div>
+
+        {% if persona %}
+        <label class="interruptor">
+            {{ form.is_active }}
+            <span>
+                <strong>{{ form.is_active.label }}</strong>
+                <small>{{ form.is_active.help_text }}</small>
+            </span>
+        </label>
+        {% for error in form.is_active.errors %}
+        <div class="ayuda" style="color:var(--error-txt); font-weight:600">{{ error }}</div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-titulo"><h2><svg class="icono"><use href="#i-escudo"/></svg> Rol y permisos</h2></div>
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.rol %}
+        </div>
+
+        <div class="campo" style="margin-top:1.1rem">
+            <label>{{ form.groups.label }}</label>
+            <div class="chips">
+                {% for opcion in form.groups %}
+                <label class="chip">{{ opcion.tag }}<span>{{ opcion.choice_label }}</span></label>
+                {% endfor %}
+            </div>
+            {% if form.groups.help_text %}<div class="ayuda">{{ form.groups.help_text }}</div>{% endif %}
+            <div class="ayuda">
+                ¿Necesitas otro grupo? <a href="{% url 'grupos' %}">Administra los grupos de permisos</a>.
+            </div>
+        </div>
+
+        <div class="form-acciones">
+            <a href="{% url 'personal' %}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">
+                {% if persona %}Guardar cambios{% else %}Crear cuenta{% endif %}
+            </button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

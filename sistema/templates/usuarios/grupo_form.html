@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{% if grupo %}Editar grupo{% else %}Nuevo grupo{% endif %}{% endblock %}
+{% block encabezado %}{% if grupo %}{{ grupo.name }}{% else %}Nuevo grupo de permisos{% endif %}{% endblock %}
+{% block subtitulo %}Marca lo que pueden hacer las personas de este grupo{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'grupos' %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-atras"/></svg> Volver
+</a>
+{% endblock %}
+
+{% block contenido %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="card" style="margin-bottom:1.2rem">
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.name %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-titulo"><h2><svg class="icono"><use href="#i-escudo"/></svg> Permisos</h2></div>
+
+        <div class="permisos">
+            {% for seccion in form.secciones %}
+            <div class="permisos-fila">
+                <div class="permisos-modulo">{{ seccion.titulo }}</div>
+                <div class="chips">
+                    {% for p in seccion.permisos %}
+                    <label class="chip">
+                        <input type="checkbox" name="permissions" value="{{ p.id }}" {% if p.marcado %}checked{% endif %}>
+                        <span>{{ p.accion }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if personas %}
+        <div class="ayuda" style="margin-top:1.2rem">
+            En este grupo:
+            {% for persona in personas %}{{ persona.get_full_name|default:persona.username }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+        </div>
+        {% endif %}
+
+        <div class="form-acciones">
+            <a href="{% url 'grupos' %}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">
+                {% if grupo %}Guardar cambios{% else %}Crear grupo{% endif %}
+            </button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

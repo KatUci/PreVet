@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Grupos de permisos{% endblock %}
+{% block encabezado %}Grupos de permisos{% endblock %}
+{% block subtitulo %}Qué puede hacer cada parte del equipo dentro de PreVet{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'grupo_nuevo' %}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-mas"/></svg> Nuevo grupo
+</a>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="card">
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Grupo</th>
+                    <th>Permisos</th>
+                    <th>Personas</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in grupos %}
+                <tr>
+                    <td style="font-weight:600">{{ g.name }}</td>
+                    <td>{{ g.n_permisos }} permiso{{ g.n_permisos|pluralize }}</td>
+                    <td style="color:var(--gris)">{{ g.n_personas }} persona{{ g.n_personas|pluralize }}</td>
+                    <td style="text-align:right">
+                        <a href="{% url 'grupo_editar' g.pk %}" class="btn btn-suave" style="font-size:.78rem">
+                            <svg class="icono-sm"><use href="#i-editar"/></svg> Editar
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="color:var(--gris)">Todavía no hay grupos.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

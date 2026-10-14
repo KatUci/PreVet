@@ -1,0 +1,11 @@
+{# Dibuja un campo de formulario con su etiqueta, ayuda y errores. #}
+<div class="campo{% if ancho %} ancho{% endif %}">
+    <label for="{{ campo.id_for_label }}">
+        {{ campo.label }}{% if campo.field.required %} <span style="color:var(--acento)">*</span>{% endif %}
+    </label>
+    {{ campo }}
+    {% if campo.help_text %}<div class="ayuda">{{ campo.help_text }}</div>{% endif %}
+    {% for error in campo.errors %}
+    <div class="ayuda" style="color:var(--error-txt); font-weight:600">{{ error }}</div>
+    {% endfor %}
+</div>
