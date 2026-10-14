@@ -1,0 +1,165 @@
+/* Colores de PreVet en modo día. Django pinta todo el panel con estas
+   variables, así que basta con cambiarlas aquí. */
+html[data-theme="light"],
+:root {
+    --primary: #6b5ad4;
+    --secondary: #5947bd;
+    --accent: #ffffff;
+    --primary-fg: #ffffff;
+
+    --body-fg: #423e55;
+    --body-bg: #f8f7fc;
+    --body-quiet-color: #726e88;
+    --body-loud-color: #1e1b2e;
+
+    --header-color: #e9e5ff;
+    --header-branding-color: #ffffff;
+    --header-bg: #5947bd;
+    --header-link-color: #ffffff;
+
+    --breadcrumbs-fg: #726e88;
+    --breadcrumbs-link-fg: #6b5ad4;
+    --breadcrumbs-bg: #f0eefc;
+
+    --link-fg: #6b5ad4;
+    --link-hover-color: #5947bd;
+    --link-selected-fg: #5947bd;
+
+    --hairline-color: #ebe9f3;
+    --border-color: #d7d3e8;
+
+    --error-fg: #b0293c;
+    --message-success-bg: #e9f7ef;
+    --message-warning-bg: #fdf3e4;
+    --message-error-bg: #fdeef0;
+
+    --darkened-bg: #f4f1fc;
+    --selected-bg: #f0eefc;
+    --selected-row: #f0eefc;
+
+    --button-fg: #ffffff;
+    --button-bg: #6b5ad4;
+    --button-hover-bg: #5947bd;
+    --default-button-bg: #5947bd;
+    --default-button-hover-bg: #6b5ad4;
+
+    --font-family-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+}
+
+/* Colores de PreVet en modo noche: los mismos del resto del sistema. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary: #322b52;
+        --secondary: #241f3d;
+        --primary-fg: #ece9f5;
+
+        --body-fg: #d3cee3;
+        --body-bg: #100e1a;
+        --body-quiet-color: #948eab;
+        --body-loud-color: #ece9f5;
+
+        --header-color: #d3cee3;
+        --header-branding-color: #ece9f5;
+        --header-bg: #191626;
+        --header-link-color: #ece9f5;
+
+        --breadcrumbs-fg: #948eab;
+        --breadcrumbs-link-fg: #a594f2;
+        --breadcrumbs-bg: #1e1a2e;
+
+        --link-fg: #a594f2;
+        --link-hover-color: #c4b8f7;
+        --link-selected-fg: #a594f2;
+
+        --hairline-color: #2a2540;
+        --border-color: #3c3557;
+
+        --error-fg: #f094a4;
+        --message-success-bg: #102c1f;
+        --message-warning-bg: #2c2417;
+        --message-error-bg: #2e1c24;
+
+        --darkened-bg: #191626;
+        --selected-bg: #241f36;
+        --selected-row: #241f3d;
+
+        --button-fg: #17122b;
+        --button-bg: #a594f2;
+        --button-hover-bg: #8b78e6;
+        --default-button-bg: #a594f2;
+        --default-button-hover-bg: #8b78e6;
+
+        --close-button-bg: #2a2540;
+        --close-button-hover-bg: #3c3557;
+    }
+}
+
+html[data-theme="dark"] {
+    --primary: #322b52;
+    --secondary: #241f3d;
+    --primary-fg: #ece9f5;
+
+    --body-fg: #d3cee3;
+    --body-bg: #100e1a;
+    --body-quiet-color: #948eab;
+    --body-loud-color: #ece9f5;
+
+    --header-color: #d3cee3;
+    --header-branding-color: #ece9f5;
+    --header-bg: #191626;
+    --header-link-color: #ece9f5;
+
+    --breadcrumbs-fg: #948eab;
+    --breadcrumbs-link-fg: #a594f2;
+    --breadcrumbs-bg: #1e1a2e;
+
+    --link-fg: #a594f2;
+    --link-hover-color: #c4b8f7;
+    --link-selected-fg: #a594f2;
+
+    --hairline-color: #2a2540;
+    --border-color: #3c3557;
+
+    --error-fg: #f094a4;
+    --message-success-bg: #102c1f;
+    --message-warning-bg: #2c2417;
+    --message-error-bg: #2e1c24;
+
+    --darkened-bg: #191626;
+    --selected-bg: #241f36;
+    --selected-row: #241f3d;
+
+    --button-fg: #17122b;
+    --button-bg: #a594f2;
+    --button-hover-bg: #8b78e6;
+    --default-button-bg: #a594f2;
+    --default-button-hover-bg: #8b78e6;
+
+    --close-button-bg: #2a2540;
+    --close-button-hover-bg: #3c3557;
+}
+
+/* Barra de arriba: la huellita y el nombre, como en el resto del sistema. */
+#header { padding: 14px 40px; }
+
+.marca { display: flex; align-items: center; gap: 10px; }
+.marca:link, .marca:visited { color: var(--header-branding-color); text-decoration: none; }
+
+.marca-logo {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    background: rgba(255, 255, 255, .18);
+}
+.marca-logo svg { width: 20px; height: 20px; fill: currentColor; }
+
+#site-name { font-size: 1.35rem; font-weight: 700; letter-spacing: -.3px; }
+
+/* Tarjetas de cada sección: borde suave y título más legible. */
+.module { border: 1px solid var(--hairline-color); background: var(--body-bg); }
+.module h2, .module caption {
+    font-size: .8rem; font-weight: 600; letter-spacing: .5px;
+    padding: 10px 14px;
+}
+.module th, .module td { padding: 10px 14px; }
+
+#content h1 { color: var(--body-loud-color); font-weight: 600; }

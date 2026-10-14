@@ -2,6 +2,11 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path, include
 
+# Textos del panel de administración (reemplazan a los de Django).
+admin.site.site_header = 'PreVet'
+admin.site.site_title = 'PreVet'
+admin.site.index_title = 'Panel de administración'
+
 urlpatterns = [
     path('admin/', admin.site.urls),
 
