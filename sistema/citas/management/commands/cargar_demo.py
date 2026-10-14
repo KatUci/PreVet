@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from usuarios.models import Perfil
-from mascotas.models import Especie, Raza, Mascota
+from mascotas.models import Cliente, Especie, Raza, Mascota, Tenencia
 from citas.models import TipoAtencion, HorarioAtencion, Cita
 
 BLOQUES = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
@@ -23,16 +23,30 @@ VETERINARIOS_NUEVOS = [('carolina.fuentes', 'Carolina', 'Fuentes'),
                        ('sebastian.rios', 'Sebastián', 'Ríos'),
                        ('antonia.lagos', 'Antonia', 'Lagos')]
 
-DUENOS = [('jperez', 'Javiera', 'Pérez'), ('msilva', 'Matías', 'Silva'),
-          ('crivas', 'Camila', 'Rivas'), ('psoto', 'Pablo', 'Soto'),
-          ('dmunoz', 'Daniela', 'Muñoz'), ('rtapia', 'Rodrigo', 'Tapia'),
-          ('vcastro', 'Valentina', 'Castro'), ('imorales', 'Ignacio', 'Morales'),
-          ('fvega', 'Fernanda', 'Vega'), ('aleiva', 'Andrés', 'Leiva')]
+# Clientes de la clínica, con RUT válido. No son usuarios del sistema.
+CLIENTES = [('15234871-1', 'Javiera', 'Pérez'), ('16890342-1', 'Matías', 'Silva'),
+            ('18456213-8', 'Camila', 'Rivas'), ('12987654-9', 'Pablo', 'Soto'),
+            ('17345098-2', 'Daniela', 'Muñoz'), ('13678452-8', 'Rodrigo', 'Tapia'),
+            ('19023876-8', 'Valentina', 'Castro'), ('14567309-7', 'Ignacio', 'Morales'),
+            ('20134765-3', 'Fernanda', 'Vega'), ('11876234-7', 'Andrés', 'Leiva')]
 
-MASCOTAS = [('Michi', 'Gato'), ('Koda', 'Perro'), ('Luna', 'Perro'), ('Simba', 'Gato'),
-            ('Rocky', 'Perro'), ('Nala', 'Gato'), ('Toby', 'Perro'), ('Pelusa', 'Gato'),
-            ('Max', 'Perro'), ('Mia', 'Gato'), ('Bruno', 'Perro'), ('Kira', 'Perro'),
-            ('Copito', 'Gato'), ('Thor', 'Perro'), ('Lola', 'Perro')]
+MASCOTAS = [('Michi', 'Felino'), ('Koda', 'Canino'), ('Luna', 'Canino'), ('Simba', 'Felino'),
+            ('Rocky', 'Canino'), ('Nala', 'Felino'), ('Toby', 'Canino'), ('Pelusa', 'Felino'),
+            ('Max', 'Canino'), ('Mia', 'Felino'), ('Bruno', 'Canino'), ('Kira', 'Canino'),
+            ('Copito', 'Felino'), ('Thor', 'Canino'), ('Lola', 'Canino')]
+
+# Mascotas que además tienen un familiar a cargo: muestra que una mascota
+# puede tener más de un cliente. (índice de la mascota, índice del cliente)
+FAMILIARES = [(0, 5), (4, 9), (10, 1)]
+
+RAZAS = {
+    'Canino': ['Quiltro', 'Labrador', 'Poodle'],
+    'Felino': ['Mestizo', 'Siamés'],
+    'Ave': ['Loro', 'Canario', 'Cotorra'],
+    'Roedor': ['Hámster', 'Cuy'],
+    'Conejo': ['Mini lop', 'Cabeza de león'],
+    'Reptil': ['Tortuga', 'Iguana'],
+}
 
 ATENCIONES = [('Consulta general', 30, 25000), ('Vacunación', 20, 15000),
               ('Control', 20, 18000), ('Urgencia', 40, 45000),
@@ -67,21 +81,18 @@ class Command(BaseCommand):
             Perfil.objects.get_or_create(usuario=u, defaults={'rol': 'veterinario'})
             vets_nuevos.append(u)
 
-        duenos = []
-        for username, nombre, apellido in DUENOS:
-            u, _ = User.objects.get_or_create(
-                username=username,
-                defaults={'first_name': nombre, 'last_name': apellido})
-            Perfil.objects.get_or_create(usuario=u, defaults={'rol': 'dueno'})
-            duenos.append(u)
+        clientes = []
+        for rut, nombres, apellidos in CLIENTES:
+            c, _ = Cliente.objects.update_or_create(
+                rut=rut, defaults={'nombres': nombres, 'apellidos': apellidos})
+            clientes.append(c)
 
         # --- catálogos ---
         especies = {}
-        for nombre in ('Perro', 'Gato'):
+        for nombre in ('Canino', 'Felino', 'Ave', 'Roedor', 'Conejo', 'Reptil', 'Otro'):
             especies[nombre], _ = Especie.objects.get_or_create(nombre=nombre)
 
-        for esp, razas in (('Perro', ['Quiltro', 'Labrador', 'Poodle']),
-                           ('Gato', ['Mestizo', 'Siamés'])):
+        for esp, razas in RAZAS.items():
             for r in razas:
                 Raza.objects.get_or_create(especie=especies[esp], nombre=r)
 
@@ -112,16 +123,30 @@ class Command(BaseCommand):
         mascotas = []
         for i, (nombre, esp) in enumerate(MASCOTAS):
             meses = rnd_nac.randint(8, 150)
-            m, _ = Mascota.objects.update_or_create(
-                nombre=nombre,
-                dueno=duenos[i % len(duenos)],
-                defaults={
-                    'especie': especies[esp],
-                    'sexo': random.choice(['macho', 'hembra']),
-                    'fecha_nacimiento': timezone.localdate() - timedelta(days=meses * 30),
-                },
-            )
+            cliente = clientes[i % len(clientes)]
+            datos = {
+                'especie': especies[esp],
+                'sexo': random.choice(['macho', 'hembra']),
+                'fecha_nacimiento': timezone.localdate() - timedelta(days=meses * 30),
+            }
+            m = Mascota.objects.filter(nombre=nombre, tutores=cliente).first()
+            if m is None:
+                m = Mascota.objects.create(nombre=nombre, **datos)
+            else:
+                Mascota.objects.filter(pk=m.pk).update(**datos)
+            Tenencia.objects.get_or_create(
+                cliente=cliente, mascota=m,
+                defaults={'relacion': Tenencia.Relacion.DUENO, 'es_principal': True})
             mascotas.append(m)
+
+        # Algunas mascotas tienen además un familiar a cargo.
+        for i_mascota, i_cliente in FAMILIARES:
+            Tenencia.objects.get_or_create(
+                cliente=clientes[i_cliente], mascota=mascotas[i_mascota],
+                defaults={'relacion': Tenencia.Relacion.FAMILIAR})
+
+        # La cita queda a nombre del responsable principal de la mascota.
+        responsable = {m.pk: clientes[i % len(clientes)] for i, m in enumerate(mascotas)}
 
         # --- citas ---
         hoy = timezone.localdate()
@@ -147,10 +172,15 @@ class Command(BaseCommand):
             else:
                 estado = 'pendiente'
 
+            # Se eligen en el mismo orden de siempre (primero la mascota, después
+            # la atención) para no alterar la secuencia aleatoria de la semilla.
+            mascota = random.choice(mascotas)
+            tipo = random.choice(tipos)
             cita = Cita.objects.create(
                 veterinario=vet,
-                mascota=random.choice(mascotas),
-                tipo_atencion=random.choice(tipos),
+                mascota=mascota,
+                cliente=responsable[mascota.pk],
+                tipo_atencion=tipo,
                 fecha=dia,
                 hora=bloque,
                 estado=estado,
@@ -168,12 +198,16 @@ class Command(BaseCommand):
                 Cita.objects.filter(pk=cita.pk).update(
                     fecha_marcada_no_asistio=reservada + timedelta(days=anticipacion))
             elif estado == 'cancelada':
+                # Antes aquí se sorteaba qué dueño (usuario) cancelaba. Como los
+                # clientes ya no son usuarios, la cancelación queda sin usuario
+                # asociado: la pidió el propio cliente. El sorteo se mantiene
+                # para no mover la secuencia aleatoria de las citas siguientes.
+                random.choice(clientes)
                 Cita.objects.filter(pk=cita.pk).update(
-                    cancelada_por=random.choice(duenos),
                     fecha_cancelacion=reservada + timedelta(days=1))
             creadas += 1
 
         self.stdout.write(self.style.SUCCESS(
-            f"Listo: {creadas} citas, {len(mascotas)} mascotas, "
+            f"Listo: {creadas} citas, {len(mascotas)} mascotas, {len(clientes)} clientes, "
             f"{len(vets) + len(vets_nuevos)} veterinarios "
             f"({len(vets)} con histórico), {len(tipos)} tipos de atención."))

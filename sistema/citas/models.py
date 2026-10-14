@@ -1,9 +1,10 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 import datetime
 
-from mascotas.models import Mascota
+from mascotas.models import Cliente, Mascota
 
 
 DIAS_SEMANA = (
@@ -81,6 +82,15 @@ class Cita(models.Model):
         on_delete=models.CASCADE,
         related_name='citas',
     )
+
+    # Quién pidió la hora. Una mascota puede tener varios clientes, y el
+    # historial de inasistencia se mide por persona, no por mascota.
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.PROTECT,
+        related_name='citas',
+        verbose_name='cliente que agenda',
+    )
     tipo_atencion = models.ForeignKey(
         TipoAtencion,
         on_delete=models.PROTECT,
@@ -109,6 +119,14 @@ class Cita(models.Model):
     def dias_anticipacion(self):
         """Cuántos días antes se reservó esta hora."""
         return (self.fecha - self.fecha_creacion.date()).days
+
+    def clean(self):
+        """La cita debe quedar a nombre de alguien vinculado a la mascota."""
+        super().clean()
+        if self.mascota_id and self.cliente_id:
+            if not self.mascota.tutores.filter(pk=self.cliente_id).exists():
+                raise ValidationError({
+                    'cliente': 'Este cliente no está asociado a la mascota elegida.'})
 
     @property
     def valor_perdido(self):

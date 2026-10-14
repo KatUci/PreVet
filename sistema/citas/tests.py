@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from mascotas.models import Especie, Mascota
+from mascotas.models import Cliente, Especie, Mascota, Tenencia
 from .models import Cita, TipoAtencion
 from . import riesgo
 
@@ -25,7 +25,11 @@ class BaseCitas(TestCase):
                                               last_name='Soto')
         self.especie = Especie.objects.create(nombre='Perro')
         self.mascota = Mascota.objects.create(
-            nombre='Bruno', especie=self.especie, sexo='macho', dueno=self.tutor)
+            nombre='Bruno', especie=self.especie, sexo='macho')
+        self.cliente = Cliente.objects.create(
+            rut='15234871-1', nombres='Ana', apellidos='Soto')
+        Tenencia.objects.create(cliente=self.cliente, mascota=self.mascota,
+                                es_principal=True)
         self.control = TipoAtencion.objects.create(
             nombre='Control', duracion_minutos=30, precio=20000)
 
@@ -43,9 +47,11 @@ class BaseCitas(TestCase):
         self._bloque += 1
         hora = (datetime.min + timedelta(hours=8, minutes=5 * self._bloque)).time()
 
+        mascota = mascota or self.mascota
         cita = Cita.objects.create(
             veterinario=self.vet,
-            mascota=mascota or self.mascota,
+            mascota=mascota,
+            cliente=mascota.responsable,
             tipo_atencion=tipo or self.control,
             fecha=timezone.localdate() + timedelta(days=dias),
             hora=hora,
@@ -100,7 +106,7 @@ class EstadisticasTest(BaseCitas):
         self.crear_cita(estado='no_asistio')
         self.crear_cita(estado='completada')
 
-        faltas, total = riesgo.estadisticas()['tutor'][self.tutor.pk]
+        faltas, total = riesgo.estadisticas()['tutor'][self.cliente.pk]
         self.assertEqual((faltas, total), (1, 2))
 
 
@@ -121,9 +127,11 @@ class PuntuarTest(BaseCitas):
 
     def test_quien_falta_siempre_puntua_mas_que_quien_nunca_falta(self):
         """Es el supuesto principal del modelo y debe quedar demostrado."""
-        cumplidor = User.objects.create_user('cumplidor')
+        cumplidor = Cliente.objects.create(rut='16890342-1', nombres='Matías',
+                                           apellidos='Silva')
         otra = Mascota.objects.create(nombre='Kira', especie=self.especie,
-                                      sexo='hembra', dueno=cumplidor)
+                                      sexo='hembra')
+        Tenencia.objects.create(cliente=cumplidor, mascota=otra, es_principal=True)
 
         for _ in range(4):
             self.crear_cita(estado='no_asistio', dias=-5)
@@ -210,3 +218,16 @@ class VistasCitasTest(BaseCitas):
         cita.refresh_from_db()
 
         self.assertEqual(cita.estado, 'pendiente')
+
+
+class ClienteDeLaCitaTest(BaseCitas):
+    """La cita solo puede quedar a nombre de un cliente vinculado a la mascota."""
+
+    def test_cliente_ajeno_a_la_mascota_no_valida(self):
+        from django.core.exceptions import ValidationError
+        ajeno = Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva')
+        cita = Cita(veterinario=self.vet, mascota=self.mascota, cliente=ajeno,
+                    tipo_atencion=self.control, fecha=timezone.localdate(),
+                    hora=datetime.min.time())
+        with self.assertRaises(ValidationError):
+            cita.full_clean()

@@ -49,7 +49,7 @@
         <div style="font-size:.85rem; color:var(--gris); margin-bottom:.5rem">
             {{ e.cita.tipo_atencion.nombre }} ·
             {{ e.cita.veterinario.get_full_name }} ·
-            tutor: {{ e.cita.mascota.dueno.get_full_name }}
+            tutor: {{ e.cita.cliente.nombre_completo }}
         </div>
 
         <div style="display:flex; flex-wrap:wrap; gap:.4rem">

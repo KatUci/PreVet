@@ -13,7 +13,7 @@ def listado(request):
     estado = request.GET.get('estado', '')
 
     citas = (Cita.objects
-                 .select_related('mascota__dueno', 'veterinario', 'tipo_atencion')
+                 .select_related('mascota', 'cliente', 'veterinario', 'tipo_atencion')
                  .order_by('-fecha', '-hora'))
 
     if estado:

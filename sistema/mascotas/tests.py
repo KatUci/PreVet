@@ -22,12 +22,12 @@ class EdadTest(BaseMascotas):
 
     def mascota_nacida_hace(self, dias):
         return Mascota.objects.create(
-            nombre='Bruno', especie=self.perro, sexo='macho', dueno=self.tutor,
+            nombre='Bruno', especie=self.perro, sexo='macho',
             fecha_nacimiento=date.today() - timedelta(days=dias))
 
     def test_sin_fecha_de_nacimiento_no_inventa_una_edad(self):
         m = Mascota.objects.create(nombre='Kira', especie=self.gato,
-                                   sexo='hembra', dueno=self.tutor)
+                                   sexo='hembra')
         self.assertIsNone(m.edad)
 
     def test_menos_de_un_ano_se_expresa_en_meses(self):
@@ -57,9 +57,9 @@ class VistaMascotasTest(BaseMascotas):
     def setUp(self):
         super().setUp()
         Mascota.objects.create(nombre='Bruno', especie=self.perro,
-                               sexo='macho', dueno=self.tutor)
+                               sexo='macho')
         Mascota.objects.create(nombre='Kira', especie=self.gato,
-                               sexo='hembra', dueno=self.tutor)
+                               sexo='hembra')
         self.client.force_login(self.tutor)
 
     def test_la_ficha_exige_haber_iniciado_sesion(self):
@@ -80,3 +80,56 @@ class VistaMascotasTest(BaseMascotas):
     def test_las_mascotas_inactivas_no_aparecen(self):
         Mascota.objects.filter(nombre='Kira').update(activo=False)
         self.assertEqual(self.client.get('/mascotas/').context['total'], 1)
+
+
+class ClienteTest(TestCase):
+    """El RUT se valida con su dígito verificador y se guarda siempre igual."""
+
+    def test_rut_valido_se_guarda_limpio(self):
+        from .models import Cliente
+        c = Cliente(rut='12.345.678-5', nombres='Ana', apellidos='Soto')
+        c.full_clean()
+        c.save()
+        self.assertEqual(c.rut, '12345678-5')
+        self.assertEqual(c.rut_formateado, '12.345.678-5')
+
+    def test_rut_con_digito_verificador_incorrecto(self):
+        from django.core.exceptions import ValidationError
+        from .models import Cliente
+        c = Cliente(rut='12.345.678-9', nombres='Ana', apellidos='Soto')
+        with self.assertRaises(ValidationError):
+            c.full_clean()
+
+    def test_rut_con_k(self):
+        from .rut import calcular_dv
+        self.assertEqual(calcular_dv('10000013'), 'K')
+
+
+class TenenciaTest(TestCase):
+    """Muchos a muchos: un cliente con varias mascotas y al revés."""
+
+    def setUp(self):
+        from .models import Cliente
+        canino = Especie.objects.create(nombre='Perro')
+        self.ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto')
+        self.matias = Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva')
+        self.bruno = Mascota.objects.create(nombre='Bruno', especie=canino, sexo='macho')
+        self.kira = Mascota.objects.create(nombre='Kira', especie=canino, sexo='hembra')
+
+    def test_un_cliente_con_varias_mascotas_y_una_mascota_con_varios_clientes(self):
+        from .models import Tenencia
+        Tenencia.objects.create(cliente=self.ana, mascota=self.bruno, es_principal=True)
+        Tenencia.objects.create(cliente=self.ana, mascota=self.kira, es_principal=True)
+        Tenencia.objects.create(cliente=self.matias, mascota=self.bruno,
+                                relacion=Tenencia.Relacion.FAMILIAR)
+
+        self.assertEqual(self.ana.mascotas.count(), 2)
+        self.assertEqual(self.bruno.tutores.count(), 2)
+        self.assertEqual(self.bruno.responsable, self.ana)
+
+    def test_solo_un_responsable_principal_por_mascota(self):
+        from django.db import IntegrityError, transaction
+        from .models import Tenencia
+        Tenencia.objects.create(cliente=self.ana, mascota=self.bruno, es_principal=True)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Tenencia.objects.create(cliente=self.matias, mascota=self.bruno, es_principal=True)

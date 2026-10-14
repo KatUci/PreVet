@@ -42,7 +42,7 @@ def estadisticas():
     por_dia, por_tipo, por_tutor = {}, {}, {}
     total_global = faltas_global = 0
 
-    for cita in resueltas.select_related('tipo_atencion', 'mascota'):
+    for cita in resueltas.select_related('tipo_atencion'):
         falto = cita.estado == 'no_asistio'
         total_global += 1
         faltas_global += falto
@@ -57,7 +57,8 @@ def estadisticas():
         por_tipo[tipo][0] += falto
         por_tipo[tipo][1] += 1
 
-        tutor = cita.mascota.dueno_id
+        # El historial es de la persona que agenda, no de la mascota.
+        tutor = cita.cliente_id
         por_tutor.setdefault(tutor, [0, 0])
         por_tutor[tutor][0] += falto
         por_tutor[tutor][1] += 1
@@ -87,7 +88,7 @@ def puntuar(cita, stats):
     puntaje = 0
 
     # 1. Historial del tutor
-    faltas, total = stats['tutor'].get(cita.mascota.dueno_id, (0, 0))
+    faltas, total = stats['tutor'].get(cita.cliente_id, (0, 0))
     if total == 0:
         aporte = PESO_TUTOR * 0.375        # primera visita: incertidumbre
         detalle.append('Primera visita, sin historial')

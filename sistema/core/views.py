@@ -64,7 +64,7 @@ def riesgo(request):
     hoy = timezone.localdate()
     pendientes = (Cita.objects
                       .filter(fecha__gte=hoy, estado='pendiente')
-                      .select_related('mascota__dueno', 'veterinario', 'tipo_atencion'))
+                      .select_related('mascota', 'cliente', 'veterinario', 'tipo_atencion'))
 
     stats = estadisticas()
     evaluadas = []
@@ -101,7 +101,7 @@ def indicadores(request):
     ocurridas = list(Cita.objects
                      .filter(fecha__lt=hoy)
                      .exclude(estado='pendiente')
-                     .select_related('tipo_atencion', 'mascota__dueno'))
+                     .select_related('tipo_atencion', 'cliente'))
 
     def resumen(grupo):
         """Cuenta total, faltas, tasa y plata perdida de un grupo de citas."""
@@ -147,10 +147,10 @@ def indicadores(request):
     # ---------- Tutores reincidentes (peso 40, el más alto) ----------
     tutores = {}
     for c in ocurridas:
-        tutores.setdefault(c.mascota.dueno, []).append(c)
+        tutores.setdefault(c.cliente, []).append(c)
 
     reincidentes = sorted(
-        [dict(nombre=d.get_full_name() or d.username, **resumen(g))
+        [dict(nombre=d.nombre_completo, **resumen(g))
          for d, g in tutores.items()],
         key=lambda f: (-f['faltas'], -f['tasa']))[:8]
 

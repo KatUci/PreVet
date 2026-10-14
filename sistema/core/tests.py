@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from citas.models import Cita, TipoAtencion
-from mascotas.models import Especie, Mascota
+from mascotas.models import Cliente, Especie, Mascota, Tenencia
 
 
 class BaseTablero(TestCase):
@@ -20,7 +20,11 @@ class BaseTablero(TestCase):
                                               last_name='Soto')
         especie = Especie.objects.create(nombre='Perro')
         self.mascota = Mascota.objects.create(
-            nombre='Bruno', especie=especie, sexo='macho', dueno=self.tutor)
+            nombre='Bruno', especie=especie, sexo='macho')
+        self.cliente = Cliente.objects.create(
+            rut='15234871-1', nombres='Ana', apellidos='Soto')
+        Tenencia.objects.create(cliente=self.cliente, mascota=self.mascota,
+                                es_principal=True)
 
         self.control = TipoAtencion.objects.create(
             nombre='Control', duracion_minutos=30, precio=20000)
@@ -35,7 +39,7 @@ class BaseTablero(TestCase):
         self._bloque += 1
         hora = (datetime.min + timedelta(hours=8, minutes=5 * self._bloque)).time()
         return Cita.objects.create(
-            veterinario=self.vet, mascota=self.mascota,
+            veterinario=self.vet, mascota=self.mascota, cliente=self.cliente,
             tipo_atencion=tipo or self.control,
             fecha=timezone.localdate() + timedelta(days=dias),
             hora=hora, estado=estado)

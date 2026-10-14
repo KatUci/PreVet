@@ -28,7 +28,7 @@
                     <th>Fecha</th>
                     <th>Hora</th>
                     <th>Mascota</th>
-                    <th>Tutor</th>
+                    <th>Cliente</th>
                     <th>Atención</th>
                     <th>Profesional</th>
                     <th>Estado</th>
@@ -46,7 +46,7 @@
                     </td>
                     <td>{{ c.hora|time:"H:i" }}</td>
                     <td style="font-weight:600">{{ c.mascota.nombre }}</td>
-                    <td style="color:var(--gris)">{{ c.mascota.dueno.get_full_name }}</td>
+                    <td style="color:var(--gris)">{{ c.cliente.nombre_completo }}</td>
                     <td>{{ c.tipo_atencion.nombre }}</td>
                     <td style="color:var(--gris)">{{ c.veterinario.get_full_name }}</td>
                     <td>

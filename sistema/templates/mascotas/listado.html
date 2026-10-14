@@ -6,10 +6,23 @@
 
 {% block contenido %}
 
+{# ---------- Filtro por tipo de mascota ---------- #}
+<div class="chips" style="margin-bottom:1rem">
+    <a href="/mascotas/" style="text-decoration:none"
+       class="badge {% if not tipo_activo %}badge-azul{% else %}badge-neutro{% endif %}">Todos</a>
+    {% for t in tipos %}
+    <a href="?tipo={{ t.pk }}" style="text-decoration:none"
+       class="badge {% if tipo_activo == t.pk|stringformat:'s' %}badge-azul{% else %}badge-neutro{% endif %}">
+        {{ t.emoji }} {{ t.nombre }} · {{ t.cantidad }}
+    </a>
+    {% endfor %}
+</div>
+
 {# ---------- Buscador ---------- #}
 <form method="get" style="display:flex; gap:.6rem; max-width:440px; margin-bottom:1.4rem">
+    {% if tipo_activo %}<input type="hidden" name="tipo" value="{{ tipo_activo }}">{% endif %}
     <input type="text" name="buscar" value="{{ buscar }}"
-           placeholder="Buscar por nombre"
+           placeholder="Mascota, cliente o RUT"
            style="flex:1; padding:.6rem .8rem; border:1px solid var(--borde);
                   border-radius:var(--radio); background:var(--card);
                   color:var(--texto); font-size:.9rem; font-family:inherit">
@@ -25,7 +38,7 @@
     <div class="tarjeta-animal">
 
         <div class="ta-foto">
-            <span class="ta-emoji">{% if m.especie.nombre == 'Gato' %}🐱{% else %}🐶{% endif %}</span>
+            <span class="ta-emoji">{{ m.especie.emoji }}</span>
             {% if m.inasistencias %}
             <span class="badge badge-no-asistio ta-estado">
                 {{ m.inasistencias }} falta{{ m.inasistencias|pluralize }}
@@ -41,7 +54,11 @@
 
             <div class="ta-caracter">
                 {{ m.edad|default:"Edad no registrada" }}<br>
-                Tutor: {{ m.dueno.get_full_name|default:m.dueno.username }}
+                {% for t in m.tenencias.all %}
+                {{ t.get_relacion_display }}: {{ t.cliente.nombre_completo }}{% if t.es_principal %} ★{% endif %}<br>
+                {% empty %}
+                Sin cliente asociado
+                {% endfor %}
             </div>
 
             <div class="ta-pie">
