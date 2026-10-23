@@ -119,6 +119,12 @@ class Cita(models.Model):
     # Cuándo llegó de verdad el paciente. Con esto se miden también los atrasos.
     hora_llegada = models.DateTimeField('hora de llegada', null=True, blank=True)
 
+    # Etapas del flujo de atención (PV-REC-05): cuándo pasó al box y cuándo
+    # se fue de la clínica. Entre "atendida" y "salió" está lista para salir
+    # (esperando pagar o que la retiren).
+    inicio_atencion = models.DateTimeField('inicio de la atención', null=True, blank=True)
+    hora_salida = models.DateTimeField('hora de salida', null=True, blank=True)
+
     # Resultado del contacto previo con el tutor (PV-CIT-05). Vacío mientras
     # nadie lo haya contactado. Se guarda quién y cuándo, para medir después
     # si confirmar reduce las inasistencias.

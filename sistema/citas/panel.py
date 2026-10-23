@@ -77,7 +77,7 @@ def panel_dia(request):
     faltas = dict(Cita.objects.filter(cliente_id__in=clientes, estado='no_asistio', fecha__lt=hoy)
                   .order_by().values_list('cliente_id').annotate(n=Count('id')))
 
-    por_llegar, en_sala, atendidas = [], [], []
+    por_llegar, en_sala, en_atencion, listas, atendidas = [], [], [], [], []
     for cita in del_dia:
         tarjeta = {
             'cita': cita,
@@ -90,13 +90,18 @@ def panel_dia(request):
             tarjeta['atrasada'] = tarjeta['atraso'] >= ATRASO
             tarjeta['atraso_txt'] = _duracion(tarjeta['atraso'])
             por_llegar.append(tarjeta)
-        elif cita.estado == 'pendiente':
+        elif cita.estado == 'pendiente' and not cita.inicio_atencion:
             tarjeta['espera'] = _minutos(cita.hora_llegada, ahora)
             tarjeta['espera_larga'] = tarjeta['espera'] >= ESPERA_LARGA
             tarjeta['espera_txt'] = _duracion(tarjeta['espera'])
             en_sala.append(tarjeta)
+        elif cita.estado == 'pendiente':
+            tarjeta['en_box_txt'] = _duracion(_minutos(cita.inicio_atencion, ahora))
+            en_atencion.append(tarjeta)
         elif cita.estado == 'completada':
             atendidas.append(tarjeta)
+            if not cita.hora_salida:
+                listas.append(tarjeta)
 
     esperas = [t['espera'] for t in en_sala]
     no_llegaron = sum(1 for c in del_dia if c.estado == 'no_asistio')
@@ -144,6 +149,8 @@ def panel_dia(request):
         'es_vet': es_vet,
         'por_llegar': por_llegar,
         'en_sala': en_sala,
+        'en_atencion': en_atencion,
+        'listas': listas,
         'atendidas': atendidas,
         'total_hoy': len(activas),
         'no_llegaron': no_llegaron,

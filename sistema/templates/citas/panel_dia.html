@@ -33,6 +33,7 @@
     <div class="kpi"><span class="kpi-num">{{ total_hoy }}</span><span class="kpi-txt">citas hoy</span></div>
     <div class="kpi kpi-info"><span class="kpi-num">{{ por_llegar|length }}</span><span class="kpi-txt">por llegar</span></div>
     <div class="kpi kpi-warn"><span class="kpi-num">{{ en_sala|length }}</span><span class="kpi-txt">en sala de espera</span></div>
+    <div class="kpi kpi-info"><span class="kpi-num">{{ en_atencion|length }}</span><span class="kpi-txt">en atención</span></div>
     <div class="kpi kpi-ok"><span class="kpi-num">{{ atendidas|length }}</span><span class="kpi-txt">atendidas</span></div>
     <div class="kpi kpi-mal"><span class="kpi-num">{{ no_llegaron }}</span><span class="kpi-txt">no llegaron</span></div>
     <div class="kpi">
@@ -109,9 +110,17 @@
                             </span>
                         </div>
                     </div>
-                    {% if perms.citas.add_atencion %}
+                    {% if perms.citas.change_cita or perms.citas.add_atencion %}
                     <div class="paciente-acciones">
-                        <a href="{% url 'cita_atender' t.cita.pk %}?next={{ request.path|urlencode }}" class="btn btn-primario btn-chico">Atender</a>
+                        {% if perms.citas.change_cita %}
+                        <form method="post" action="{% url 'cita_pasar' t.cita.pk %}">
+                            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                            <button type="submit" class="btn btn-primario btn-chico">Pasar a atención</button>
+                        </form>
+                        {% endif %}
+                        {% if perms.citas.add_atencion %}
+                        <a href="{% url 'cita_atender' t.cita.pk %}?next={{ request.path|urlencode }}" class="btn btn-suave btn-chico">Atender</a>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </article>
@@ -120,19 +129,50 @@
                 {% endfor %}
             </div>
 
-            {# Atendidas #}
+            {# En atención #}
             <div class="flujo-col">
-                <div class="flujo-cab"><span class="punto punto-ok"></span> Atendidas <b>{{ atendidas|length }}</b></div>
-                {% for t in atendidas %}
+                <div class="flujo-cab"><span class="punto punto-acento"></span> En atención <b>{{ en_atencion|length }}</b></div>
+                {% for t in en_atencion %}
+                <article class="paciente paciente-en-box">
+                    <div class="paciente-hora">{{ t.cita.hora|time:"H:i" }}</div>
+                    <div class="paciente-cuerpo">
+                        <div class="paciente-nombre">{{ t.cita.mascota.especie.emoji }} {{ t.cita.mascota.nombre }}</div>
+                        <div class="paciente-sub">{{ t.cita.cliente.nombre_completo }} · {{ t.cita.tipo_atencion.nombre }}</div>
+                        {% if not es_vet %}<div class="paciente-sub">con {{ t.cita.veterinario.get_full_name }}</div>{% endif %}
+                        <div class="etiquetas"><span class="etiqueta etiqueta-neutro">En box hace {{ t.en_box_txt }}</span></div>
+                    </div>
+                    {% if perms.citas.add_atencion %}
+                    <div class="paciente-acciones">
+                        <a href="{% url 'cita_atender' t.cita.pk %}?next={{ request.path|urlencode }}" class="btn btn-primario btn-chico">Registrar atención</a>
+                    </div>
+                    {% endif %}
+                </article>
+                {% empty %}
+                <p class="flujo-vacio">Nadie en el box ahora.</p>
+                {% endfor %}
+            </div>
+
+            {# Lista para salir #}
+            <div class="flujo-col">
+                <div class="flujo-cab"><span class="punto punto-ok"></span> Lista para salir <b>{{ listas|length }}</b></div>
+                {% for t in listas %}
                 <article class="paciente paciente-listo">
                     <div class="paciente-hora">{{ t.cita.hora|time:"H:i" }}</div>
                     <div class="paciente-cuerpo">
                         <div class="paciente-nombre">{{ t.cita.mascota.especie.emoji }} {{ t.cita.mascota.nombre }}</div>
                         <div class="paciente-sub">{{ t.cita.cliente.nombre_completo }}</div>
                     </div>
+                    {% if perms.citas.change_cita %}
+                    <div class="paciente-acciones">
+                        <form method="post" action="{% url 'cita_salio' t.cita.pk %}">
+                            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                            <button type="submit" class="btn btn-suave btn-chico">Salió</button>
+                        </form>
+                    </div>
+                    {% endif %}
                 </article>
                 {% empty %}
-                <p class="flujo-vacio">Todavía no hay atenciones cerradas.</p>
+                <p class="flujo-vacio">Nadie esperando para salir.</p>
                 {% endfor %}
             </div>
         </div>

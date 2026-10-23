@@ -1061,3 +1061,46 @@ class ListaLlamadasTest(BaseCitas):
         from django.contrib.auth.models import Group
         self.tutor.groups.set([Group.objects.get(name='Veterinarios')])
         self.assertEqual(self.client.get('/citas/llamadas/').status_code, 403)
+
+
+class EtapasDeAtencionTest(PanelDelDiaTest):
+    """PV-REC-05: etapas "En atención" y "Lista para salir" en el flujo de pacientes."""
+
+    def test_pasar_a_atencion(self):
+        c = self.crear_cita(dias=0)
+        self.client.post(f'/citas/{c.pk}/llego/')
+        self.client.post(f'/citas/{c.pk}/pasar/')
+        c.refresh_from_db()
+        self.assertIsNotNone(c.inicio_atencion)
+        contexto = self.client.get('/').context
+        self.assertEqual([t['cita'] for t in contexto['en_atencion']], [c])
+        self.assertEqual(contexto['en_sala'], [])
+
+    def test_pasar_sin_marcar_llegada_registra_la_llegada(self):
+        c = self.crear_cita(dias=0)
+        self.client.post(f'/citas/{c.pk}/pasar/')
+        c.refresh_from_db()
+        self.assertIsNotNone(c.hora_llegada)
+
+    def test_solo_las_citas_de_hoy_pasan_a_atencion(self):
+        c = self.crear_cita(dias=1)
+        self.client.post(f'/citas/{c.pk}/pasar/')
+        c.refresh_from_db()
+        self.assertIsNone(c.inicio_atencion)
+
+    def test_atendida_queda_lista_para_salir_hasta_que_sale(self):
+        c = self.crear_cita(dias=0, estado='completada')
+        contexto = self.client.get('/').context
+        self.assertEqual([t['cita'] for t in contexto['listas']], [c])
+        self.client.post(f'/citas/{c.pk}/salio/')
+        c.refresh_from_db()
+        self.assertIsNotNone(c.hora_salida)
+        contexto = self.client.get('/').context
+        self.assertEqual(contexto['listas'], [])
+        self.assertEqual(len(contexto['atendidas']), 1)     # sigue contando como atendida
+
+    def test_salio_solo_para_citas_atendidas(self):
+        c = self.crear_cita(dias=0)
+        self.client.post(f'/citas/{c.pk}/salio/')
+        c.refresh_from_db()
+        self.assertIsNone(c.hora_salida)

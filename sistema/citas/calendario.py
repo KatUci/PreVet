@@ -212,3 +212,42 @@ def reagendar(request, pk):
         return redirect(f'/citas/calendario/?fecha={cita.fecha.isoformat()}')
 
     return render(request, 'citas/reagendar.html', {'seccion': 'calendario', 'cita': cita, 'form': form})
+
+
+@require_POST
+@login_required
+@permission_required('citas.change_cita', raise_exception=True)
+def pasar_a_atencion(request, pk):
+    """El paciente sale de la sala de espera y entra al box (etapa "En atención")."""
+    cita, salida = _cita_pendiente(request, pk)
+    if salida:
+        return salida
+    if cita.fecha != timezone.localdate():
+        messages.error(request, 'Solo las citas de hoy pueden pasar a atención.')
+        return _volver(request, cita)
+    ahora = timezone.now()
+    campos = ['inicio_atencion']
+    if not cita.hora_llegada:
+        # Si nadie marcó la llegada, se entiende que llegó ahora mismo.
+        cita.hora_llegada = ahora
+        campos.append('hora_llegada')
+    cita.inicio_atencion = ahora
+    cita.save(update_fields=campos)
+    messages.success(request, f'{cita.mascota.nombre} pasó a atención.')
+    return _volver(request, cita)
+
+
+@require_POST
+@login_required
+@permission_required('citas.change_cita', raise_exception=True)
+def marcar_salida(request, pk):
+    """El paciente atendido se va de la clínica: termina su paso por el panel del día."""
+    cita = get_object_or_404(Cita, pk=pk)
+    if cita.estado != 'completada':
+        messages.error(request, 'Solo una cita ya atendida puede marcarse como "salió".')
+        return _volver(request, cita)
+    if not cita.hora_salida:
+        cita.hora_salida = timezone.now()
+        cita.save(update_fields=['hora_salida'])
+    messages.success(request, f'{cita.mascota.nombre} salió de la clínica.')
+    return _volver(request, cita)

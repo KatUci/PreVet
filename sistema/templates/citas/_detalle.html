@@ -18,6 +18,8 @@
 <div class="det-estados">
     <span class="det-estado ev-{{ cita.estado }}">{{ cita.get_estado_display }}</span>
     {% if cita.hora_llegada %}<span class="det-estado ev-completada">Llegó {{ cita.hora_llegada|time:"H:i" }}</span>{% endif %}
+    {% if cita.inicio_atencion %}<span class="det-estado ev-pendiente">En box {{ cita.inicio_atencion|time:"H:i" }}</span>{% endif %}
+    {% if cita.hora_salida %}<span class="det-estado ev-completada">Salió {{ cita.hora_salida|time:"H:i" }}</span>{% endif %}
 </div>
 
 {% if cita.mascota.alergias or cita.mascota.observaciones or cita.mascota.condiciones %}
@@ -150,6 +152,12 @@
         <form method="post" action="{% url 'cita_llego' cita.pk %}">
             {% csrf_token %}<input type="hidden" name="next" class="volver-aqui">
             <button type="submit" class="btn btn-suave">✋ Llegó</button>
+        </form>
+        {% endif %}
+        {% if es_hoy and not cita.inicio_atencion %}
+        <form method="post" action="{% url 'cita_pasar' cita.pk %}">
+            {% csrf_token %}<input type="hidden" name="next" class="volver-aqui">
+            <button type="submit" class="btn btn-suave">Pasar a atención</button>
         </form>
         {% endif %}
         <a href="{% url 'cita_editar' cita.pk %}" class="btn btn-suave">

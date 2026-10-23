@@ -1836,7 +1836,7 @@ select option { background: var(--solido); color: var(--texto); }
 .panel-lateral .card { margin-bottom: 0; }
 .panel-nota { font-size: .85rem; color: var(--gris); margin: -.2rem 0 .8rem; }
 
-.flujo-columnas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .9rem; }
+.flujo-columnas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .9rem; }
 .flujo-col { background: var(--panel); border: 1px solid var(--borde-suave); border-radius: var(--radio); padding: .7rem; min-height: 140px; }
 .flujo-cab { display: flex; align-items: center; gap: .45rem; font-size: .82rem; font-weight: 700; color: var(--titulo); margin-bottom: .7rem; }
 .flujo-cab b { margin-left: auto; background: var(--acento-bg); color: var(--acento); border-radius: 999px; padding: .05rem .55rem; font-size: .75rem; }
@@ -2177,3 +2177,9 @@ select option { background: var(--solido); color: var(--texto); }
 .cal-card .fc .fc-event.conf-confirmada { border-left: 4px solid var(--verde); }
 .lista-llamadas-grande li { align-items: flex-start; }
 .lista-llamadas-grande .llamada-txt > span { margin-top: .15rem; }
+
+/* ---------- Etapas del flujo de atención (Sprint 4) ---------- */
+.punto-acento { background: var(--acento); }
+.paciente-en-box { border-left-color: var(--acento); }
+@media (max-width: 1280px) { .flujo-columnas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .flujo-columnas { grid-template-columns: 1fr; } }
