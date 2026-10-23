@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'mascotas',
     'citas',
     'core',
+    'portal',
 ]
 
 MIDDLEWARE = [
@@ -153,6 +154,9 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Personal con su usuario; clientes con su RUT (con o sin puntos).
+AUTHENTICATION_BACKENDS = ['usuarios.backends.UsuarioORutBackend']
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'

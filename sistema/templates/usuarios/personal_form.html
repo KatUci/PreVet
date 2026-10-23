@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block titulo %}{% if persona %}Editar personal{% else %}Nuevo integrante{% endif %}{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Administración</span><span class="sep">›</span><a href="{% url 'personal' %}">Personal</a><span class="sep">›</span><span>Ficha</span>{% endblock %}
 {% block encabezado %}{% if persona %}{{ persona.get_full_name }}{% else %}Nuevo integrante del personal{% endif %}{% endblock %}
 {% block subtitulo %}{% if persona %}Usuario: {{ persona.username }}{% else %}Crea la cuenta de alguien que trabaja en la clínica{% endif %}{% endblock %}
 

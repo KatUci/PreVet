@@ -144,3 +144,52 @@ class GruposTests(TestCase):
         respuesta = self.client.get(reverse('grupo_nuevo'))
         self.assertContains(respuesta, 'Citas')
         self.assertContains(respuesta, 'Agregar')
+
+
+class PermisosPorRolTest(TestCase):
+    """Cada grupo entra solo a las pantallas que le corresponden."""
+
+    PANTALLAS = ['/', '/citas/', '/citas/nueva/', '/mascotas/', '/riesgo/',
+                 '/indicadores/', '/administracion/personal/']
+
+    # 200 = puede entrar, 403 = sin acceso.
+    ESPERADO = {
+        'Recepción':      [200, 200, 200, 200, 200, 403, 403],
+        'Veterinarios':   [200, 200, 403, 200, 403, 403, 403],
+        'Administración': [200, 200, 200, 200, 200, 200, 200],
+    }
+    ROL = {'Recepción': Perfil.Rol.RECEPCIONISTA, 'Veterinarios': Perfil.Rol.VETERINARIO,
+           'Administración': Perfil.Rol.ADMINISTRADOR}
+
+    def entrar_como(self, grupo):
+        user = crear_usuario(f'u{Group.objects.get(name=grupo).pk}', self.ROL[grupo])
+        user.groups.add(Group.objects.get(name=grupo))
+        self.client.login(username=user.username, password=CLAVE)
+
+    def test_cada_grupo_ve_lo_suyo(self):
+        for grupo, esperados in self.ESPERADO.items():
+            with self.subTest(grupo=grupo):
+                self.entrar_como(grupo)
+                obtenidos = [self.client.get(url).status_code for url in self.PANTALLAS]
+                self.assertEqual(obtenidos, esperados)
+                self.client.logout()
+
+    def test_el_menu_solo_muestra_lo_permitido(self):
+        self.entrar_como('Veterinarios')
+        menu = self.client.get('/').content.decode()
+        self.assertIn('href="/citas/"', menu)
+        self.assertNotIn('href="/riesgo/"', menu)
+        self.assertNotIn('href="/indicadores/"', menu)
+
+    def test_sin_grupo_ve_un_aviso_y_no_un_error(self):
+        crear_usuario('nuevo', Perfil.Rol.RECEPCIONISTA)
+        self.client.login(username='nuevo', password=CLAVE)
+        self.assertContains(self.client.get('/'), 'Todavía no tienes permisos asignados')
+        respuesta = self.client.get('/citas/')
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertContains(respuesta, 'no está disponible para tu cuenta', status_code=403)
+
+    def test_permisos_propios_aparecen_en_el_formulario_de_grupos(self):
+        crear_usuario('jefa', Perfil.Rol.ADMINISTRADOR)
+        self.client.login(username='jefa', password=CLAVE)
+        self.assertContains(self.client.get(reverse('grupo_nuevo')), 'Ver las horas en riesgo')

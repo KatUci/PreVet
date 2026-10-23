@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block migas %}<a href="/">Inicio</a>{% for texto, url in migas %}<span class="sep">›</span>{% if url %}<a href="{{ url }}">{{ texto }}</a>{% else %}<span>{{ texto }}</span>{% endif %}{% endfor %}{% endblock %}
+{% block encabezado %}{{ titulo }}{% endblock %}
+{% block subtitulo %}{{ subtitulo }}{% endblock %}
+
+{% block acciones %}
+{% if url_nuevo %}
+<a href="{{ url_nuevo }}" class="btn btn-primario"><svg class="icono-sm"><use href="#i-mas"/></svg> {{ texto_nuevo }}</a>
+{% endif %}
+{% endblock %}
+
+{% block contenido %}
+<div class="card">
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>{% for c in columnas %}<th>{{ c }}</th>{% endfor %}<th></th></tr>
+            </thead>
+            <tbody>
+                {% for f in filas %}
+                <tr{% if f.inactivo %} class="fila-inactiva"{% endif %}>
+                    {% for celda in f.celdas %}
+                    <td>{% if celda.badge %}<span class="badge badge-{{ celda.clase }}">{{ celda.badge }}</span>{% elif forloop.first %}<b>{{ celda }}</b>{% else %}{{ celda }}{% endif %}</td>
+                    {% endfor %}
+                    <td class="celda-acciones">
+                        {% if f.editar %}<a href="{{ f.editar }}" class="btn btn-suave btn-chico">Editar</a>{% endif %}
+                        {% if f.eliminar %}
+                        <form method="post" action="{{ f.eliminar }}" onsubmit="return confirm('¿Eliminar «{{ f.nombre|escapejs }}»? No se puede deshacer.')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-peligro btn-chico">Eliminar</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="{{ columnas|length|add:1 }}"><div class="vacio"><h3>{{ vacio }}</h3></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

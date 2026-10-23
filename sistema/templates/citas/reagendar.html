@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Reagendar{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'calendario' %}">Calendario</a><span class="sep">›</span><span>Reagendar</span>{% endblock %}
+{% block encabezado %}Reagendar la cita de {{ cita.mascota.nombre }}{% endblock %}
+{% block subtitulo %}Hoy está para el {{ cita.fecha|date:"d/m/Y" }} a las {{ cita.hora|time:"H:i" }} · cliente {{ cita.cliente.nombre_completo }}{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'calendario' %}?fecha={{ cita.fecha|date:'Y-m-d' }}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-atras"/></svg> Volver al calendario
+</a>
+{% endblock %}
+
+{% block contenido %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card">
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.veterinario %}
+            {% include 'usuarios/_campo.html' with campo=form.fecha %}
+            {% include 'usuarios/_campo.html' with campo=form.hora %}
+        </div>
+        <div class="form-acciones">
+            <a href="{% url 'calendario' %}?fecha={{ cita.fecha|date:'Y-m-d' }}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Guardar el cambio</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

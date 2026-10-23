@@ -1,24 +1,27 @@
-{% load static %}
+{% load static estaticos %}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-tema="oscuro">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{% static 'img/favicon-64.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
     <title>{% block titulo %}PreVet{% endblock %} · PreVet</title>
 
     {% comment %}
-        Se aplica el tema guardado antes de pintar: si no, la página
-        parpadearía en claro durante un instante al recargar.
+        Se aplica el modo antes de pintar, para que no parpadee al recargar.
+        Por defecto es el modo noche, igual al inicio de sesión; si la persona
+        eligió el modo día, se recuerda.
     {% endcomment %}
     <script>
         (function () {
-            var t = localStorage.getItem('tema');
-            if (t) document.documentElement.setAttribute('data-tema', t);
+            if (localStorage.getItem('tema') === 'claro') {
+                document.documentElement.removeAttribute('data-tema');
+            }
         })();
     </script>
 
-    <link rel="stylesheet" href="{% static 'css/prevet.css' %}">
+    <link rel="stylesheet" href="{% static_v 'css/prevet.css' %}">
 </head>
 <body>
 
@@ -51,7 +54,6 @@
     <symbol id="i-luna" viewBox="0 0 24 24"><path d="M12.3 2a9 9 0 109.4 11.9A7.5 7.5 0 0112.3 2z"/></symbol>
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></symbol>
     <symbol id="i-caja" viewBox="0 0 24 24"><path d="M12 2l9 4.5v11L12 22l-9-4.5v-11L12 2zm0 2.2L5.6 7.4 12 10.6l6.4-3.2L12 4.2zM5 9.1v7.1l6 3v-7.1l-6-3zm8 10.1l6-3V9.1l-6 3v7.1z"/></symbol>
-    <symbol id="i-carrito" viewBox="0 0 24 24"><path d="M7 18a2 2 0 100 4 2 2 0 000-4zm10 0a2 2 0 100 4 2 2 0 000-4zM1 2h3.3l1 4H22l-3 9H7L5.6 9.5 4.2 4H1V2zm6.9 6l1.4 5h8.2l1.7-5H7.9z"/></symbol>
     <symbol id="i-lista" viewBox="0 0 24 24"><path d="M4 5h3v3H4V5zm5 .5h11v2H9v-2zM4 10.5h3v3H4v-3zm5 .5h11v2H9v-2zM4 16h3v3H4v-3zm5 .5h11v2H9v-2z"/></symbol>
     <symbol id="i-corazon" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></symbol>
     <symbol id="i-casa-corazon" viewBox="0 0 24 24"><path d="M12 3l9 8h-2.5v9h-13v-9H3l9-8zm0 6.6c-.7-.8-1.8-1.3-2.8-1.3-1.5 0-2.7 1.2-2.7 2.7 0 2 1.9 3.7 4.7 6.2l.8.7.8-.7c2.8-2.5 4.7-4.2 4.7-6.2 0-1.5-1.2-2.7-2.7-2.7-1 0-2.1.5-2.8 1.3z"/></symbol>
@@ -68,31 +70,71 @@
 
     <aside class="sidebar">
         <div class="sb-marca">
-            <div class="sb-marca-logo"><svg viewBox="0 0 24 24"><use href="#i-paw"/></svg></div>
+            <div class="sb-marca-logo con-imagen"><img src="{% static 'img/prevet-icono.png' %}" alt=""></div>
             <div class="sb-marca-txt">Pre<span>Vet</span></div>
         </div>
 
         <nav class="sb-nav">
             {% if user.is_authenticated %}
+            {% if es_tutor %}
+            {# Clientes: solo su portal, nunca las pantallas de la clínica. #}
+            <div class="sb-seccion">Mi PreVet</div>
+            <a href="{% url 'portal' %}" class="sb-link {% if seccion == 'portal' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-inicio"/></svg> Mis mascotas y citas
+            </a>
+            <a href="{% url 'portal_mascota_nueva' %}" class="sb-link {% if seccion == 'portal_mascota' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-mas"/></svg> Agregar mascota
+            </a>
+            <a href="{% url 'portal_datos' %}" class="sb-link {% if seccion == 'portal_datos' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-vet"/></svg> Mis datos
+            </a>
+            <a href="{% url 'portal_clave' %}" class="sb-link {% if seccion == 'portal_clave' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-escudo"/></svg> Cambiar contraseña
+            </a>
+            {% else %}
 
+            {# Cada enlace aparece solo si el grupo de la persona le da ese permiso. #}
             <div class="sb-seccion">Gestión</div>
             <a href="/" class="sb-link {% if seccion == 'inicio' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-inicio"/></svg> Inicio
             </a>
-            <a href="/citas/" class="sb-link {% if seccion == 'citas' %}activo{% endif %}">
-                <svg class="icono"><use href="#i-calendario"/></svg> Citas
+            {% if perms.citas.view_cita %}
+            {% if perms.citas.ver_indicadores %}
+            <a href="{% url 'panel_dia' %}" class="sb-link {% if seccion == 'hoy' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-reloj"/></svg> Hoy en la clínica
             </a>
+            {% endif %}
+            <a href="/citas/calendario/" class="sb-link {% if seccion == 'calendario' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-calendario"/></svg> Calendario
+            </a>
+            <a href="/citas/" class="sb-link {% if seccion == 'citas' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-lista"/></svg> Citas
+            </a>
+            {% endif %}
+            {% if perms.mascotas.view_cliente %}
+            <a href="{% url 'clientes' %}" class="sb-link {% if seccion == 'clientes' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-vet"/></svg> Clientes
+            </a>
+            {% endif %}
+            {% if perms.mascotas.view_mascota %}
             <a href="/mascotas/" class="sb-link {% if seccion == 'mascotas' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-paw"/></svg> Mascotas
             </a>
+            {% endif %}
 
+            {% if perms.citas.ver_riesgo or perms.citas.ver_indicadores %}
             <div class="sb-seccion">Análisis</div>
+            {% if perms.citas.ver_riesgo %}
             <a href="/riesgo/" class="sb-link {% if seccion == 'riesgo' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-alerta"/></svg> Horas en riesgo
             </a>
+            {% endif %}
+            {% if perms.citas.ver_indicadores %}
             <a href="/indicadores/" class="sb-link {% if seccion == 'indicadores' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-grafico"/></svg> Indicadores
             </a>
+            {% endif %}
+            {% endif %}
 
             {% if es_admin %}
             <div class="sb-seccion">Administración</div>
@@ -109,6 +151,29 @@
             {% endif %}
             {% endif %}
 
+            {% if perms.citas.change_tipoatencion or perms.citas.change_horarioatencion or perms.mascotas.change_especie %}
+            <div class="sb-seccion">Configuración</div>
+            {% if perms.citas.change_tipoatencion %}
+            <a href="{% url 'tipos_atencion' %}" class="sb-link {% if seccion == 'tipos' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-estetos"/></svg> Tipos de atención
+            </a>
+            {% endif %}
+            {% if perms.citas.change_horarioatencion %}
+            <a href="{% url 'horarios' %}" class="sb-link {% if seccion == 'horarios' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-reloj"/></svg> Horarios
+            </a>
+            {% endif %}
+            {% if perms.mascotas.change_especie %}
+            <a href="{% url 'especies' %}" class="sb-link {% if seccion == 'especies' or seccion == 'razas' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-paw"/></svg> Tipos de mascota
+            </a>
+            <a href="{% url 'razas' %}" class="sb-link {% if seccion == 'razas' %}activo{% endif %}" style="padding-left:2.6rem; font-size:.85rem">
+                Razas
+            </a>
+            {% endif %}
+            {% endif %}
+
+            {% endif %}
             {% endif %}
         </nav>
 
@@ -136,8 +201,8 @@
                 <svg><use href="#i-menu"/></svg>
             </label>
             <div class="bm-marca">
-                <div class="bm-logo"><svg viewBox="0 0 24 24"><use href="#i-paw"/></svg></div>
-                Pre<span>Vet</span>
+                <div class="bm-logo con-imagen"><img src="{% static 'img/prevet-icono.png' %}" alt=""></div>
+                <span class="bm-nombre">Pre<span>Vet</span></span>
             </div>
             <button type="button" class="btn-tema" id="botonTemaMovil" style="margin-left:auto"
                     aria-label="Cambiar entre modo claro y modo noche">
@@ -151,10 +216,22 @@
 
         <header class="topbar">
             <div>
+                <nav class="migas" aria-label="Ruta">{% block migas %}{% endblock %}</nav>
                 <h1>{% block encabezado %}{% endblock %}</h1>
                 <div class="sub">{% block subtitulo %}{% endblock %}</div>
             </div>
+            {% if user.is_authenticated and not es_tutor %}
+            <div class="topbar-centro">
+                <form action="{% url 'buscar' %}" method="get" class="buscador-global" role="search">
+                    <svg class="icono"><use href="#i-lupa"/></svg>
+                    <input type="search" name="q" id="buscadorGlobal" value="{% if seccion == 'buscar' %}{{ q }}{% endif %}"
+                           placeholder="Buscar cliente, mascota, RUT o teléfono" aria-label="Buscar en PreVet">
+                    <kbd title="Atajo de teclado">/</kbd>
+                </form>
+            </div>
+            {% endif %}
             <div style="display:flex; align-items:center; gap:.6rem">
+                {% if user.is_authenticated %}{% now "l j \d\e F" as fecha_hoy %}<span class="fecha-hoy">{{ fecha_hoy|capfirst }}</span>{% endif %}
                 {% block acciones %}{% endblock %}
                 <button type="button" class="btn-tema" id="botonTema"
                         aria-label="Cambiar entre modo claro y modo noche" title="Modo claro / noche">
@@ -222,7 +299,7 @@
 </div>
 {% endif %}
 
-<script src="{% static 'js/prevet.js' %}"></script>
+<script src="{% static_v 'js/prevet.js' %}"></script>
 
 </body>
 </html>

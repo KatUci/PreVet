@@ -82,9 +82,13 @@ class Command(BaseCommand):
             vets_nuevos.append(u)
 
         clientes = []
-        for rut, nombres, apellidos in CLIENTES:
+        for i, (rut, nombres, apellidos) in enumerate(CLIENTES):
+            # Teléfono de prueba (inventado), para poder probar los botones
+            # de llamar y de WhatsApp. No usa random: no altera la semilla.
+            telefono = f'+56 9 {5100 + i * 137:04d} {2300 + i * 311:04d}'
             c, _ = Cliente.objects.update_or_create(
-                rut=rut, defaults={'nombres': nombres, 'apellidos': apellidos})
+                rut=rut, defaults={'nombres': nombres, 'apellidos': apellidos,
+                                   'telefono': telefono})
             clientes.append(c)
 
         # --- catálogos ---

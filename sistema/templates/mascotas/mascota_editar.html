@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load estaticos %}
+
+{% block titulo %}Editar a {{ mascota.nombre }}{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'mascotas' %}">Mascotas</a><span class="sep">›</span><span>Editar a {{ mascota.nombre }}</span>{% endblock %}
+{% block encabezado %}Editar a {{ mascota.nombre }}{% endblock %}
+{% block subtitulo %}{% if not mascota.activo %}Mascota inactiva · {% endif %}Datos de la mascota{% endblock %}
+
+{% block acciones %}
+<a href="{{ next }}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="card">
+        <div class="form-grid">
+            {% for campo in form %}
+            {% include 'usuarios/_campo.html' with campo=campo %}
+            {% endfor %}
+        </div>
+        <div class="form-acciones">
+            <a href="{{ next }}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Guardar cambios</button>
+        </div>
+    </div>
+</form>
+
+<div class="card zona-cuidado">
+    <div>
+        <b>{% if mascota.activo %}Desactivar a {{ mascota.nombre }}{% else %}Reactivar a {{ mascota.nombre }}{% endif %}</b>
+        <p class="panel-nota">{% if mascota.activo %}Por ejemplo, si falleció o se cambió de clínica. No se borra: su historial se conserva para los indicadores.{% else %}Vuelve a aparecer en el listado y al agendar.{% endif %}</p>
+    </div>
+    <form method="post" action="{% url 'mascota_estado' mascota.pk %}">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="btn {% if mascota.activo %}btn-peligro{% else %}btn-suave{% endif %}">{% if mascota.activo %}Desactivar{% else %}Reactivar{% endif %}</button>
+    </form>
+</div>
+
+{{ form.razas_por_tipo|json_script:"razas-por-tipo" }}
+<script src="{% static_v 'js/mascota_form.js' %}"></script>
+{% endblock %}

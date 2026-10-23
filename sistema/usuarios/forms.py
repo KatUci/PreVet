@@ -164,14 +164,16 @@ class GrupoForm(forms.ModelForm):
                     .order_by('content_type__app_label', 'content_type__model'))
         for permiso in permisos:
             modelo = permiso.content_type.model_class()
-            accion = permiso.codename.split('_', 1)[0]
-            if modelo is None or accion not in ACCIONES:
+            if modelo is None:
                 continue
+            accion = permiso.codename.split('_', 1)[0]
             titulo = str(modelo._meta.verbose_name_plural).capitalize()
             por_modelo.setdefault(titulo, []).append({
                 'id': permiso.pk,
-                'accion': ACCIONES[accion],
-                'orden': ORDEN_ACCIONES.index(accion),
+                # Los permisos propios (como "Ver las horas en riesgo") se
+                # muestran con su nombre y van después de los cuatro básicos.
+                'accion': ACCIONES.get(accion, permiso.name),
+                'orden': ORDEN_ACCIONES.index(accion) if accion in ACCIONES else len(ORDEN_ACCIONES),
                 'marcado': str(permiso.pk) in marcados,
             })
 

@@ -16,7 +16,12 @@ def usuario_actual(request):
     else:
         rol = 'Usuario'
 
+    # Los clientes con cuenta en Mi PreVet ven solo su portal.
+    es_tutor = hasattr(user, 'cliente') and not (perfil and perfil.es_personal)
+    if es_tutor:
+        rol = 'Cliente'
     return {
         'es_admin': es_administrador(user),
         'rol_usuario': rol,
+        'es_tutor': es_tutor,
     }

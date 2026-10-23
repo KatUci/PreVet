@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Mi PreVet{% endblock %}
+{% block encabezado %}Hola, {{ cliente.nombres }}{% endblock %}
+{% block subtitulo %}Tus mascotas y tus citas en la clínica{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'portal_mascota_nueva' %}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-mas"/></svg> Agregar mascota
+</a>
+{% endblock %}
+
+{% block contenido %}
+<div class="panel-grid">
+    <div class="panel-principal">
+        {# ---------- Próximas citas ---------- #}
+        <section class="card">
+            <div class="card-titulo"><h2><svg class="icono"><use href="#i-calendario"/></svg> Próximas citas</h2></div>
+            <ul class="lista-llamadas">
+                {% for c in proximas %}
+                <li>
+                    <span class="nivel nivel-bajo">{{ c.mascota.especie.emoji }}</span>
+                    <div class="llamada-txt">
+                        <b>{{ c.fecha|date:"l j \d\e F"|capfirst }} · {{ c.hora|time:"H:i" }}</b>
+                        <span>{{ c.mascota.nombre }} · {{ c.tipo_atencion.nombre }} con {{ c.veterinario.get_full_name }}</span>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="flujo-vacio">No tienes citas agendadas. Para pedir hora, llama o escribe a la clínica.</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        {# ---------- Mascotas ---------- #}
+        <section class="card">
+            <div class="card-titulo">
+                <h2><svg class="icono"><use href="#i-paw"/></svg> Mis mascotas</h2>
+                <a href="{% url 'portal_mascota_nueva' %}">Agregar</a>
+            </div>
+            <div class="ficha-mascotas">
+                {% for t in tenencias %}
+                <div class="ficha-mascota">
+                    {% if t.mascota.foto_version %}
+                    <img class="ficha-foto ampliable" src="{% url 'portal_mascota_foto' t.mascota.pk %}?v={{ t.mascota.foto_version }}" alt="Foto de {{ t.mascota.nombre }}">
+                    {% else %}
+                    <span class="ficha-emoji">{{ t.mascota.especie.emoji }}</span>
+                    {% endif %}
+                    <div>
+                        <b>{{ t.mascota.nombre }}</b>
+                        <div class="celda-sub">{{ t.mascota.especie.nombre }}{% if t.mascota.raza %} · {{ t.mascota.raza.nombre }}{% endif %}{% if t.mascota.edad %} · {{ t.mascota.edad }}{% endif %}</div>
+                        {% if t.mascota.alergias %}<div><span class="etiqueta etiqueta-mal">⚠ Alergias: {{ t.mascota.alergias|truncatechars:40 }}</span></div>{% endif %}
+                        <div class="celda-sub">
+                            <a href="{% url 'portal_mascota_editar' t.mascota.pk %}">Editar datos</a> ·
+                            <a href="{% url 'portal_mascota_foto_subir' t.mascota.pk %}">📷 {% if t.mascota.foto_version %}Cambiar{% else %}Subir{% endif %} foto</a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="flujo-vacio">Aún no tienes mascotas registradas. <a href="{% url 'portal_mascota_nueva' %}">Agrega la primera</a>.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        {# ---------- Historial ---------- #}
+        <section class="card">
+            <div class="card-titulo"><h2><svg class="icono"><use href="#i-historial"/></svg> Historial</h2></div>
+            <ul class="lista-simple">
+                {% for c in historial %}
+                <li>
+                    <b>{{ c.fecha|date:"d/m/Y" }} · {{ c.mascota.nombre }} · {{ c.tipo_atencion.nombre }}</b>
+                    <span><span class="badge badge-{% if c.estado == 'no_asistio' %}no-asistio{% else %}{{ c.estado }}{% endif %}" style="display:inline-flex">{{ c.get_estado_display }}</span></span>
+                </li>
+                {% empty %}
+                <li class="flujo-vacio">Todavía no tienes atenciones registradas.</li>
+                {% endfor %}
+            </ul>
+        </section>
+    </div>
+
+    <div class="panel-lateral">
+        <section class="card ficha-contacto">
+            <div class="ficha-avatar">{{ cliente.nombres|first }}{{ cliente.apellidos|first }}</div>
+            <h2>{{ cliente.nombre_completo }}</h2>
+            <dl class="ficha-datos">
+                <dt>RUT</dt><dd>{{ cliente.rut_formateado }}</dd>
+                <dt>Teléfono</dt><dd>{{ cliente.telefono|default:"—" }}</dd>
+                <dt>Correo</dt><dd>{{ cliente.email|default:"—" }}</dd>
+                <dt>Prefiere</dt><dd>{{ cliente.get_canal_preferido_display }}</dd>
+                <dt>Emergencia</dt><dd>{{ cliente.contacto_emergencia|default:"—" }}</dd>
+            </dl>
+            <a href="{% url 'portal_datos' %}" class="btn btn-suave">Editar mis datos</a>
+        </section>
+    </div>
+</div>
+{% endblock %}

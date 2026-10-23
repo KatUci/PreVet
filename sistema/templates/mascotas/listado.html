@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block titulo %}Mascotas{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Mascotas</span>{% endblock %}
 {% block encabezado %}Mascotas{% endblock %}
 {% block subtitulo %}{{ total }} paciente{{ total|pluralize }} en ficha{% endblock %}
 
@@ -33,12 +34,20 @@
 </form>
 
 {# ---------- Fichas ---------- #}
-<div class="grilla-adopcion">
+<div class="grilla-mascotas">
     {% for m in mascotas %}
     <div class="tarjeta-animal">
 
         <div class="ta-foto">
+            {% if m.foto_version %}
+            <img class="ta-img ampliable" src="{% url 'mascota_foto' m.pk %}?v={{ m.foto_version }}" alt="Foto de {{ m.nombre }}" loading="lazy">
+            {% else %}
             <span class="ta-emoji">{{ m.especie.emoji }}</span>
+            {% endif %}
+            {% if perms.mascotas.change_mascota %}
+            <a class="ta-subir" href="{% url 'mascota_foto_subir' m.pk %}?next={{ request.get_full_path|urlencode }}"
+               title="{% if m.foto_version %}Cambiar{% else %}Subir{% endif %} la foto de {{ m.nombre }}">📷</a>
+            {% endif %}
             {% if m.inasistencias %}
             <span class="badge badge-no-asistio ta-estado">
                 {{ m.inasistencias }} falta{{ m.inasistencias|pluralize }}
@@ -47,7 +56,9 @@
         </div>
 
         <div class="ta-cuerpo">
-            <div class="ta-nombre">{{ m.nombre }}</div>
+            <div class="ta-nombre">{{ m.nombre }}
+                {% if perms.mascotas.change_mascota %}<a class="ta-editar" href="{% url 'mascota_editar' m.pk %}?next={{ request.get_full_path|urlencode }}" title="Editar a {{ m.nombre }}"><svg class="icono-sm"><use href="#i-editar"/></svg></a>{% endif %}
+            </div>
             <div class="ta-meta">
                 {{ m.especie.nombre }}{% if m.raza %} · {{ m.raza.nombre }}{% endif %} · {{ m.get_sexo_display }}
             </div>

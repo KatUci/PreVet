@@ -1,0 +1,5 @@
+{# Flecha de variación contra el periodo anterior. Si sube algo malo, va en rojo. #}
+<span class="variacion {% if v.signo == 'sube' %}{% if malo_si_sube %}peor{% else %}mejor{% endif %}{% elif v.signo == 'baja' %}{% if malo_si_sube %}mejor{% else %}peor{% endif %}{% endif %}">
+    {% if v.signo == 'sube' %}▲ {{ v.valor }}{{ unidad }}{% elif v.signo == 'baja' %}▼ {{ v.valor }}{{ unidad }}{% else %}Sin cambio{% endif %}
+    <small>vs. 30 días anteriores</small>
+</span>

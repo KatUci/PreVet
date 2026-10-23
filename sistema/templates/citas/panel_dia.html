@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Hoy en la clínica{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Hoy en la clínica</span>{% endblock %}
+{% block encabezado %}Hola, {{ user.first_name|default:user.username }}{% endblock %}
+{% block subtitulo %}{{ hoy|date:"l j \d\e F"|capfirst }} · {% if es_vet %}tus atenciones de hoy{% else %}panel de recepción{% endif %}{% endblock %}
+
+{% block acciones %}
+{% if perms.citas.add_cita %}
+<a href="{% url 'agendar' %}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-mas"/></svg> Agendar hora
+</a>
+{% endif %}
+{% if perms.mascotas.add_cliente %}
+<a href="{% url 'cliente_nuevo' %}" class="btn btn-suave">Nuevo cliente</a>
+{% endif %}
+<a href="{% url 'calendario' %}?vista=timeGridDay" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-calendario"/></svg> Calendario
+</a>
+{% endblock %}
+
+{% block contenido %}
+
+{# ---------- Buscador rápido ---------- #}
+<form method="get" action="{% url 'citas' %}" class="buscador-rapido" role="search">
+    <svg class="icono"><use href="#i-lupa"/></svg>
+    <input type="search" name="q" placeholder="Buscar cita por mascota, cliente, RUT o teléfono…" aria-label="Buscar citas">
+    <button type="submit" class="btn btn-suave">Buscar</button>
+</form>
+
+{# ---------- Indicadores del día ---------- #}
+<div class="kpis-dia">
+    <div class="kpi"><span class="kpi-num">{{ total_hoy }}</span><span class="kpi-txt">citas hoy</span></div>
+    <div class="kpi kpi-info"><span class="kpi-num">{{ por_llegar|length }}</span><span class="kpi-txt">por llegar</span></div>
+    <div class="kpi kpi-warn"><span class="kpi-num">{{ en_sala|length }}</span><span class="kpi-txt">en sala de espera</span></div>
+    <div class="kpi kpi-ok"><span class="kpi-num">{{ atendidas|length }}</span><span class="kpi-txt">atendidas</span></div>
+    <div class="kpi kpi-mal"><span class="kpi-num">{{ no_llegaron }}</span><span class="kpi-txt">no llegaron</span></div>
+    <div class="kpi">
+        <span class="kpi-num">{% if espera_promedio is not None %}{{ espera_promedio }}<small> min</small>{% else %}—{% endif %}</span>
+        <span class="kpi-txt">espera promedio</span>
+    </div>
+    <div class="kpi">
+        <span class="kpi-num">{% if ocupacion is not None %}{{ ocupacion }}<small>%</small>{% else %}—{% endif %}</span>
+        <span class="kpi-txt">agenda ocupada</span>
+    </div>
+</div>
+
+<div class="panel-grid">
+
+    {# ---------- Flujo de pacientes ---------- #}
+    <section class="card flujo">
+        <div class="card-titulo">
+            <h2><svg class="icono"><use href="#i-reloj"/></svg> Flujo de pacientes</h2>
+            <a href="{% url 'calendario' %}?vista=timeGridDay">Ver el día completo</a>
+        </div>
+
+        <div class="flujo-columnas">
+            {# Por llegar #}
+            <div class="flujo-col">
+                <div class="flujo-cab"><span class="punto punto-info"></span> Por llegar <b>{{ por_llegar|length }}</b></div>
+                {% for t in por_llegar %}
+                <article class="paciente {% if t.atrasada %}paciente-atrasado{% endif %}">
+                    <div class="paciente-hora">{{ t.cita.hora|time:"H:i" }}</div>
+                    <div class="paciente-cuerpo">
+                        <div class="paciente-nombre">{{ t.cita.mascota.especie.emoji }} {{ t.cita.mascota.nombre }}</div>
+                        <div class="paciente-sub">{% if perms.mascotas.view_cliente %}<a href="{% url 'cliente_ficha' t.cita.cliente_id %}" class="enlace-sub">{{ t.cita.cliente.nombre_completo }}</a>{% else %}{{ t.cita.cliente.nombre_completo }}{% endif %} · {{ t.cita.tipo_atencion.nombre }}</div>
+                        {% if not es_vet %}<div class="paciente-sub">con {{ t.cita.veterinario.get_full_name }}</div>{% endif %}
+                        <div class="etiquetas">
+                            {% if t.atrasada %}<span class="etiqueta etiqueta-warn">Atrasada {{ t.atraso_txt }}</span>{% endif %}
+                            {% if t.faltas >= 2 %}<span class="etiqueta etiqueta-mal" title="Inasistencias anteriores del tutor">Faltó {{ t.faltas }} veces</span>{% endif %}
+                            {% if t.sin_telefono %}<span class="etiqueta etiqueta-neutro">Sin teléfono</span>{% endif %}
+                            {% if t.cita.mascota.alergias %}<span class="etiqueta etiqueta-mal" title="{{ t.cita.mascota.alergias }}">⚠ Alergias</span>{% endif %}
+                            {% if t.cita.mascota.observaciones %}<span class="etiqueta etiqueta-warn" title="{{ t.cita.mascota.observaciones }}">Manejo especial</span>{% endif %}
+                        </div>
+                    </div>
+                    {% if perms.citas.change_cita %}
+                    <div class="paciente-acciones">
+                        <form method="post" action="{% url 'cita_llego' t.cita.pk %}">
+                            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                            <button type="submit" class="btn btn-primario btn-chico">Llegó</button>
+                        </form>
+                        {% if t.atrasada %}
+                        <form method="post" action="{% url 'marcar_no_asistio' t.cita.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-peligro btn-chico">No asistió</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </article>
+                {% empty %}
+                <p class="flujo-vacio">Nadie más por llegar hoy.</p>
+                {% endfor %}
+            </div>
+
+            {# En sala de espera #}
+            <div class="flujo-col">
+                <div class="flujo-cab"><span class="punto punto-warn"></span> En sala de espera <b>{{ en_sala|length }}</b></div>
+                {% for t in en_sala %}
+                <article class="paciente {% if t.espera_larga %}paciente-esperando{% endif %}">
+                    <div class="paciente-hora">{{ t.cita.hora|time:"H:i" }}</div>
+                    <div class="paciente-cuerpo">
+                        <div class="paciente-nombre">{{ t.cita.mascota.especie.emoji }} {{ t.cita.mascota.nombre }}</div>
+                        <div class="paciente-sub">{% if perms.mascotas.view_cliente %}<a href="{% url 'cliente_ficha' t.cita.cliente_id %}" class="enlace-sub">{{ t.cita.cliente.nombre_completo }}</a>{% else %}{{ t.cita.cliente.nombre_completo }}{% endif %} · {{ t.cita.tipo_atencion.nombre }}</div>
+                        {% if not es_vet %}<div class="paciente-sub">con {{ t.cita.veterinario.get_full_name }}</div>{% endif %}
+                        <div class="etiquetas">
+                            <span class="etiqueta {% if t.espera_larga %}etiqueta-warn{% else %}etiqueta-neutro{% endif %}">
+                                Esperando {{ t.espera_txt }}
+                            </span>
+                        </div>
+                    </div>
+                    {% if perms.citas.change_cita %}
+                    <div class="paciente-acciones">
+                        <form method="post" action="{% url 'cita_atendida' t.cita.pk %}">
+                            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                            <button type="submit" class="btn btn-primario btn-chico">Atendida</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </article>
+                {% empty %}
+                <p class="flujo-vacio">La sala de espera está vacía.</p>
+                {% endfor %}
+            </div>
+
+            {# Atendidas #}
+            <div class="flujo-col">
+                <div class="flujo-cab"><span class="punto punto-ok"></span> Atendidas <b>{{ atendidas|length }}</b></div>
+                {% for t in atendidas %}
+                <article class="paciente paciente-listo">
+                    <div class="paciente-hora">{{ t.cita.hora|time:"H:i" }}</div>
+                    <div class="paciente-cuerpo">
+                        <div class="paciente-nombre">{{ t.cita.mascota.especie.emoji }} {{ t.cita.mascota.nombre }}</div>
+                        <div class="paciente-sub">{{ t.cita.cliente.nombre_completo }}</div>
+                    </div>
+                </article>
+                {% empty %}
+                <p class="flujo-vacio">Todavía no hay atenciones cerradas.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <div class="panel-lateral">
+
+        {# ---------- Confirmar mañana ---------- #}
+        {% if perms.citas.ver_riesgo %}
+        <section class="card">
+            <div class="card-titulo">
+                <h2><svg class="icono"><use href="#i-alerta"/></svg> Confirmar mañana</h2>
+                <a href="{% url 'riesgo' %}">Horas en riesgo</a>
+            </div>
+            <p class="panel-nota">
+                {{ confirmar_total }} cita{{ confirmar_total|pluralize }} el {{ manana|date:"l j"|lower }}{% if altos_manana %},
+                <b>{{ altos_manana }} de riesgo alto</b>{% endif %}. Llama primero a las de arriba: el WhatsApp
+                y el guion cambian según el riesgo de cada una.
+            </p>
+            <ul class="lista-llamadas">
+                {% for c in confirmar %}
+                <li>
+                    <span class="nivel nivel-{{ c.nivel }}" title="Riesgo {{ c.nivel }}">{{ c.puntaje }}</span>
+                    <div class="llamada-txt">
+                        <b>{{ c.cita.hora|time:"H:i" }} · {{ c.cita.mascota.nombre }}</b>
+                        <span>{{ c.cita.cliente.nombre_completo }}</span>
+                        <details class="guion">
+                            <summary>Qué decir</summary>
+                            <ul>{% for g in c.guion %}<li>{{ g }}</li>{% endfor %}</ul>
+                        </details>
+                    </div>
+                    <div class="llamada-acciones">
+                        {% if c.cita.cliente.telefono %}
+                        <a class="btn btn-suave btn-chico" href="tel:{{ c.cita.cliente.telefono }}" title="Llamar">📞</a>
+                        {% if c.whatsapp %}<a class="btn btn-suave btn-chico" href="{{ c.whatsapp }}" target="_blank" rel="noopener" title="WhatsApp con el mensaje para riesgo {{ c.nivel }}">💬</a>{% endif %}
+                        {% else %}
+                        <span class="etiqueta etiqueta-neutro">Sin teléfono</span>
+                        {% endif %}
+                    </div>
+                </li>
+                {% empty %}
+                <li class="flujo-vacio">No hay citas pendientes para mañana.</li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        {# ---------- Sobrecupo sugerido ---------- #}
+        {% if perms.citas.ver_riesgo and sobrecupo %}
+        <section class="card sobrecupo">
+            <div class="card-titulo">
+                <h2><svg class="icono"><use href="#i-grafico"/></svg> Sobrecupo sugerido</h2>
+            </div>
+            <p class="panel-nota">
+                Como hacen las aerolíneas: estas horas de mañana tienen alto riesgo de quedar vacías.
+                Si llega una urgencia o alguien en lista de espera, se le puede ofrecer el mismo bloque.
+            </p>
+            <ul class="lista-simple">
+                {% for c in sobrecupo %}
+                <li>
+                    <b>{{ c.cita.hora|time:"H:i" }} · {{ c.cita.veterinario.get_full_name }}</b>
+                    <span>{{ c.cita.mascota.nombre }} ({{ c.cita.cliente.nombre_completo }}) · riesgo {{ c.puntaje }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        {# ---------- Bloques libres ---------- #}
+        <section class="card">
+            <div class="card-titulo">
+                <h2><svg class="icono"><use href="#i-calendario"/></svg> Horas libres</h2>
+                {% if perms.citas.add_cita %}<a href="{% url 'agendar' %}">Agendar</a>{% endif %}
+            </div>
+            <div class="huecos-dia">Hoy</div>
+            <div class="huecos">
+                {% for h in huecos_hoy %}
+                <div class="hueco"><b>{{ h.hora|time:"H:i" }}</b>
+                    <span>{% for v in h.vets %}{{ v.first_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span></div>
+                {% empty %}
+                <div class="flujo-vacio">Sin horas libres el resto del día.</div>
+                {% endfor %}
+            </div>
+            <div class="huecos-dia">Mañana</div>
+            <div class="huecos">
+                {% for h in huecos_manana %}
+                <div class="hueco"><b>{{ h.hora|time:"H:i" }}</b>
+                    <span>{% for v in h.vets %}{{ v.first_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span></div>
+                {% empty %}
+                <div class="flujo-vacio">Sin horas libres mañana.</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        {# ---------- Últimas cancelaciones ---------- #}
+        {% if not es_vet %}
+        <section class="card">
+            <div class="card-titulo">
+                <h2><svg class="icono"><use href="#i-x"/></svg> Últimas cancelaciones</h2>
+                <a href="{% url 'citas' %}?estado=cancelada">Ver todas</a>
+            </div>
+            <ul class="lista-simple">
+                {% for c in cancelaciones %}
+                <li>
+                    <b>{{ c.mascota.nombre }}</b> · {{ c.fecha|date:"d/m" }} {{ c.hora|time:"H:i" }}
+                    <span>{{ c.motivo_cancelacion|default:"Sin motivo" }}</span>
+                </li>
+                {% empty %}
+                <li class="flujo-vacio">No hay cancelaciones registradas.</li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

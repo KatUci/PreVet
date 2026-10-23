@@ -1,0 +1,162 @@
+{# Detalle de una cita, para el panel lateral del calendario. #}
+
+{# ---------- Encabezado ---------- #}
+<header class="det-head">
+    {% if cita.mascota.foto_version %}
+    <img class="det-avatar det-foto ampliable" alt="Foto de {{ cita.mascota.nombre }}" src="{% url 'mascota_foto' cita.mascota.pk %}?v={{ cita.mascota.foto_version }}">
+    {% else %}
+    <div class="det-avatar">{{ cita.mascota.especie.emoji }}</div>
+    {% endif %}
+    <div class="det-head-txt">
+        <h3>{{ cita.mascota.nombre }}</h3>
+        <div class="det-sub">
+            {{ cita.mascota.especie.nombre }}{% if cita.mascota.raza %} · {{ cita.mascota.raza.nombre }}{% endif %}{% if cita.mascota.edad %} · {{ cita.mascota.edad }}{% endif %}{% if cita.mascota.peso_kg %} · {{ cita.mascota.peso_kg|floatformat:1 }} kg{% endif %}
+        </div>
+    </div>
+</header>
+
+<div class="det-estados">
+    <span class="det-estado ev-{{ cita.estado }}">{{ cita.get_estado_display }}</span>
+    {% if cita.hora_llegada %}<span class="det-estado ev-completada">Llegó {{ cita.hora_llegada|time:"H:i" }}</span>{% endif %}
+</div>
+
+{% if cita.mascota.alergias or cita.mascota.observaciones or cita.mascota.condiciones %}
+<section class="det-alerta">
+    {% if cita.mascota.alergias %}<div><b>⚠ Alergias:</b> {{ cita.mascota.alergias }}</div>{% endif %}
+    {% if cita.mascota.condiciones %}<div><b>Condiciones:</b> {{ cita.mascota.condiciones }}</div>{% endif %}
+    {% if cita.mascota.observaciones %}<div><b>Manejo:</b> {{ cita.mascota.observaciones }}</div>{% endif %}
+</section>
+{% endif %}
+
+{# ---------- Datos de la cita ---------- #}
+<section class="det-sec">
+    <div class="det-fila">
+        <span class="det-ico"><svg><use href="#i-calendario"/></svg></span>
+        <div>
+            <div class="det-valor">{{ cita.fecha|date:"l j \d\e F"|capfirst }}</div>
+            <div class="det-nota">{{ cita.hora|time:"H:i" }} a {{ cita.hora_termino|time:"H:i" }} · {{ duracion }} min</div>
+        </div>
+    </div>
+    <div class="det-fila">
+        <span class="det-ico"><svg><use href="#i-estetos"/></svg></span>
+        <div>
+            <div class="det-valor">{{ cita.tipo_atencion.nombre }}</div>
+            <div class="det-nota">con {{ cita.veterinario.get_full_name }}</div>
+        </div>
+    </div>
+    {% if cita.notas %}
+    <div class="det-fila">
+        <span class="det-ico"><svg><use href="#i-historial"/></svg></span>
+        <div>
+            <div class="det-etiqueta">Motivo</div>
+            <div class="det-valor det-valor-normal">{{ cita.notas }}</div>
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+{# ---------- Cliente ---------- #}
+<section class="det-sec">
+    <div class="det-sec-titulo">Cliente</div>
+    <div class="det-fila">
+        <span class="det-ico"><svg><use href="#i-vet"/></svg></span>
+        <div>
+            <div class="det-valor">{{ cita.cliente.nombre_completo }}</div>
+            <div class="det-nota">RUT {{ cita.cliente.rut_formateado }}{% if cita.cliente.telefono %} · {{ cita.cliente.telefono }}{% endif %}</div>
+        </div>
+    </div>
+    {% if cita.cliente.telefono %}
+    <div class="det-contacto">
+        <a class="btn btn-suave" href="tel:{{ cita.cliente.telefono }}">📞 Llamar</a>
+        {% if whatsapp %}<a class="btn btn-suave" href="{{ whatsapp }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% endif %}
+    </div>
+    {% else %}
+    <p class="det-nota" style="margin-top:.5rem; padding-left:2.9rem">Sin teléfono registrado.</p>
+    {% endif %}
+</section>
+
+{# ---------- Riesgo de inasistencia ---------- #}
+{% if nivel %}
+<section class="det-sec det-riesgo riesgo-{{ nivel }}">
+    <div class="det-riesgo-cab">
+        <div>
+            <div class="det-sec-titulo" style="margin:0">Riesgo de inasistencia</div>
+            <div class="det-riesgo-nivel">{{ nivel|capfirst }}</div>
+        </div>
+        <div class="det-riesgo-puntaje">{{ puntaje }}<small>/100</small></div>
+    </div>
+    <div class="det-medidor" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ puntaje }}"
+         aria-label="Puntaje de riesgo">
+        <span style="width:{{ puntaje }}%"></span>
+    </div>
+    <ul class="det-factores">
+        {% for d in detalle_riesgo %}<li>{{ d }}</li>{% endfor %}
+    </ul>
+    {% if accion and nivel != 'bajo' %}
+    <div class="det-sugerencia"><strong>Sugerencia:</strong> {{ accion }}</div>
+    {% endif %}
+    {% if guion %}
+    <details class="guion">
+        <summary>Qué decirle al tutor</summary>
+        <ul>{% for g in guion %}<li>{{ g }}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+</section>
+{% endif %}
+
+{# ---------- Cancelada ---------- #}
+{% if cita.estado == 'cancelada' %}
+<section class="det-sec">
+    <div class="det-sec-titulo">Cancelación</div>
+    <p class="det-valor det-valor-normal">{{ cita.motivo_cancelacion|default:"Sin motivo registrado" }}</p>
+    {% if cita.cancelada_por %}
+    <p class="det-nota">Por {{ cita.cancelada_por.get_full_name|default:cita.cancelada_por.username }}{% if cita.fecha_cancelacion %}, el {{ cita.fecha_cancelacion|date:"d/m/Y H:i" }}{% endif %}</p>
+    {% endif %}
+</section>
+{% endif %}
+
+{# ---------- Acciones ---------- #}
+{% if pendiente and perms.citas.change_cita %}
+<footer class="det-acciones">
+    {% if ya_ocurrio %}
+    <form method="post" action="{% url 'cita_atendida' cita.pk %}">
+        {% csrf_token %}<input type="hidden" name="next" class="volver-aqui">
+        <button type="submit" class="btn btn-primario det-btn-ancho">
+            <svg class="icono-sm"><use href="#i-check"/></svg> Marcar como atendida
+        </button>
+    </form>
+    {% endif %}
+
+    <div class="det-acciones-fila">
+        {% if es_hoy and not cita.hora_llegada %}
+        <form method="post" action="{% url 'cita_llego' cita.pk %}">
+            {% csrf_token %}<input type="hidden" name="next" class="volver-aqui">
+            <button type="submit" class="btn btn-suave">✋ Llegó</button>
+        </form>
+        {% endif %}
+        <a href="{% url 'cita_editar' cita.pk %}" class="btn btn-suave">
+            <svg class="icono-sm"><use href="#i-editar"/></svg> Editar
+        </a>
+        <a href="{% url 'cita_reagendar' cita.pk %}" class="btn btn-suave">
+            <svg class="icono-sm"><use href="#i-calendario"/></svg> Reagendar
+        </a>
+        {% if ya_ocurrio %}
+        <form method="post" action="{% url 'marcar_no_asistio' cita.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-peligro">No asistió</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <details class="det-cancelar">
+        <summary>Cancelar esta cita</summary>
+        <form method="post" action="{% url 'cita_cancelar' cita.pk %}">
+            {% csrf_token %}<input type="hidden" name="next" class="volver-aqui">
+            <div class="campo">{{ form_cancelar.motivo.label_tag }}{{ form_cancelar.motivo }}</div>
+            <div class="campo">{{ form_cancelar.detalle.label_tag }}{{ form_cancelar.detalle }}</div>
+            <p class="det-nota">La cita no se borra: queda registrada como cancelada y la hora se libera.</p>
+            <button type="submit" class="btn btn-peligro det-btn-ancho">Confirmar cancelación</button>
+        </form>
+    </details>
+</footer>
+{% endif %}

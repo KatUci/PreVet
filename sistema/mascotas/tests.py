@@ -49,7 +49,7 @@ class RazaTest(BaseMascotas):
         Raza.objects.create(especie=self.perro, nombre='Mestizo')
         Raza.objects.create(especie=self.gato, nombre='Mestizo')
 
-        self.assertEqual(Raza.objects.filter(nombre='Mestizo').count(), 2)
+        self.assertEqual(Raza.objects.filter(nombre='Mestizo', especie__in=[self.perro, self.gato]).count(), 2)
 
 
 class VistaMascotasTest(BaseMascotas):
@@ -60,6 +60,9 @@ class VistaMascotasTest(BaseMascotas):
                                sexo='macho')
         Mascota.objects.create(nombre='Kira', especie=self.gato,
                                sexo='hembra')
+        # Las pantallas exigen permisos: el usuario de prueba entra como Administración.
+        from django.contrib.auth.models import Group
+        self.tutor.groups.add(Group.objects.get(name='Administración'))
         self.client.force_login(self.tutor)
 
     def test_la_ficha_exige_haber_iniciado_sesion(self):
@@ -133,3 +136,196 @@ class TenenciaTest(TestCase):
         Tenencia.objects.create(cliente=self.ana, mascota=self.bruno, es_principal=True)
         with self.assertRaises(IntegrityError), transaction.atomic():
             Tenencia.objects.create(cliente=self.matias, mascota=self.bruno, es_principal=True)
+
+
+class SeccionClientesTest(TestCase):
+    """Directorio de clientes y ficha con su historial."""
+
+    def setUp(self):
+        from datetime import timedelta
+
+        from django.contrib.auth.models import Group, User
+        from django.utils import timezone
+
+        from citas.models import Cita, TipoAtencion
+        from .models import Cliente, Especie, Mascota, Tenencia
+
+        self.usuario = User.objects.create_user('recep')
+        self.usuario.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(self.usuario)
+
+        vet = User.objects.create_user('vet', first_name='Paz', last_name='Herrera')
+        perro = Especie.objects.create(nombre='Perro')
+        control = TipoAtencion.objects.create(nombre='Control', duracion_minutos=30, precio=20000)
+        self.ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto', telefono='912345678')
+        self.luis = Cliente.objects.create(rut='22333444-K', nombres='Luis', apellidos='Rojas')
+        bruno = Mascota.objects.create(nombre='Bruno', especie=perro, sexo='macho')
+        Tenencia.objects.create(cliente=self.ana, mascota=bruno, es_principal=True)
+
+        hoy = timezone.localdate()
+        for i, estado in enumerate(['no_asistio', 'no_asistio', 'completada', 'pendiente']):
+            dias = 5 if estado == 'pendiente' else -10 + i
+            Cita.objects.create(veterinario=vet, mascota=bruno, cliente=self.ana, tipo_atencion=control,
+                                fecha=hoy + timedelta(days=dias), hora=f'1{i}:00', estado=estado)
+
+    def test_busca_por_rut_o_por_la_mascota(self):
+        for texto in ('15.234.871-1', '15234871', 'bruno'):
+            with self.subTest(texto=texto):
+                pagina = self.client.get(f'/clientes/?q={texto}').context['pagina']
+                self.assertEqual([c.pk for c in pagina], [self.ana.pk])
+
+    def test_filtra_reincidentes(self):
+        pagina = self.client.get('/clientes/?filtro=reincidentes').context['pagina']
+        self.assertEqual([c.pk for c in pagina], [self.ana.pk])
+        self.assertTrue(pagina[0].reincidente)
+        self.assertEqual(pagina[0].tasa, 67)        # 2 faltas de 3 citas resueltas
+
+    def test_la_ficha_resume_el_historial(self):
+        respuesta = self.client.get(f'/clientes/{self.ana.pk}/')
+        resumen = respuesta.context['resumen']
+        self.assertEqual((resumen['total'], resumen['atendidas'], resumen['faltas']), (4, 1, 2))
+        self.assertEqual(resumen['perdido_txt'], '40.000')
+        self.assertEqual(len(respuesta.context['proximas']), 1)
+        self.assertTrue(respuesta.context['whatsapp'].startswith('https://wa.me/56912345678'))
+
+    def test_cliente_sin_citas_no_rompe_la_ficha(self):
+        respuesta = self.client.get(f'/clientes/{self.luis.pk}/')
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIsNone(respuesta.context['resumen']['tasa'])
+
+
+class FotosMascotaTest(TestCase):
+    """Las fotos se achican, se guardan en la base y se pueden cambiar o quitar."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+
+        from .models import Cliente, Especie, Mascota, Tenencia
+        self.usuario = User.objects.create_user('recep')
+        self.usuario.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(self.usuario)
+        self.cliente = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto')
+        self.perro = Especie.objects.create(nombre='Perro')
+        self.bruno = Mascota.objects.create(nombre='Bruno', especie=self.perro, sexo='macho')
+        Tenencia.objects.create(cliente=self.cliente, mascota=self.bruno, es_principal=True)
+
+    def imagen(self, ancho=2000, alto=1500, formato='PNG'):
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        datos = BytesIO()
+        modo = 'RGBA' if formato == 'PNG' else 'RGB'
+        Image.new(modo, (ancho, alto), (236, 133, 161)).save(datos, formato)
+        return SimpleUploadedFile(f'foto.{formato.lower()}', datos.getvalue(), content_type=f'image/{formato.lower()}')
+
+    def test_sube_la_foto_achicada_y_en_jpeg(self):
+        from io import BytesIO
+
+        from PIL import Image
+        respuesta = self.client.post(f'/mascotas/{self.bruno.pk}/foto/subir/', {'foto': self.imagen()})
+        self.assertEqual(respuesta.status_code, 302)
+        self.bruno.refresh_from_db()
+        self.assertEqual(self.bruno.foto_version, 1)
+        foto = self.client.get(f'/mascotas/{self.bruno.pk}/foto/')
+        self.assertEqual(foto['Content-Type'], 'image/jpeg')
+        self.assertEqual(max(Image.open(BytesIO(foto.content)).size), 900)
+
+    def test_cambiar_la_foto_sube_la_version(self):
+        self.client.post(f'/mascotas/{self.bruno.pk}/foto/subir/', {'foto': self.imagen()})
+        self.client.post(f'/mascotas/{self.bruno.pk}/foto/subir/', {'foto': self.imagen(300, 300, 'JPEG')})
+        self.bruno.refresh_from_db()
+        self.assertEqual(self.bruno.foto_version, 2)
+
+    def test_quitar_la_foto(self):
+        self.client.post(f'/mascotas/{self.bruno.pk}/foto/subir/', {'foto': self.imagen()})
+        self.client.post(f'/mascotas/{self.bruno.pk}/foto/quitar/')
+        self.bruno.refresh_from_db()
+        self.assertEqual(self.bruno.foto_version, 0)
+        self.assertEqual(self.client.get(f'/mascotas/{self.bruno.pk}/foto/').status_code, 404)
+
+    def test_un_archivo_que_no_es_imagen_se_rechaza(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        falso = SimpleUploadedFile('foto.jpg', b'no soy una imagen', content_type='image/jpeg')
+        respuesta = self.client.post(f'/mascotas/{self.bruno.pk}/foto/subir/', {'foto': falso})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.context['form'].errors)
+
+    def test_registrar_mascota_con_foto(self):
+        from .models import Mascota
+        self.client.post(f'/clientes/{self.cliente.pk}/mascotas/nueva/', {
+            'especie': self.perro.pk, 'nombre': 'Luna', 'sexo': 'hembra', 'relacion': 'dueno',
+            'foto': self.imagen(800, 600)})
+        luna = Mascota.objects.get(nombre='Luna')
+        self.assertEqual(luna.foto_version, 1)
+
+
+class DatosCompletosTest(TestCase):
+    """Datos reales de clientes y mascotas: validaciones y panel de administración."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+
+        from .models import Cliente, Especie
+        self.usuario = User.objects.create_user('recep', is_staff=True)
+        self.usuario.groups.add(Group.objects.get(name='Administración'))
+        self.client.force_login(self.usuario)
+        self.cliente = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto')
+        self.canino = Especie.objects.get(nombre='Canino')
+
+    def datos_mascota(self, **cambios):
+        datos = {'especie': self.canino.pk, 'nombre': 'Toby', 'sexo': 'macho', 'relacion': 'dueno',
+                 'microchip': '', 'peso_kg': '', 'esterilizada': 'unknown'}
+        datos.update(cambios)
+        return datos
+
+    def test_las_razas_frecuentes_quedan_cargadas(self):
+        self.assertTrue(self.canino.razas.filter(nombre='Golden Retriever').exists())
+        self.assertGreater(self.canino.razas.count(), 40)
+
+    def test_microchip_de_15_digitos_y_unico(self):
+        from .models import Mascota
+        url = f'/clientes/{self.cliente.pk}/mascotas/nueva/'
+        respuesta = self.client.post(url, self.datos_mascota(tiene_microchip='True', microchip='12345'))
+        self.assertContains(respuesta, '15 dígitos')
+        self.client.post(url, self.datos_mascota(tiene_microchip='True', microchip='985112003456789', peso_kg='12.5',
+                                                 alergias='Penicilina', esterilizada='true'))
+        toby = Mascota.objects.get(nombre='Toby')
+        self.assertEqual((toby.microchip, float(toby.peso_kg), toby.alergias, toby.esterilizada),
+                         ('985112003456789', 12.5, 'Penicilina', True))
+        repetido = self.client.post(url, self.datos_mascota(nombre='Otro', tiene_microchip='True', microchip='985112003456789'))
+        self.assertContains(repetido, 'otra mascota registrada con este microchip')
+
+    def test_peso_fuera_de_rango(self):
+        respuesta = self.client.post(f'/clientes/{self.cliente.pk}/mascotas/nueva/', self.datos_mascota(peso_kg='0'))
+        self.assertContains(respuesta, 'Revisa el peso')
+
+    def test_el_consentimiento_guarda_su_fecha(self):
+        self.client.post(f'/clientes/{self.cliente.pk}/editar/', {
+            'rut': '15234871-1', 'nombres': 'Ana', 'apellidos': 'Soto', 'comuna': 'Colina',
+            'region': 'Metropolitana', 'canal_preferido': 'llamada', 'consentimiento_datos': 'on'})
+        self.cliente.refresh_from_db()
+        self.assertEqual((self.cliente.comuna, self.cliente.canal_preferido), ('Colina', 'llamada'))
+        self.assertIsNotNone(self.cliente.fecha_consentimiento)
+
+    def test_telefono_de_emergencia_pide_el_nombre(self):
+        respuesta = self.client.post(f'/clientes/{self.cliente.pk}/editar/', {
+            'rut': '15234871-1', 'nombres': 'Ana', 'apellidos': 'Soto', 'telefono_emergencia': '912345678'})
+        self.assertContains(respuesta, 'de quién es el teléfono de emergencia')
+
+    def test_el_panel_de_administracion_abre(self):
+        self.usuario.is_superuser = True
+        self.usuario.save()
+        for url in ('/admin/mascotas/cliente/', '/admin/mascotas/mascota/', '/admin/citas/cita/',
+                    f'/admin/mascotas/cliente/{self.cliente.pk}/change/', '/admin/mascotas/tenencia/'):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_microchip_si_sin_numero_y_no_borra_el_numero(self):
+        from .models import Mascota
+        url = f'/clientes/{self.cliente.pk}/mascotas/nueva/'
+        self.client.post(url, self.datos_mascota(nombre='Con', tiene_microchip='True'))
+        self.client.post(url, self.datos_mascota(nombre='Sin', tiene_microchip='False', microchip='985112003456789'))
+        con, sin = Mascota.objects.get(nombre='Con'), Mascota.objects.get(nombre='Sin')
+        self.assertEqual((con.tiene_microchip, con.microchip), (True, ''))
+        self.assertEqual((sin.tiene_microchip, sin.microchip), (False, ''))

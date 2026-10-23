@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.models import Group
 from django.db.models import Count, Q
+from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import ROLES_PERSONAL, GrupoForm, PersonalForm
@@ -97,4 +98,24 @@ def grupo_formulario(request, pk=None):
         'form': form,
         'grupo': grupo,
         'personas': grupo.user_set.order_by('first_name') if grupo else [],
+        'es_base': bool(grupo and grupo.name in GRUPOS_BASE),
     })
+
+
+# Los grupos con que parte la clínica: se pueden editar, no eliminar.
+GRUPOS_BASE = ('Administración', 'Recepción', 'Veterinarios')
+
+
+@require_POST
+@solo_administradores
+def grupo_eliminar(request, pk):
+    grupo = get_object_or_404(Group, pk=pk)
+    if grupo.name in GRUPOS_BASE:
+        messages.error(request, f'«{grupo.name}» es uno de los grupos base de PreVet: puedes cambiar sus permisos, pero no eliminarlo.')
+    elif grupo.user_set.exists():
+        messages.error(request, f'«{grupo.name}» tiene personas asignadas. Cámbialas de grupo antes de eliminarlo.')
+    else:
+        nombre = grupo.name
+        grupo.delete()
+        messages.success(request, f'Se eliminó el grupo «{nombre}».')
+    return redirect('grupos')

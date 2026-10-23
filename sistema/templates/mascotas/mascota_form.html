@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static estaticos %}
 
 {% block titulo %}Nueva mascota{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'clientes' %}">Clientes</a><span class="sep">›</span><a href="{% url 'cliente_ficha' cliente.pk %}">{{ cliente.nombre_completo }}</a><span class="sep">›</span><span>Nueva mascota</span>{% endblock %}
 {% block encabezado %}Nueva mascota{% endblock %}
 {% block subtitulo %}A nombre de {{ cliente.nombre_completo }} · RUT {{ cliente.rut_formateado }}{% endblock %}
 
@@ -13,7 +14,7 @@
 
 {% block contenido %}
 
-<form method="post" novalidate>
+<form method="post" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
@@ -22,12 +23,9 @@
 
         {# Primero el tipo: según lo que se elija, la lista de razas se ajusta. #}
         <div class="form-grid">
-            {% include 'usuarios/_campo.html' with campo=form.especie %}
-            {% include 'usuarios/_campo.html' with campo=form.raza %}
-            {% include 'usuarios/_campo.html' with campo=form.nombre %}
-            {% include 'usuarios/_campo.html' with campo=form.sexo %}
-            {% include 'usuarios/_campo.html' with campo=form.fecha_nacimiento %}
-            {% include 'usuarios/_campo.html' with campo=form.relacion %}
+            {% for campo in form %}
+            {% include 'usuarios/_campo.html' with campo=campo %}
+            {% endfor %}
         </div>
 
         <div class="form-acciones">
@@ -39,6 +37,6 @@
 
 {# Qué raza pertenece a qué tipo, para que el navegador filtre la lista. #}
 {{ form.razas_por_tipo|json_script:"razas-por-tipo" }}
-<script src="{% static 'js/mascota_form.js' %}"></script>
+<script src="{% static_v 'js/mascota_form.js' %}"></script>
 
 {% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Foto de {{ mascota.nombre }}{% endblock %}
+{% block migas %}<a href="{% url 'portal' %}">Mi PreVet</a><span class="sep">›</span><span>Foto de {{ mascota.nombre }}</span>{% endblock %}
+{% block encabezado %}Foto de {{ mascota.nombre }}{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'portal' %}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<div class="card foto-grid">
+    <div>
+        {% if mascota.foto_version %}
+        <img class="foto-grande ampliable" id="fotoActual" src="{% url 'portal_mascota_foto' mascota.pk %}?v={{ mascota.foto_version }}" alt="Foto de {{ mascota.nombre }}">
+        {% else %}
+        <div class="foto-grande" id="fotoActual">{{ mascota.especie.emoji }}</div>
+        {% endif %}
+    </div>
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {% include 'usuarios/_campo.html' with campo=form.foto %}
+        <div class="form-acciones">
+            <a href="{% url 'portal' %}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Guardar foto</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load static estaticos %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block migas %}<a href="{% url 'portal' %}">Mi PreVet</a><span class="sep">›</span><span>{{ titulo }}</span>{% endblock %}
+{% block encabezado %}{{ titulo }}{% endblock %}
+{% block subtitulo %}{{ subtitulo }}{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'portal' %}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<form method="post" {% if con_archivos %}enctype="multipart/form-data"{% endif %} novalidate>
+    {% csrf_token %}
+    <div class="card">
+        {% for error in form.non_field_errors %}
+        <div class="alerta alerta-error"><svg class="icono"><use href="#i-alerta"/></svg><div>{{ error }}</div></div>
+        {% endfor %}
+        <div class="form-grid">
+            {% for campo in form %}
+            {% include 'usuarios/_campo.html' with campo=campo %}
+            {% endfor %}
+        </div>
+        <div class="form-acciones">
+            <a href="{% url 'portal' %}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Guardar</button>
+        </div>
+    </div>
+</form>
+{% if razas %}
+{{ form.razas_por_tipo|json_script:"razas-por-tipo" }}
+<script src="{% static_v 'js/mascota_form.js' %}"></script>
+{% endif %}
+{% endblock %}

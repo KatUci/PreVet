@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Foto de {{ mascota.nombre }}{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'mascotas' %}">Mascotas</a><span class="sep">›</span><span>Foto de {{ mascota.nombre }}</span>{% endblock %}
+{% block encabezado %}Foto de {{ mascota.nombre }}{% endblock %}
+{% block subtitulo %}{{ mascota.especie.nombre }}{% if mascota.raza %} · {{ mascota.raza.nombre }}{% endif %}{% endblock %}
+
+{% block acciones %}
+<a href="{{ next }}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<div class="card foto-grid">
+    <div>
+        {% if mascota.foto_version %}
+        <img class="foto-grande ampliable" id="fotoActual" src="{% url 'mascota_foto' mascota.pk %}?v={{ mascota.foto_version }}" alt="Foto actual de {{ mascota.nombre }}">
+        {% else %}
+        <div class="foto-grande" id="fotoActual">{{ mascota.especie.emoji }}</div>
+        {% endif %}
+    </div>
+
+    <div>
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+            {% include 'usuarios/_campo.html' with campo=form.foto %}
+            <p class="panel-nota" style="margin-top:.8rem">
+                La foto se guarda en la base de datos compartida de la clínica, achicada a un tamaño web,
+                y la ven todas las personas del equipo. Usa fotos de mascotas cuyos tutores hayan dado su permiso.
+            </p>
+            <div class="form-acciones">
+                <a href="{{ next }}" class="btn btn-suave">Cancelar</a>
+                <button type="submit" class="btn btn-primario">{% if mascota.foto_version %}Cambiar foto{% else %}Subir foto{% endif %}</button>
+            </div>
+        </form>
+        {% if mascota.foto_version %}
+        <form method="post" action="{% url 'mascota_foto_quitar' mascota.pk %}" style="margin-top:1rem">
+            {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="btn btn-peligro btn-chico">Quitar la foto</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

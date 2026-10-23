@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block migas %}<a href="/">Inicio</a>{% for texto, url in migas %}<span class="sep">›</span>{% if url %}<a href="{{ url }}">{{ texto }}</a>{% else %}<span>{{ texto }}</span>{% endif %}{% endfor %}{% endblock %}
+{% block encabezado %}{{ titulo }}{% endblock %}
+
+{% block acciones %}
+<a href="{{ volver }}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card">
+        {% if ayuda %}<p class="panel-nota">{{ ayuda }}</p>{% endif %}
+        {% for error in form.non_field_errors %}
+        <div class="alerta alerta-error"><svg class="icono"><use href="#i-alerta"/></svg><div>{{ error }}</div></div>
+        {% endfor %}
+        <div class="form-grid">
+            {% for campo in form %}
+            {% include 'usuarios/_campo.html' with campo=campo %}
+            {% endfor %}
+        </div>
+        <div class="form-acciones">
+            <a href="{{ volver }}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Guardar</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static estaticos %}
 
 {% block titulo %}Agendar hora{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'citas' %}">Citas</a><span class="sep">›</span><span>Agendar hora</span>{% endblock %}
 {% block encabezado %}Agendar hora{% endblock %}
 {% block subtitulo %}Busca al cliente por su RUT y elige a cuál de sus mascotas atender{% endblock %}
 
@@ -144,7 +145,7 @@
     </div>
 </form>
 
-<script src="{% static 'js/agendar.js' %}"></script>
+<script src="{% static_v 'js/agendar.js' %}"></script>
 {% endif %}
 
 {% endblock %}

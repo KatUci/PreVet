@@ -58,8 +58,8 @@ function alternarTema() {
     if (b) b.addEventListener('click', alternarTema);
 });
 
-// Un doble clic en "Confirmar" llegaba a registrar dos ventas y a
-// descontar el stock dos veces. Al enviar, el botón se bloquea.
+// Un doble clic en "Guardar" o "Agendar" podía enviar el formulario dos
+// veces y duplicar el registro. Al enviar, el botón se bloquea.
 document.addEventListener('submit', function (e) {
     var form = e.target;
     if (form.method.toLowerCase() !== 'post') return;
@@ -79,5 +79,57 @@ document.addEventListener('submit', function (e) {
         boton.disabled = false;
         delete boton.dataset.enviando;
         if (boton.dataset.textoOriginal) boton.innerHTML = boton.dataset.textoOriginal;
+    });
+});
+
+// Atajo "/": lleva al buscador global, salvo que ya se esté escribiendo en un campo.
+document.addEventListener('keydown', function (e) {
+    var buscador = document.getElementById('buscadorGlobal');
+    if (!buscador || e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    var activo = document.activeElement;
+    if (activo && (activo.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(activo.tagName))) return;
+    e.preventDefault();
+    buscador.focus();
+});
+
+// Vista previa de una foto apenas se elige, antes de guardarla. Si el campo
+// indica data-vista-previa, se reemplaza esa imagen (la foto actual); si no,
+// la vista previa aparece debajo del campo.
+var PESO_MAXIMO_FOTO = 10 * 1024 * 1024;
+
+document.querySelectorAll('input[type="file"][accept^="image"]').forEach(function (input) {
+    input.addEventListener('change', function () {
+        var campo = input.closest('.campo') || input.parentNode;
+        var aviso = campo.querySelector('.aviso-foto');
+        var archivo = input.files && input.files[0];
+        var vista = input.dataset.vistaPrevia ? document.getElementById(input.dataset.vistaPrevia)
+                                              : campo.querySelector('.vista-previa');
+        if (aviso) aviso.remove();
+        if (!archivo || !archivo.type.startsWith('image/')) return;
+
+        if (archivo.size > PESO_MAXIMO_FOTO) {
+            aviso = document.createElement('div');
+            aviso.className = 'ayuda aviso-foto';
+            aviso.textContent = 'Esta foto pesa más de 10 MB: elige una más liviana.';
+            campo.appendChild(aviso);
+        }
+
+        // Si lo que hay es el ícono de la mascota (no una imagen), se cambia por una.
+        if (!vista || vista.tagName !== 'IMG') {
+            var img = document.createElement('img');
+            img.alt = 'Vista previa de la foto';
+            if (vista) {
+                img.className = vista.className + ' ampliable';
+                img.id = vista.id;
+                vista.replaceWith(img);
+            } else {
+                img.className = 'vista-previa ampliable';
+                input.insertAdjacentElement('afterend', img);
+            }
+            vista = img;
+        }
+        if (vista.dataset.url) URL.revokeObjectURL(vista.dataset.url);
+        vista.dataset.url = URL.createObjectURL(archivo);
+        vista.src = vista.dataset.url;
     });
 });

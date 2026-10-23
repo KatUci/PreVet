@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Sin acceso{% endblock %}
+{% block encabezado %}Sin acceso{% endblock %}
+
+{% block contenido %}
+<div class="card">
+    <div class="vacio">
+        <div class="vacio-ico"><svg class="icono"><use href="#i-escudo"/></svg></div>
+        <h3 style="color:var(--titulo); margin-bottom:.5rem">Esta sección no está disponible para tu cuenta</h3>
+        <p style="color:var(--gris); max-width:460px; margin:0 auto 1.4rem">
+            Tu grupo de permisos no incluye esta pantalla.
+            Si la necesitas para tu trabajo, pídele a quien administra PreVet que te la habilite.
+        </p>
+        <a href="/" class="btn btn-primario">
+            <svg class="icono-sm"><use href="#i-inicio"/></svg> Volver al inicio
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Buscar{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Búsqueda</span>{% endblock %}
+{% block encabezado %}{% if q %}Resultados para «{{ q }}»{% else %}Buscar{% endif %}{% endblock %}
+{% block subtitulo %}{% if q|length >= 2 %}{{ total }} resultado{{ total|pluralize }} en clientes, mascotas y citas{% else %}Escribe al menos 2 letras en el buscador de arriba{% endif %}{% endblock %}
+
+{% block contenido %}
+
+{% if q|length >= 2 and not total %}
+<div class="card vacio">
+    <h3>No encontramos nada con «{{ q }}»</h3>
+    <p style="color:var(--gris)">Prueba con el RUT, el teléfono, el nombre del tutor o el de la mascota.</p>
+</div>
+{% elif q|length >= 2 %}
+<div class="resultados-grid">
+
+    {% if perms.mascotas.view_cliente %}
+    <section class="card">
+        <div class="card-titulo">
+            <h2><svg class="icono"><use href="#i-vet"/></svg> Clientes · {{ totales.clientes }}</h2>
+            {% if totales.clientes > 8 %}<a href="{% url 'clientes' %}?q={{ q|urlencode }}">Ver todos</a>{% endif %}
+        </div>
+        <ul class="lista-simple">
+            {% for c in resultados.clientes %}
+            <li>
+                <a href="{% url 'cliente_ficha' c.pk %}" class="enlace-fuerte">{{ c.nombre_completo }}</a>
+                <span>RUT {{ c.rut_formateado }}{% if c.telefono %} · {{ c.telefono }}{% endif %}</span>
+            </li>
+            {% empty %}
+            <li class="flujo-vacio">Sin clientes.</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if perms.mascotas.view_mascota %}
+    <section class="card">
+        <div class="card-titulo">
+            <h2><svg class="icono"><use href="#i-paw"/></svg> Mascotas · {{ totales.mascotas }}</h2>
+            {% if totales.mascotas > 8 %}<a href="{% url 'mascotas' %}?buscar={{ q|urlencode }}">Ver todas</a>{% endif %}
+        </div>
+        <ul class="lista-simple">
+            {% for m in resultados.mascotas %}
+            <li>
+                <b>{{ m.especie.emoji }} {{ m.nombre }}</b>
+                <span>{{ m.especie.nombre }}{% if m.raza %} · {{ m.raza.nombre }}{% endif %}{% if m.responsable %} · {{ m.responsable.nombre_completo }}{% endif %}</span>
+            </li>
+            {% empty %}
+            <li class="flujo-vacio">Sin mascotas.</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if perms.citas.view_cita %}
+    <section class="card">
+        <div class="card-titulo">
+            <h2><svg class="icono"><use href="#i-calendario"/></svg> Citas · {{ totales.citas }}</h2>
+            {% if totales.citas > 8 %}<a href="{% url 'citas' %}?q={{ q|urlencode }}">Ver todas</a>{% endif %}
+        </div>
+        <ul class="lista-simple">
+            {% for c in resultados.citas %}
+            <li>
+                <b>{{ c.fecha|date:"d/m/Y" }} {{ c.hora|time:"H:i" }} · {{ c.mascota.nombre }}</b>
+                <span>{{ c.cliente.nombre_completo }} · {{ c.tipo_atencion.nombre }} ·
+                    <span class="badge badge-{% if c.estado == 'no_asistio' %}no-asistio{% else %}{{ c.estado }}{% endif %}" style="display:inline-flex">{{ c.get_estado_display }}</span></span>
+            </li>
+            {% empty %}
+            <li class="flujo-vacio">Sin citas.</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

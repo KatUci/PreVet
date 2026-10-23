@@ -1,4 +1,4 @@
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import Count, Q
 from django.shortcuts import render
 
@@ -7,6 +7,7 @@ from .rut import limpiar_rut
 
 
 @login_required
+@permission_required('mascotas.view_mascota', raise_exception=True)
 def listado(request):
     """Fichas de los pacientes de la clínica, filtrables por tipo de mascota."""
 

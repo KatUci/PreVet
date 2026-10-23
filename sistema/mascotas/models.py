@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.contrib.auth.models import User
 from django.db import models
 
 from .rut import formatear_rut, limpiar_rut, validar_rut
@@ -49,6 +50,13 @@ class Raza(models.Model):
         unique_together = ('especie', 'nombre')
 
 
+REGIONES = [(r, r) for r in (
+    'Arica y Parinacota', 'Tarapacá', 'Antofagasta', 'Atacama', 'Coquimbo', 'Valparaíso', 'Metropolitana',
+    "O'Higgins", 'Maule', 'Ñuble', 'Biobío', 'La Araucanía', 'Los Ríos', 'Los Lagos', 'Aysén', 'Magallanes')]
+
+CANALES = [('whatsapp', 'WhatsApp'), ('llamada', 'Llamada'), ('correo', 'Correo')]
+
+
 class Cliente(models.Model):
     """Persona que trae mascotas a la clínica.
 
@@ -64,6 +72,24 @@ class Cliente(models.Model):
     telefono = models.CharField('teléfono', max_length=20, blank=True)
     email = models.EmailField('correo', blank=True)
     direccion = models.CharField('dirección', max_length=200, blank=True)
+    comuna = models.CharField(max_length=60, blank=True, db_default='')
+    region = models.CharField('región', max_length=60, blank=True, db_default='', choices=REGIONES)
+
+    contacto_emergencia = models.CharField('contacto de emergencia', max_length=120, blank=True, db_default='',
+                                           help_text='Nombre de otra persona a quien llamar.')
+    telefono_emergencia = models.CharField('teléfono de emergencia', max_length=20, blank=True, db_default='')
+    canal_preferido = models.CharField('canal preferido', max_length=10, choices=CANALES,
+                                       default='whatsapp', db_default='whatsapp',
+                                       help_text='Por dónde prefiere que le confirmen las citas.')
+
+    # Ley 19.628: el cliente autoriza el tratamiento de sus datos personales.
+    consentimiento_datos = models.BooleanField('acepta el tratamiento de sus datos', default=False,
+                                               db_default=False)
+    fecha_consentimiento = models.DateTimeField('fecha del consentimiento', null=True, blank=True)
+
+    # Cuenta del portal del tutor (Mi PreVet), si el cliente creó una.
+    usuario = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='cliente', verbose_name='cuenta en Mi PreVet')
 
     activo = models.BooleanField(default=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
@@ -71,6 +97,12 @@ class Cliente(models.Model):
     def save(self, *args, **kwargs):
         # Se guarda siempre igual, escriba como se escriba: 12345678-5.
         self.rut = limpiar_rut(self.rut)
+        # La fecha del consentimiento se registra sola la primera vez que se marca.
+        if self.consentimiento_datos and not self.fecha_consentimiento:
+            from django.utils import timezone
+            self.fecha_consentimiento = timezone.now()
+        elif not self.consentimiento_datos:
+            self.fecha_consentimiento = None
         super().save(*args, **kwargs)
 
     @property
@@ -105,6 +137,19 @@ class Mascota(models.Model):
     sexo = models.CharField(max_length=10, choices=SEXOS)
     fecha_nacimiento = models.DateField(null=True, blank=True)
 
+    # Identificación y datos clínicos básicos.
+    tiene_microchip = models.BooleanField('¿tiene microchip?', null=True, blank=True)
+    microchip = models.CharField('número de microchip', max_length=15, blank=True, db_default='',
+                                 help_text='Opcional: 15 dígitos.')
+    color = models.CharField('color o señas', max_length=80, blank=True, db_default='')
+    peso_kg = models.DecimalField('peso (kg)', max_digits=5, decimal_places=2, null=True, blank=True)
+    esterilizada = models.BooleanField('esterilizada', null=True, blank=True,
+                                       help_text='Déjalo sin marcar si no se sabe.')
+    alergias = models.TextField(blank=True, db_default='')
+    condiciones = models.TextField('enfermedades crónicas y medicamentos', blank=True, db_default='')
+    observaciones = models.TextField('observaciones de manejo', blank=True, db_default='',
+                                     help_text='Carácter, si muerde, si necesita bozal, etc.')
+
     # Un cliente puede tener muchas mascotas, y una mascota puede tener
     # varios clientes (una familia, una pareja, quien la cuida). La tabla
     # intermedia Tenencia guarda qué relación tiene cada uno con ella.
@@ -116,6 +161,10 @@ class Mascota(models.Model):
 
     activo = models.BooleanField(default=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    # Cambia cada vez que se sube una foto (0 = sin foto). Sirve para saber si
+    # hay foto sin leer la imagen y para que el navegador no muestre una vieja.
+    foto_version = models.PositiveIntegerField(default=0, db_default=0, editable=False)
 
     @property
     def responsable(self):
@@ -151,6 +200,10 @@ class Mascota(models.Model):
     class Meta:
         verbose_name_plural = "Mascotas"
         ordering = ['nombre']
+        constraints = [
+            models.UniqueConstraint(fields=['microchip'], condition=~models.Q(microchip=''),
+                                    name='microchip_unico'),
+        ]
 
 
 class Tenencia(models.Model):
@@ -185,3 +238,26 @@ class Tenencia(models.Model):
                                     name='un_responsable_principal_por_mascota'),
         ]
 
+
+class FotoMascota(models.Model):
+    """La foto de una mascota, guardada en la base de datos compartida.
+
+    Va en una tabla aparte para que las consultas de mascotas y citas no
+    carguen la imagen cuando no la necesitan. Se guarda ya achicada (ver
+    fotos.py), por eso cabe sin problemas en la base.
+    """
+
+    mascota = models.OneToOneField(Mascota, on_delete=models.CASCADE, primary_key=True,
+                                   related_name='foto')
+    imagen = models.BinaryField()
+    tipo = models.CharField(max_length=30, default='image/jpeg')
+    actualizada = models.DateTimeField(auto_now=True)
+    subida_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+
+    def __str__(self):
+        return f"Foto de {self.mascota.nombre}"
+
+    class Meta:
+        verbose_name = "foto de mascota"
+        verbose_name_plural = "fotos de mascotas"

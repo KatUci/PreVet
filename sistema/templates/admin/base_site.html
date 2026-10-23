@@ -1,11 +1,12 @@
 {% extends "admin/base.html" %}
-{% load static %}
+{% load static estaticos %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title }}{% endblock %}
 
 {% block extrastyle %}{{ block.super }}
-<link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
-<link rel="stylesheet" href="{% static 'css/admin.css' %}">
+<link rel="icon" type="image/png" sizes="64x64" href="{% static 'img/favicon-64.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+<link rel="stylesheet" href="{% static_v 'css/admin.css' %}">
 {% endblock %}
 
 {% block branding %}

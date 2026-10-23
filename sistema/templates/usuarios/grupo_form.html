@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block titulo %}{% if grupo %}Editar grupo{% else %}Nuevo grupo{% endif %}{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Administración</span><span class="sep">›</span><a href="{% url 'grupos' %}">Grupos de permisos</a><span class="sep">›</span><span>Grupo</span>{% endblock %}
 {% block encabezado %}{% if grupo %}{{ grupo.name }}{% else %}Nuevo grupo de permisos{% endif %}{% endblock %}
 {% block subtitulo %}Marca lo que pueden hacer las personas de este grupo{% endblock %}
 
@@ -55,5 +56,19 @@
         </div>
     </div>
 </form>
+
+{% if grupo and not es_base %}
+<div class="card zona-cuidado">
+    <div>
+        <b>Eliminar el grupo «{{ grupo.name }}»</b>
+        <p class="panel-nota">Solo se puede si no tiene personas asignadas.</p>
+    </div>
+    <form method="post" action="{% url 'grupo_eliminar' grupo.pk %}"
+          onsubmit="return confirm('¿Eliminar el grupo {{ grupo.name|escapejs }}?')">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-peligro">Eliminar grupo</button>
+    </form>
+</div>
+{% endif %}
 
 {% endblock %}

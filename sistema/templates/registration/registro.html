@@ -1,0 +1,47 @@
+{% extends 'registration/base_acceso.html' %}
+{% load static %}
+
+{% block titulo %}Crear cuenta{% endblock %}
+{% block clase_tarjeta %} tarjeta-ancha{% endblock %}
+
+{% block tarjeta %}
+        <div class="marca">
+            <img class="marca-imagen marca-chica" src="{% static 'img/prevet-logo.png' %}" alt="PreVet Veterinaria">
+        </div>
+
+        <nav class="pestanas" aria-label="Acceso">
+            <a href="{% url 'login' %}">Iniciar sesión</a>
+            <a href="{% url 'registro' %}" class="activa" aria-current="page">Crear cuenta</a>
+        </nav>
+
+        <p class="frase frase-izq">
+            Crea tu cuenta de <b>Mi PreVet</b> para ver tus citas y mantener al día los datos de tus mascotas.
+            Si ya te atiendes en la clínica, usa el mismo correo o teléfono que diste en recepción.
+        </p>
+
+        {% for error in form.non_field_errors %}<div class="error">{{ error }}</div>{% endfor %}
+
+        <form method="post" novalidate class="registro">
+            {% csrf_token %}
+            <div class="registro-grilla">
+                {% for campo in form %}
+                {% if campo.name != 'consentimiento' %}
+                <div class="campo-reg{% if campo.errors %} con-error{% endif %}">
+                    <label for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                    {{ campo }}
+                    {% for e in campo.errors %}<span class="campo-error">{{ e }}</span>{% endfor %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <label class="acepto{% if form.consentimiento.errors %} con-error{% endif %}">
+                {{ form.consentimiento }} <span>{{ form.consentimiento.label }}</span>
+            </label>
+            {% for e in form.consentimiento.errors %}<span class="campo-error">Debes aceptar para crear la cuenta.</span>{% endfor %}
+
+            <button type="submit" class="boton">Crear mi cuenta</button>
+        </form>
+
+        <p class="nota-acceso">¿Ya tienes cuenta? <a href="{% url 'login' %}">Inicia sesión</a> con tu RUT.</p>
+{% endblock %}

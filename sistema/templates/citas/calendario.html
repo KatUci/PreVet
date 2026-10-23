@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static estaticos %}
+
+{% block titulo %}Calendario{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Calendario</span>{% endblock %}
+{% block encabezado %}Calendario{% endblock %}
+{% block subtitulo %}Haz clic en una cita para ver su detalle y atenderla, reagendarla o cancelarla{% endblock %}
+
+{% block acciones %}
+{% if perms.citas.add_cita %}
+<a href="{% url 'agendar' %}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-mas"/></svg> Agendar hora
+</a>
+{% endif %}
+{% endblock %}
+
+{% block contenido %}
+
+<div class="cal-barra">
+    <div class="campo" style="min-width:240px">
+        <label for="filtroVet">Profesional</label>
+        <select id="filtroVet">
+            <option value="">Todos los profesionales</option>
+            {% for v in veterinarios %}
+            <option value="{{ v.pk }}" {% if vet_elegido == v.pk|stringformat:'s' %}selected{% endif %}>{{ v.get_full_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="cal-leyenda">
+        <span class="ley ev-pendiente">Pendiente</span>
+        <span class="ley ev-completada">Atendida</span>
+        <span class="ley ev-no_asistio">No asistió</span>
+        <span class="ley ev-cancelada">Cancelada</span>
+        <span class="ley ley-riesgo">Riesgo alto</span>
+    </div>
+</div>
+
+<div class="card cal-card">
+    <div class="cal-cargando" id="calCargando" hidden>Cargando citas…</div>
+    <div id="calendario"
+         data-eventos="{% url 'calendario_eventos' %}"
+         data-fecha="{{ fecha_inicial }}"
+         data-vista="{{ vista_inicial }}"></div>
+</div>
+
+{# Panel lateral: se llena con el detalle de la cita al hacer clic. #}
+<div class="panel-fondo" id="panelFondo" hidden></div>
+<aside class="panel-cita" id="panelCita" aria-hidden="true" aria-label="Detalle de la cita">
+    <button type="button" class="panel-cerrar" id="panelCerrar" aria-label="Cerrar">
+        <svg><use href="#i-x"/></svg>
+    </button>
+    <div id="panelContenido"></div>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales/es.global.min.js"></script>
+<script src="{% static_v 'js/calendario.js' %}"></script>
+
+{% endblock %}

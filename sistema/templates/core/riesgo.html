@@ -1,74 +1,194 @@
 {% extends 'base.html' %}
 
 {% block titulo %}Horas en riesgo{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Análisis</span><span class="sep">›</span><span>Horas en riesgo</span>{% endblock %}
 {% block encabezado %}Horas en riesgo{% endblock %}
-{% block subtitulo %}Citas pendientes ordenadas por probabilidad de inasistencia{% endblock %}
+{% block subtitulo %}Citas pendientes ordenadas de mayor a menor riesgo de inasistencia{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'riesgo_exportar' %}?{{ qs }}" class="btn btn-suave" title="Descarga en Excel lo que se ve en pantalla">
+    <svg class="icono-sm"><use href="#i-imprimir"/></svg> Exportar a Excel
+</a>
+<a href="{% url 'calendario' %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-calendario"/></svg> Calendario
+</a>
+{% endblock %}
 
 {% block contenido %}
 
-<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:1.6rem">
-    <div class="card" style="border-left:4px solid var(--mal-txt)">
-        <div style="font-size:.82rem; color:var(--gris)">Riesgo alto</div>
-        <div style="font-size:1.9rem; font-weight:700; color:var(--mal-txt)">{{ altos }}</div>
-        <div style="font-size:.78rem; color:var(--gris-claro)">requieren acción hoy</div>
-    </div>
-    <div class="card" style="border-left:4px solid var(--acento)">
-        <div style="font-size:.82rem; color:var(--gris)">Riesgo medio</div>
-        <div style="font-size:1.9rem; font-weight:700; color:var(--acento)">{{ medios }}</div>
-        <div style="font-size:.78rem; color:var(--gris-claro)">reforzar recordatorio</div>
-    </div>
-    <div class="card" style="border-left:4px solid var(--ok-txt)">
-        <div style="font-size:.82rem; color:var(--gris)">Riesgo bajo</div>
-        <div style="font-size:1.9rem; font-weight:700; color:var(--ok-txt)">{{ bajos }}</div>
-        <div style="font-size:.78rem; color:var(--gris-claro)">sin acción</div>
-    </div>
+{# ---------- Resumen ---------- #}
+<div class="kpis-dia">
+    <div class="kpi"><span class="kpi-num">{{ resumen.total }}</span><span class="kpi-txt">citas por evaluar</span></div>
+    <div class="kpi kpi-mal"><span class="kpi-num">{{ resumen.alto }}</span><span class="kpi-txt">riesgo alto · confirmar hoy</span></div>
+    <div class="kpi kpi-warn"><span class="kpi-num">{{ resumen.medio }}</span><span class="kpi-txt">riesgo medio · reforzar aviso</span></div>
+    <div class="kpi kpi-ok"><span class="kpi-num">{{ resumen.bajo }}</span><span class="kpi-txt">riesgo bajo · sin acción</span></div>
+    <div class="kpi"><span class="kpi-num"><small>$</small>{{ resumen.monto_txt }}</span><span class="kpi-txt">en citas de riesgo alto y medio</span></div>
 </div>
 
-{% for e in evaluadas %}
-<div class="card" style="margin-bottom:.9rem; display:flex; gap:1.2rem; align-items:flex-start;
-     {% if e.nivel == 'alto' %}border-left:4px solid var(--mal-txt)
-     {% elif e.nivel == 'medio' %}border-left:4px solid var(--acento)
-     {% else %}border-left:4px solid var(--ok-txt){% endif %}">
+{% if resumen.total %}
+<div class="card riesgo-reparto">
+    <div class="reparto-barra" role="img"
+         aria-label="{{ resumen.pct_alto }}% alto, {{ resumen.pct_medio }}% medio, {{ resumen.pct_bajo }}% bajo">
+        {% if resumen.alto %}<span class="tramo-alto" style="width:{{ resumen.pct_alto }}%"></span>{% endif %}
+        {% if resumen.medio %}<span class="tramo-medio" style="width:{{ resumen.pct_medio }}%"></span>{% endif %}
+        {% if resumen.bajo %}<span class="tramo-bajo" style="width:{{ resumen.pct_bajo }}%"></span>{% endif %}
+    </div>
+    <div class="reparto-leyenda">
+        <span><i class="tramo-alto"></i> Alto {{ resumen.pct_alto }}%</span>
+        <span><i class="tramo-medio"></i> Medio {{ resumen.pct_medio }}%</span>
+        <span><i class="tramo-bajo"></i> Bajo {{ resumen.pct_bajo }}%</span>
+    </div>
+</div>
+{% endif %}
 
-    <div style="text-align:center; min-width:62px">
-        <div style="font-size:1.7rem; font-weight:700; line-height:1;
-             {% if e.nivel == 'alto' %}color:var(--mal-txt)
-             {% elif e.nivel == 'medio' %}color:var(--acento)
-             {% else %}color:var(--ok-txt){% endif %}">{{ e.puntaje }}</div>
-        <div style="font-size:.7rem; color:var(--gris-claro); text-transform:uppercase;
-                    letter-spacing:.5px; margin-top:.2rem">{{ e.nivel }}</div>
+{# ---------- Filtros ---------- #}
+<form method="get" class="card filtros-citas" role="search">
+    <div class="filtros-fila">
+        <label class="buscador-campo">
+            <svg class="icono"><use href="#i-lupa"/></svg>
+            <input type="search" name="q" value="{{ filtros.q }}" aria-label="Buscar"
+                   placeholder="Buscar por mascota, cliente, RUT o teléfono">
+        </label>
+        <button type="submit" class="btn btn-primario">Buscar</button>
+        {% if hay_filtros %}<a href="{% url 'riesgo' %}" class="btn btn-suave">Limpiar</a>{% endif %}
+    </div>
+    <div class="filtros-fila filtros-campos">
+        <label>Nivel
+            <select name="nivel">
+                <option value="">Todos</option>
+                {% for valor, etiqueta in niveles %}
+                <option value="{{ valor }}" {% if filtros.nivel == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Profesional
+            <select name="veterinario">
+                <option value="">Todos</option>
+                {% for v in veterinarios %}
+                <option value="{{ v.pk }}" {% if filtros.veterinario == v.pk|stringformat:"s" %}selected{% endif %}>{{ v.get_full_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Desde <input type="date" name="desde" value="{{ filtros.desde }}"></label>
+        <label>Hasta <input type="date" name="hasta" value="{{ filtros.hasta }}"></label>
+        <button type="submit" class="btn btn-suave">Aplicar</button>
+    </div>
+    <div class="filtros-fila atajos">
+        <span class="atajos-txt">Atajos:</span>
+        {% for nombre, desde, hasta in atajos %}
+        <a class="badge {% if filtros.desde == desde|date:'Y-m-d' and filtros.hasta == hasta|date:'Y-m-d' %}badge-azul{% else %}badge-neutro{% endif %}"
+           href="?desde={{ desde|date:'Y-m-d' }}&hasta={{ hasta|date:'Y-m-d' }}">{{ nombre }}</a>
+        {% endfor %}
+        <a class="badge {% if filtros.nivel == 'alto' %}badge-azul{% else %}badge-neutro{% endif %}"
+           href="?{{ qs_sin_nivel }}{% if qs_sin_nivel %}&{% endif %}nivel=alto">Solo riesgo alto</a>
+    </div>
+</form>
+
+{# ---------- Tabla ---------- #}
+<div class="card">
+    <div class="tabla-wrap">
+        <table class="tabla-riesgo">
+            <thead>
+                <tr>
+                    <th>Riesgo</th>
+                    <th>Cuándo</th>
+                    <th>Paciente y tutor</th>
+                    <th>Atención</th>
+                    <th>Por qué</th>
+                    <th>Qué hacer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in pagina %}
+                <tr>
+                    <td>
+                        <div class="riesgo-celda">
+                            <span class="nivel nivel-{{ e.nivel }}">{{ e.puntaje }}</span>
+                            <span class="riesgo-nivel riesgo-{{ e.nivel }}">{{ e.nivel|capfirst }}</span>
+                        </div>
+                    </td>
+                    <td style="white-space:nowrap">
+                        <b>{{ e.cita.fecha|date:"D d/m"|capfirst }}</b>
+                        <div class="celda-sub">{{ e.cita.hora|time:"H:i" }} h</div>
+                    </td>
+                    <td>
+                        <b class="sin-corte">{{ e.cita.mascota.especie.emoji }} {{ e.cita.mascota.nombre }}</b>
+                        <div class="celda-sub">{{ e.cita.cliente.nombre_completo }}</div>
+                        {% if e.cita.cliente.telefono %}<div class="celda-sub sin-corte">{{ e.cita.cliente.telefono }}</div>{% endif %}
+                    </td>
+                    <td>
+                        {{ e.cita.tipo_atencion.nombre }}
+                        <div class="celda-sub">{{ e.cita.veterinario.get_full_name }}</div>
+                    </td>
+                    <td>
+                        <div class="factores">
+                            {% for d in e.detalle %}<span class="etiqueta etiqueta-neutro">{{ d }}</span>{% endfor %}
+                        </div>
+                    </td>
+                    <td class="riesgo-accion">
+                        {{ e.accion }}
+                        <details class="guion">
+                            <summary>Qué decir</summary>
+                            <ul>{% for g in e.guion %}<li>{{ g }}</li>{% endfor %}</ul>
+                        </details>
+                        <div class="riesgo-botones">
+                            {% if e.cita.cliente.telefono %}
+                            <a class="btn btn-suave btn-chico" href="tel:{{ e.cita.cliente.telefono }}" title="Llamar">📞</a>
+                            {% if e.whatsapp %}<a class="btn btn-suave btn-chico" href="{{ e.whatsapp }}" target="_blank" rel="noopener" title="WhatsApp con el mensaje para riesgo {{ e.nivel }}">💬</a>{% endif %}
+                            {% endif %}
+                            <a class="btn btn-suave btn-chico" href="{% url 'calendario' %}?vista=timeGridDay&fecha={{ e.cita.fecha|date:'Y-m-d' }}" title="Ver en el calendario">Ver</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6">
+                    <div class="vacio">
+                        <h3>No hay citas pendientes con esos filtros</h3>
+                        <p style="color:var(--gris)">Prueba con otro periodo o <a href="{% url 'riesgo' %}">limpia los filtros</a>.</p>
+                    </div>
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    <div style="flex:1; min-width:0">
-        <div style="font-weight:600; color:var(--titulo); margin-bottom:.2rem">
-            {{ e.cita.mascota.nombre }}
-            <span style="font-weight:400; color:var(--gris)">
-                · {{ e.cita.fecha|date:"l d/m" }} a las {{ e.cita.hora|time:"H:i" }}
-            </span>
-        </div>
-        <div style="font-size:.85rem; color:var(--gris); margin-bottom:.5rem">
-            {{ e.cita.tipo_atencion.nombre }} ·
-            {{ e.cita.veterinario.get_full_name }} ·
-            tutor: {{ e.cita.cliente.nombre_completo }}
-        </div>
-
-        <div style="display:flex; flex-wrap:wrap; gap:.4rem">
-            {% for d in e.detalle %}
-            <span style="font-size:.74rem; background:var(--panel); color:var(--gris);
-                         border:1px solid var(--borde); border-radius:20px;
-                         padding:.18rem .6rem">{{ d }}</span>
+    {% if pagina.paginator.count %}
+    <nav class="paginador" aria-label="Páginas">
+        <span class="paginador-info">Mostrando {{ pagina.start_index }}–{{ pagina.end_index }} de {{ pagina.paginator.count }}</span>
+        <div class="paginador-paginas">
+            {% if pagina.has_previous %}<a href="?{{ qs }}{% if qs %}&{% endif %}pagina={{ pagina.previous_page_number }}" aria-label="Página anterior">‹</a>{% endif %}
+            {% for n in rango_paginas %}
+                {% if n == pagina.paginator.ELLIPSIS %}<span class="paginador-puntos">…</span>
+                {% elif n == pagina.number %}<span class="actual" aria-current="page">{{ n }}</span>
+                {% else %}<a href="?{{ qs }}{% if qs %}&{% endif %}pagina={{ n }}">{{ n }}</a>{% endif %}
             {% endfor %}
+            {% if pagina.has_next %}<a href="?{{ qs }}{% if qs %}&{% endif %}pagina={{ pagina.next_page_number }}" aria-label="Página siguiente">›</a>{% endif %}
         </div>
-    </div>
-
-    <div style="min-width:220px; text-align:right">
-        <div style="font-size:.72rem; color:var(--gris-claro); margin-bottom:.2rem">ACCIÓN SUGERIDA</div>
-        <div style="font-size:.86rem; color:var(--titulo); font-weight:500">{{ e.accion }}</div>
-    </div>
-
+    </nav>
+    {% endif %}
 </div>
-{% empty %}
-<div class="card" style="color:var(--gris)">No hay citas pendientes por evaluar.</div>
-{% endfor %}
+
+{# ---------- Cómo se calcula ---------- #}
+<details class="card como-calcula">
+    <summary><svg class="icono"><use href="#i-grafico"/></svg> ¿Cómo se calcula el riesgo?</summary>
+    <p>Cada cita recibe un puntaje de 0 a 100 que suma cuatro factores, según su peso:</p>
+    <div class="pesos">
+        {% for nombre, peso in pesos %}
+        <div class="peso">
+            <div class="peso-cab"><span>{{ nombre }}</span><b>{{ peso }}</b></div>
+            <div class="peso-barra"><span style="width:{{ peso }}%"></span></div>
+        </div>
+        {% endfor %}
+    </div>
+    <ul class="umbrales">
+        <li><span class="nivel nivel-alto">≥{{ umbral_alto }}</span> <b>Alto:</b> {{ acciones.alto }}.</li>
+        <li><span class="nivel nivel-medio">≥{{ umbral_medio }}</span> <b>Medio:</b> {{ acciones.medio }}.</li>
+        <li><span class="nivel nivel-bajo">&lt;{{ umbral_medio }}</span> <b>Bajo:</b> {{ acciones.bajo }}.</li>
+    </ul>
+    <p class="celda-sub">Si el tutor viene por primera vez, su historial cuenta con un valor neutro.</p>
+    <p>Con el nivel también cambia el contacto: a riesgo alto el WhatsApp pide responder "SÍ" para confirmar; a riesgo
+    medio, recuerda la hora y ofrece cambiarla; a riesgo bajo, es un aviso breve. "Qué decir" arma un guion de llamada
+    con los factores de cada cita.</p>
+</details>
 
 {% endblock %}

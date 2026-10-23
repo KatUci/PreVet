@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ cliente.nombre_completo }}{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'clientes' %}">Clientes</a><span class="sep">›</span><span>{{ cliente.nombre_completo }}</span>{% endblock %}
+{% block encabezado %}{{ cliente.nombre_completo }}{% endblock %}
+{% block subtitulo %}Cliente desde {{ cliente.fecha_registro|date:"F \d\e Y" }} · RUT {{ cliente.rut_formateado }}{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'clientes' %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-atras"/></svg> Clientes
+</a>
+{% if perms.mascotas.change_cliente %}
+<a href="{% url 'cliente_editar' cliente.pk %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-editar"/></svg> Editar
+</a>
+{% endif %}
+{% if perms.citas.add_cita %}
+<a href="{% url 'agendar' %}?rut={{ cliente.rut }}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-mas"/></svg> Agendar hora
+</a>
+{% endif %}
+{% endblock %}
+
+{% block contenido %}
+
+<div class="ficha-grid">
+
+    {# ---------- Datos de contacto ---------- #}
+    <section class="card ficha-contacto">
+        <div class="ficha-avatar">{{ cliente.nombres|first }}{{ cliente.apellidos|first }}</div>
+        <h2>{{ cliente.nombre_completo }}</h2>
+        <div class="etiquetas" style="justify-content:center">
+            {% if reincidente %}<span class="etiqueta etiqueta-mal">Reincidente: faltó {{ resumen.faltas }} veces</span>{% endif %}
+            {% if not cliente.telefono %}<span class="etiqueta etiqueta-neutro">Sin teléfono</span>{% endif %}
+            {% if resumen.total and not resumen.faltas %}<span class="etiqueta etiqueta-ok">Nunca ha faltado</span>{% endif %}
+        </div>
+        <dl class="ficha-datos">
+            <dt>RUT</dt><dd>{{ cliente.rut_formateado }}</dd>
+            <dt>Teléfono</dt><dd>{{ cliente.telefono|default:"—" }}</dd>
+            <dt>Correo</dt><dd>{{ cliente.email|default:"—" }}</dd>
+            <dt>Prefiere</dt><dd>{{ cliente.get_canal_preferido_display }}</dd>
+            <dt>Dirección</dt><dd>{{ cliente.direccion|default:"—" }}{% if cliente.comuna %}, {{ cliente.comuna }}{% endif %}{% if cliente.region %} ({{ cliente.region }}){% endif %}</dd>
+            <dt>Emergencia</dt><dd>{% if cliente.contacto_emergencia %}{{ cliente.contacto_emergencia }}{% if cliente.telefono_emergencia %} · {{ cliente.telefono_emergencia }}{% endif %}{% else %}—{% endif %}</dd>
+            <dt>Datos</dt><dd>{% if cliente.consentimiento_datos %}<span class="etiqueta etiqueta-ok">Consentimiento {{ cliente.fecha_consentimiento|date:"d/m/Y" }}</span>{% else %}<span class="etiqueta etiqueta-warn">Sin consentimiento</span>{% endif %}</dd>
+        </dl>
+        {% if not cliente.activo %}<p><span class="etiqueta etiqueta-neutro">Cliente inactivo</span></p>{% endif %}
+        {% if cliente.telefono %}
+        <div class="ficha-botones">
+            <a class="btn btn-suave" href="tel:{{ cliente.telefono }}">📞 Llamar</a>
+            {% if whatsapp %}<a class="btn btn-suave" href="{{ whatsapp }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% endif %}
+        </div>
+        {% endif %}
+        {% if perms.mascotas.change_cliente %}
+        <form method="post" action="{% url 'cliente_estado' cliente.pk %}" class="ficha-estado"
+              {% if cliente.activo %}onsubmit="return confirm('¿Desactivar a {{ cliente.nombre_completo|escapejs }}? Su historial se conserva.')"{% endif %}>
+            {% csrf_token %}
+            <button type="submit" class="btn btn-chico {% if cliente.activo %}btn-peligro{% else %}btn-suave{% endif %}">
+                {% if cliente.activo %}Desactivar cliente{% else %}Reactivar cliente{% endif %}
+            </button>
+        </form>
+        {% endif %}
+    </section>
+
+    <div class="ficha-principal">
+        {# ---------- Resumen ---------- #}
+        <div class="kpis-dia">
+            <div class="kpi"><span class="kpi-num">{{ resumen.total }}</span><span class="kpi-txt">citas</span></div>
+            <div class="kpi kpi-ok"><span class="kpi-num">{{ resumen.atendidas }}</span><span class="kpi-txt">atendidas</span></div>
+            <div class="kpi kpi-mal"><span class="kpi-num">{{ resumen.faltas }}</span><span class="kpi-txt">inasistencias</span></div>
+            <div class="kpi kpi-warn">
+                <span class="kpi-num">{% if resumen.tasa is not None %}{{ resumen.tasa }}<small>%</small>{% else %}—{% endif %}</span>
+                <span class="kpi-txt">tasa de inasistencia</span>
+            </div>
+            <div class="kpi"><span class="kpi-num"><small>$</small>{{ resumen.perdido_txt }}</span><span class="kpi-txt">en horas perdidas</span></div>
+        </div>
+
+        {# ---------- Mascotas ---------- #}
+        <section class="card">
+            <div class="card-titulo">
+                <h2><svg class="icono"><use href="#i-paw"/></svg> Mascotas</h2>
+                {% if perms.mascotas.add_mascota %}<a href="{% url 'mascota_nueva' cliente.pk %}?next={{ request.path|urlencode }}">Registrar mascota</a>{% endif %}
+            </div>
+            <div class="ficha-mascotas">
+                {% for t in tenencias %}
+                <div class="ficha-mascota">
+                    {% if t.mascota.foto_version %}
+                    <img class="ficha-foto ampliable" src="{% url 'mascota_foto' t.mascota.pk %}?v={{ t.mascota.foto_version }}" alt="Foto de {{ t.mascota.nombre }}" loading="lazy">
+                    {% else %}
+                    <span class="ficha-emoji">{{ t.mascota.especie.emoji }}</span>
+                    {% endif %}
+                    <div>
+                        <b>{{ t.mascota.nombre }}</b>
+                        <div class="celda-sub">
+                            {{ t.mascota.especie.nombre }}{% if t.mascota.raza %} · {{ t.mascota.raza.nombre }}{% endif %}{% if t.mascota.edad %} · {{ t.mascota.edad }}{% endif %}
+                        </div>
+                        {% if t.mascota.tiene_microchip or t.mascota.peso_kg or t.mascota.esterilizada is not None %}
+                        <div class="celda-sub">{% if t.mascota.microchip %}Chip {{ t.mascota.microchip }}{% elif t.mascota.tiene_microchip %}Con microchip{% endif %}{% if t.mascota.peso_kg %} · {{ t.mascota.peso_kg|floatformat:1 }} kg{% endif %}{% if t.mascota.esterilizada %} · esterilizada{% elif t.mascota.esterilizada is False %} · no esterilizada{% endif %}</div>
+                        {% endif %}
+                        {% if t.mascota.alergias %}<div><span class="etiqueta etiqueta-mal">⚠ Alergias: {{ t.mascota.alergias|truncatechars:40 }}</span></div>{% endif %}
+                        <div class="celda-sub">{{ t.get_relacion_display }}{% if t.es_principal %} · responsable principal{% endif %}</div>
+                        {% if perms.mascotas.change_mascota %}<div class="celda-sub"><a href="{% url 'mascota_editar' t.mascota.pk %}?next={{ request.path|urlencode }}">Editar</a> · <a href="{% url 'mascota_foto_subir' t.mascota.pk %}?next={{ request.path|urlencode }}">📷 {% if t.mascota.foto_version %}Cambiar{% else %}Subir{% endif %} foto</a>{% if not t.mascota.activo %} · inactiva{% endif %}</div>{% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <p class="flujo-vacio">Este cliente aún no tiene mascotas registradas.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        {# ---------- Próximas citas ---------- #}
+        <section class="card">
+            <div class="card-titulo"><h2><svg class="icono"><use href="#i-calendario"/></svg> Próximas citas</h2></div>
+            <ul class="lista-llamadas">
+                {% for c in proximas %}
+                <li>
+                    {% if c.nivel %}<span class="nivel nivel-{{ c.nivel }}" title="Riesgo {{ c.nivel }}">{{ c.puntaje }}</span>{% else %}<span class="nivel nivel-bajo">·</span>{% endif %}
+                    <div class="llamada-txt">
+                        <b>{{ c.fecha|date:"l d/m"|capfirst }} · {{ c.hora|time:"H:i" }} · {{ c.mascota.nombre }}</b>
+                        <span>{{ c.tipo_atencion.nombre }} con {{ c.veterinario.get_full_name }}{% if c.accion and c.nivel != 'bajo' %} · {{ c.accion }}{% endif %}</span>
+                    </div>
+                    <div class="llamada-acciones">
+                        <a class="btn btn-suave btn-chico" href="{% url 'calendario' %}?vista=timeGridDay&fecha={{ c.fecha|date:'Y-m-d' }}">Ver</a>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="flujo-vacio">No tiene citas pendientes.</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        {# ---------- Historial ---------- #}
+        <section class="card">
+            <div class="card-titulo"><h2><svg class="icono"><use href="#i-historial"/></svg> Historial de citas</h2></div>
+            <div class="tabla-wrap">
+                <table>
+                    <thead><tr><th>Fecha</th><th>Mascota</th><th>Atención</th><th>Profesional</th><th>Estado</th></tr></thead>
+                    <tbody>
+                        {% for c in historial %}
+                        <tr>
+                            <td class="sin-corte">{{ c.fecha|date:"d/m/Y" }} {{ c.hora|time:"H:i" }}</td>
+                            <td>{{ c.mascota.especie.emoji }} {{ c.mascota.nombre }}</td>
+                            <td>{{ c.tipo_atencion.nombre }}</td>
+                            <td class="sin-corte" style="color:var(--gris)">{{ c.veterinario.get_full_name }}</td>
+                            <td>
+                                <span class="badge badge-{% if c.estado == 'no_asistio' %}no-asistio{% else %}{{ c.estado }}{% endif %}">{{ c.get_estado_display }}</span>
+                                {% if c.motivo_cancelacion %}<div class="celda-sub">{{ c.motivo_cancelacion }}</div>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="flujo-vacio">Todavía no tiene historial.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if historial.paginator.num_pages > 1 %}
+            <nav class="paginador" aria-label="Páginas del historial">
+                <span class="paginador-info">Mostrando {{ historial.start_index }}–{{ historial.end_index }} de {{ historial.paginator.count }}</span>
+                <div class="paginador-paginas">
+                    {% if historial.has_previous %}<a href="?pagina={{ historial.previous_page_number }}" aria-label="Página anterior">‹</a>{% endif %}
+                    <span class="actual">{{ historial.number }}</span>
+                    {% if historial.has_next %}<a href="?pagina={{ historial.next_page_number }}" aria-label="Página siguiente">›</a>{% endif %}
+                </div>
+            </nav>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Clientes{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Clientes</span>{% endblock %}
+{% block encabezado %}Clientes{% endblock %}
+{% block subtitulo %}{{ pagina.paginator.count }} de {{ total_activos }} cliente{{ total_activos|pluralize }} activos{% endblock %}
+
+{% block acciones %}
+{% if perms.mascotas.add_cliente %}
+<a href="{% url 'cliente_nuevo' %}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-mas"/></svg> Nuevo cliente
+</a>
+{% endif %}
+{% endblock %}
+
+{% block contenido %}
+
+<form method="get" class="card filtros-citas" role="search">
+    <div class="filtros-fila">
+        <label class="buscador-campo">
+            <svg class="icono"><use href="#i-lupa"/></svg>
+            <input type="search" name="q" value="{{ q }}" aria-label="Buscar clientes"
+                   placeholder="Buscar por nombre, RUT, teléfono, correo o nombre de la mascota">
+        </label>
+        <label class="filtro-orden">
+            <select name="orden" aria-label="Ordenar">
+                <option value="nombre" {% if orden == 'nombre' %}selected{% endif %}>Ordenar por apellido</option>
+                <option value="faltas" {% if orden == 'faltas' %}selected{% endif %}>Más inasistencias primero</option>
+                <option value="recientes" {% if orden == 'recientes' %}selected{% endif %}>Registrados recientemente</option>
+            </select>
+        </label>
+        <input type="hidden" name="filtro" value="{{ filtro }}">
+        <button type="submit" class="btn btn-primario">Buscar</button>
+        {% if q or filtro %}<a href="{% url 'clientes' %}" class="btn btn-suave">Limpiar</a>{% endif %}
+    </div>
+    <div class="filtros-fila atajos">
+        {% for valor, nombre in filtros %}
+        <a class="badge {% if filtro == valor %}badge-azul{% else %}badge-neutro{% endif %}"
+           href="?{% if q %}q={{ q|urlencode }}&{% endif %}orden={{ orden }}&filtro={{ valor }}">{{ nombre }}</a>
+        {% endfor %}
+    </div>
+</form>
+
+<div class="card">
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Contacto</th>
+                    <th>Mascotas</th>
+                    <th>Citas</th>
+                    <th>Inasistencias</th>
+                    <th>Próxima cita</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in pagina %}
+                <tr>
+                    <td>
+                        <a href="{% url 'cliente_ficha' c.pk %}" class="enlace-fuerte">{{ c.nombre_completo }}</a>
+                        <div class="celda-sub sin-corte">RUT {{ c.rut_formateado }}</div>
+                    </td>
+                    <td>
+                        {% if c.telefono %}<div class="sin-corte">{{ c.telefono }}</div>{% else %}<span class="etiqueta etiqueta-neutro">Sin teléfono</span>{% endif %}
+                        {% if c.email %}<div class="celda-sub">{{ c.email }}</div>{% endif %}
+                    </td>
+                    <td>{{ c.n_mascotas }}</td>
+                    <td>{{ c.n_citas }}</td>
+                    <td>
+                        {{ c.n_faltas }}{% if c.tasa is not None %} <span class="celda-sub">({{ c.tasa }}%)</span>{% endif %}
+                        {% if c.reincidente %}<div><span class="etiqueta etiqueta-mal">Reincidente</span></div>{% endif %}
+                    </td>
+                    <td class="sin-corte">{% if c.proxima %}{{ c.proxima|date:"D d/m"|capfirst }}{% else %}<span class="celda-sub">—</span>{% endif %}</td>
+                    <td class="celda-acciones">
+                        <a href="{% url 'cliente_ficha' c.pk %}" class="btn btn-suave btn-chico">Ver ficha</a>
+                        {% if perms.citas.add_cita %}<a href="{% url 'agendar' %}?rut={{ c.rut }}" class="btn btn-suave btn-chico">Agendar</a>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7">
+                    <div class="vacio">
+                        <h3>No hay clientes con esa búsqueda</h3>
+                        <p style="color:var(--gris)">Prueba con el RUT o el teléfono, o <a href="{% url 'clientes' %}">limpia los filtros</a>.</p>
+                    </div>
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if pagina.paginator.count %}
+    <nav class="paginador" aria-label="Páginas">
+        <span class="paginador-info">Mostrando {{ pagina.start_index }}–{{ pagina.end_index }} de {{ pagina.paginator.count }}</span>
+        <div class="paginador-paginas">
+            {% if pagina.has_previous %}<a href="?{{ qs }}{% if qs %}&{% endif %}pagina={{ pagina.previous_page_number }}" aria-label="Página anterior">‹</a>{% endif %}
+            {% for n in rango_paginas %}
+                {% if n == pagina.paginator.ELLIPSIS %}<span class="paginador-puntos">…</span>
+                {% elif n == pagina.number %}<span class="actual" aria-current="page">{{ n }}</span>
+                {% else %}<a href="?{{ qs }}{% if qs %}&{% endif %}pagina={{ n }}">{{ n }}</a>{% endif %}
+            {% endfor %}
+            {% if pagina.has_next %}<a href="?{{ qs }}{% if qs %}&{% endif %}pagina={{ pagina.next_page_number }}" aria-label="Página siguiente">›</a>{% endif %}
+        </div>
+    </nav>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -113,7 +113,11 @@ class Cita(models.Model):
         related_name='citas_canceladas',
     )
     fecha_cancelacion = models.DateTimeField(null=True, blank=True)
+    motivo_cancelacion = models.CharField('motivo de la cancelación', max_length=200, blank=True)
     fecha_marcada_no_asistio = models.DateTimeField(null=True, blank=True)
+
+    # Cuándo llegó de verdad el paciente. Con esto se miden también los atrasos.
+    hora_llegada = models.DateTimeField('hora de llegada', null=True, blank=True)
 
     @property
     def dias_anticipacion(self):
@@ -129,6 +133,12 @@ class Cita(models.Model):
                     'cliente': 'Este cliente no está asociado a la mascota elegida.'})
 
     @property
+    def hora_termino(self):
+        """Hora en que termina, según la duración del tipo de atención."""
+        inicio = datetime.datetime.combine(self.fecha, self.hora)
+        return (inicio + datetime.timedelta(minutes=self.tipo_atencion.duracion_minutos)).time()
+
+    @property
     def valor_perdido(self):
         """Lo que la clínica dejó de percibir si el tutor no llegó."""
         if self.estado == 'no_asistio':
@@ -141,5 +151,19 @@ class Cita(models.Model):
     class Meta:
         verbose_name = "Cita"
         verbose_name_plural = "Citas"
-        unique_together = ('veterinario', 'fecha', 'hora')
         ordering = ['-fecha', '-hora']
+        constraints = [
+            # Un profesional no puede tener dos citas a la misma hora... salvo
+            # que una esté cancelada: al cancelar, el bloque queda libre.
+            models.UniqueConstraint(
+                fields=['veterinario', 'fecha', 'hora'],
+                condition=~models.Q(estado='cancelada'),
+                name='una_cita_activa_por_bloque',
+            ),
+        ]
+        # Además de ver, agregar, modificar y eliminar citas (que Django crea
+        # solo), estas dos pantallas de análisis tienen su propio permiso.
+        permissions = [
+            ('ver_riesgo', 'Ver las horas en riesgo'),
+            ('ver_indicadores', 'Ver los indicadores'),
+        ]
