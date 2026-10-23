@@ -118,13 +118,10 @@
 {# ---------- Acciones ---------- #}
 {% if pendiente and perms.citas.change_cita %}
 <footer class="det-acciones">
-    {% if ya_ocurrio %}
-    <form method="post" action="{% url 'cita_atendida' cita.pk %}">
-        {% csrf_token %}<input type="hidden" name="next" class="volver-aqui">
-        <button type="submit" class="btn btn-primario det-btn-ancho">
-            <svg class="icono-sm"><use href="#i-check"/></svg> Marcar como atendida
-        </button>
-    </form>
+    {% if ya_ocurrio and perms.citas.add_atencion %}
+    <a href="{% url 'cita_atender' cita.pk %}" class="btn btn-primario det-btn-ancho">
+        <svg class="icono-sm"><use href="#i-check"/></svg> Registrar atención y cerrar
+    </a>
     {% endif %}
 
     <div class="det-acciones-fila">

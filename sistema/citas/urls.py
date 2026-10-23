@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import calendario, configuracion, panel, views
+from . import atencion, calendario, configuracion, panel, views
 
 urlpatterns = [
     path('', views.listado, name='citas'),
@@ -13,7 +13,7 @@ urlpatterns = [
     path('calendario/eventos/', calendario.eventos, name='calendario_eventos'),
     path('<int:pk>/detalle/', calendario.detalle, name='cita_detalle'),
     path('<int:pk>/llego/', calendario.marcar_llegada, name='cita_llego'),
-    path('<int:pk>/atendida/', calendario.marcar_atendida, name='cita_atendida'),
+    path('<int:pk>/atender/', atencion.atender, name='cita_atender'),
     path('<int:pk>/cancelar/', calendario.cancelar, name='cita_cancelar'),
     path('<int:pk>/reagendar/', calendario.reagendar, name='cita_reagendar'),
     path('<int:pk>/editar/', views.editar, name='cita_editar'),

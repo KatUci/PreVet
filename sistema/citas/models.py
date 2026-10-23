@@ -167,3 +167,30 @@ class Cita(models.Model):
             ('ver_riesgo', 'Ver las horas en riesgo'),
             ('ver_indicadores', 'Ver los indicadores'),
         ]
+
+
+class Atencion(models.Model):
+    """Lo que el veterinario registra al atender: la ficha clínica de la cita.
+
+    Se pide al cerrar la cita, de modo que cada atención completada deja
+    constancia de por qué vino el paciente, qué se encontró y qué se indicó.
+    """
+
+    cita = models.OneToOneField(Cita, on_delete=models.CASCADE, related_name='atencion')
+    motivo = models.CharField('motivo de consulta', max_length=200)
+    diagnostico = models.TextField('diagnóstico')
+    tratamiento = models.TextField('tratamiento e indicaciones', blank=True)
+    peso_kg = models.DecimalField('peso (kg)', max_digits=5, decimal_places=2, null=True, blank=True,
+                                  help_text='Si lo registras, se actualiza también en la ficha de la mascota.')
+
+    registrada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='atenciones_registradas')
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Atención de {self.cita.mascota.nombre} · {self.cita.fecha:%d/%m/%Y}"
+
+    class Meta:
+        verbose_name = "atención"
+        verbose_name_plural = "atenciones"
+        ordering = ['-cita__fecha', '-cita__hora']

@@ -481,17 +481,18 @@ class CalendarioTest(TestCase):
         c.refresh_from_db()
         self.assertEqual((c.veterinario, c.hora.strftime('%H:%M')), (self.otro_vet, '12:00'))
 
-    def test_atendida_y_llegada(self):
+    def test_llegada(self):
         c = self.cita(dias=0)
         self.client.post(f'/citas/{c.pk}/llego/')
-        self.client.post(f'/citas/{c.pk}/atendida/')
         c.refresh_from_db()
         self.assertIsNotNone(c.hora_llegada)
-        self.assertEqual(c.estado, 'completada')
+        self.assertEqual(c.estado, 'pendiente')
 
-    def test_no_se_atiende_una_cita_futura(self):
-        c = self.cita(dias=3)
-        self.client.post(f'/citas/{c.pk}/atendida/')
+    def test_recepcion_no_cierra_la_atencion(self):
+        """Cerrar la atención pide datos clínicos: solo lo hacen los veterinarios."""
+        c = self.cita(dias=0)
+        respuesta = self.client.post(f'/citas/{c.pk}/atender/', {'motivo': 'Control', 'diagnostico': 'Sano'})
+        self.assertEqual(respuesta.status_code, 403)
         c.refresh_from_db()
         self.assertEqual(c.estado, 'pendiente')
 
@@ -869,3 +870,81 @@ class MantencionTest(TestCase):
         vacio = Especie.objects.create(nombre='Pez dorado')
         self.client.post(f'/mascotas/tipos/{vacio.pk}/eliminar/')
         self.assertFalse(Especie.objects.filter(pk=vacio.pk).exists())
+
+
+class AtencionClinicaTest(TestCase):
+    """PV-FIC-01: el veterinario registra la atención al cerrar la cita."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from usuarios.models import Perfil
+
+        self.vet = User.objects.create_user('vet', first_name='Paz', last_name='Herrera')
+        Perfil.objects.create(usuario=self.vet, rol='veterinario')
+        self.vet.groups.add(Group.objects.get(name='Veterinarios'))
+        canino = Especie.objects.create(nombre='Perro')
+        self.ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto')
+        self.bruno = Mascota.objects.create(nombre='Bruno', especie=canino, sexo='macho')
+        Tenencia.objects.create(cliente=self.ana, mascota=self.bruno, es_principal=True)
+        self.control = TipoAtencion.objects.create(nombre='Control', duracion_minutos=30, precio=20000)
+        self.client.force_login(self.vet)
+
+    def cita(self, dias=0, estado='pendiente', hora='10:00'):
+        return Cita.objects.create(
+            veterinario=self.vet, mascota=self.bruno, cliente=self.ana, tipo_atencion=self.control,
+            fecha=timezone.localdate() + timedelta(days=dias), hora=hora, estado=estado, notas='Vómitos')
+
+    def datos(self, **extra):
+        return {'motivo': 'Vómitos', 'diagnostico': 'Gastritis leve', 'tratamiento': 'Dieta blanda 3 días',
+                'peso_kg': '12.40', **extra}
+
+    def test_el_formulario_parte_con_el_motivo_de_la_cita(self):
+        c = self.cita()
+        respuesta = self.client.get(f'/citas/{c.pk}/atender/')
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context['form'].initial['motivo'], 'Vómitos')
+
+    def test_registrar_cierra_la_cita_y_guarda_la_atencion(self):
+        from .models import Atencion
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/atender/', self.datos())
+        c.refresh_from_db()
+        self.assertEqual(c.estado, 'completada')
+        atencion = Atencion.objects.get(cita=c)
+        self.assertEqual(atencion.diagnostico, 'Gastritis leve')
+        self.assertEqual(atencion.registrada_por, self.vet)
+
+    def test_el_peso_se_actualiza_en_la_ficha_de_la_mascota(self):
+        from decimal import Decimal
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/atender/', self.datos(peso_kg='13.05'))
+        self.bruno.refresh_from_db()
+        self.assertEqual(self.bruno.peso_kg, Decimal('13.05'))
+
+    def test_sin_diagnostico_no_se_cierra(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/atender/', self.datos(diagnostico=''))
+        c.refresh_from_db()
+        self.assertEqual(c.estado, 'pendiente')
+
+    def test_peso_imposible(self):
+        c = self.cita()
+        respuesta = self.client.post(f'/citas/{c.pk}/atender/', self.datos(peso_kg='-3'))
+        self.assertIn('peso_kg', respuesta.context['form'].errors)
+
+    def test_no_se_atiende_una_cita_futura(self):
+        c = self.cita(dias=3)
+        self.client.post(f'/citas/{c.pk}/atender/', self.datos())
+        c.refresh_from_db()
+        self.assertEqual(c.estado, 'pendiente')
+
+    def test_una_cita_ya_cerrada_no_se_vuelve_a_atender(self):
+        from .models import Atencion
+        c = self.cita(estado='no_asistio')
+        self.client.post(f'/citas/{c.pk}/atender/', self.datos())
+        self.assertFalse(Atencion.objects.exists())
+
+    def test_vuelve_solo_a_direcciones_del_sistema(self):
+        c = self.cita()
+        respuesta = self.client.post(f'/citas/{c.pk}/atender/', self.datos(next='https://otro-sitio.cl/'))
+        self.assertTrue(respuesta['Location'].startswith('/citas/calendario/'))

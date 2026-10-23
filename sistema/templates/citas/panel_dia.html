@@ -109,12 +109,9 @@
                             </span>
                         </div>
                     </div>
-                    {% if perms.citas.change_cita %}
+                    {% if perms.citas.add_atencion %}
                     <div class="paciente-acciones">
-                        <form method="post" action="{% url 'cita_atendida' t.cita.pk %}">
-                            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
-                            <button type="submit" class="btn btn-primario btn-chico">Atendida</button>
-                        </form>
+                        <a href="{% url 'cita_atender' t.cita.pk %}?next={{ request.path|urlencode }}" class="btn btn-primario btn-chico">Atender</a>
                     </div>
                     {% endif %}
                 </article>

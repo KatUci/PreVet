@@ -169,22 +169,6 @@ def marcar_llegada(request, pk):
 @require_POST
 @login_required
 @permission_required('citas.change_cita', raise_exception=True)
-def marcar_atendida(request, pk):
-    cita, salida = _cita_pendiente(request, pk)
-    if salida:
-        return salida
-    if cita.fecha > timezone.localdate():
-        messages.error(request, 'Una cita futura todavía no se puede marcar como atendida.')
-        return _volver(request, cita)
-    cita.estado = 'completada'
-    cita.save(update_fields=['estado'])
-    messages.success(request, f'La atención de {cita.mascota.nombre} quedó cerrada.')
-    return _volver(request, cita)
-
-
-@require_POST
-@login_required
-@permission_required('citas.change_cita', raise_exception=True)
 def cancelar(request, pk):
     cita, salida = _cita_pendiente(request, pk)
     if salida:

@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Atender a {{ cita.mascota.nombre }}{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'calendario' %}">Calendario</a><span class="sep">›</span><span>Registrar atención</span>{% endblock %}
+{% block encabezado %}{{ cita.mascota.especie.emoji }} Atención de {{ cita.mascota.nombre }}{% endblock %}
+{% block subtitulo %}{{ cita.fecha|date:"d/m/Y" }} {{ cita.hora|time:"H:i" }} · {{ cita.tipo_atencion.nombre }} · cliente {{ cita.cliente.nombre_completo }}{% endblock %}
+
+{% block acciones %}
+<a href="{{ next }}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+{% if cita.mascota.alergias or cita.mascota.condiciones or cita.mascota.observaciones %}
+<section class="det-alerta" style="margin-bottom:1rem">
+    {% if cita.mascota.alergias %}<div><b>⚠ Alergias:</b> {{ cita.mascota.alergias }}</div>{% endif %}
+    {% if cita.mascota.condiciones %}<div><b>Condiciones:</b> {{ cita.mascota.condiciones }}</div>{% endif %}
+    {% if cita.mascota.observaciones %}<div><b>Manejo:</b> {{ cita.mascota.observaciones }}</div>{% endif %}
+</section>
+{% endif %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="card">
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.motivo %}
+            {% include 'usuarios/_campo.html' with campo=form.peso_kg %}
+            {% include 'usuarios/_campo.html' with campo=form.diagnostico ancho=True %}
+            {% include 'usuarios/_campo.html' with campo=form.tratamiento ancho=True %}
+        </div>
+        <div class="form-acciones">
+            <a href="{{ next }}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Guardar y cerrar la atención</button>
+        </div>
+    </div>
+</form>
+
+{% if anteriores %}
+<section class="card">
+    <div class="card-titulo">
+        <h2><svg class="icono"><use href="#i-historial"/></svg> Últimas atenciones</h2>
+    </div>
+    <ul class="lista-simple">
+        {% for a in anteriores %}
+        <li>
+            <b>{{ a.cita.fecha|date:"d/m/Y" }} · {{ a.motivo }}</b>
+            <span>{{ a.diagnostico|truncatechars:140 }}{% if a.cita.veterinario %} · {{ a.cita.veterinario.get_full_name }}{% endif %}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+{% endblock %}

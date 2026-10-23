@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import Cita, HorarioAtencion, TipoAtencion
+from .models import Atencion, Cita, HorarioAtencion, TipoAtencion
 
 
 @admin.register(TipoAtencion)
@@ -46,3 +46,11 @@ class CitaAdmin(admin.ModelAdmin):
         actualizadas = (queryset.filter(estado='pendiente', fecha__lte=timezone.localdate())
                         .update(estado='no_asistio', fecha_marcada_no_asistio=timezone.now()))
         self.message_user(request, f"{actualizadas} cita(s) marcadas como no asistidas.")
+
+
+@admin.register(Atencion)
+class AtencionAdmin(admin.ModelAdmin):
+    list_display = ('cita', 'motivo', 'peso_kg', 'registrada_por', 'fecha_registro')
+    search_fields = ('cita__mascota__nombre', 'motivo', 'diagnostico')
+    readonly_fields = ('registrada_por', 'fecha_registro')
+    raw_id_fields = ('cita',)

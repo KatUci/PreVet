@@ -4,7 +4,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from .models import Cita, HorarioAtencion, TipoAtencion
+from .models import Atencion, Cita, HorarioAtencion, TipoAtencion
 
 # Horas que se pueden elegir: cada media hora entre las 08:00 y las 19:30.
 BLOQUES = [datetime.time(h, m) for h in range(8, 20) for m in (0, 30)]
@@ -174,3 +174,23 @@ class CancelarForm(forms.Form):
     def texto(self):
         motivo, detalle = self.cleaned_data['motivo'], self.cleaned_data['detalle']
         return f'{motivo}: {detalle}' if detalle else motivo
+
+
+class AtencionForm(forms.ModelForm):
+    """Lo que el veterinario registra al cerrar la atención."""
+
+    class Meta:
+        model = Atencion
+        fields = ['motivo', 'diagnostico', 'tratamiento', 'peso_kg']
+        widgets = {
+            'motivo': forms.TextInput(attrs={'placeholder': 'Control anual, vómitos, cojera…'}),
+            'diagnostico': forms.Textarea(attrs={'rows': 4}),
+            'tratamiento': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Medicamentos, dosis, cuidados en casa, próximo control…'}),
+            'peso_kg': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+        }
+
+    def clean_peso_kg(self):
+        peso = self.cleaned_data.get('peso_kg')
+        if peso is not None and not 0 < peso < 1000:
+            raise forms.ValidationError('Revisa el peso: debe ser mayor que 0 y menor que 1000 kg.')
+        return peso
