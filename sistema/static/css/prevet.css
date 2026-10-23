@@ -2181,7 +2181,7 @@ select option { background: var(--solido); color: var(--texto); }
 /* ---------- Etapas del flujo de atención (Sprint 4) ---------- */
 .punto-acento { background: var(--acento); }
 .paciente-en-box { border-left-color: var(--acento); }
-@media (max-width: 1280px) { .flujo-columnas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1700px) { .flujo-columnas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .flujo-columnas { grid-template-columns: 1fr; } }
 
 /* ---------- Etiquetas de alerta (Sprint 4) ---------- */
@@ -2196,3 +2196,6 @@ select option { background: var(--solido); color: var(--texto); }
 .asociar-form { display: flex; gap: .4rem; align-items: center; }
 .asociar-form select { padding: .3rem .5rem; border: 1px solid var(--borde); border-radius: 8px; background: var(--card); color: var(--texto); font-family: inherit; font-size: .8rem; }
 @media (max-width: 600px) { .asociar-form { grid-column: 1 / -1; } }
+
+/* Las etiquetas no se parten en dos líneas: si no caben, se acortan con "…". */
+.etiqueta { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: middle; }
