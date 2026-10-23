@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Asociar mascota{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'clientes' %}">Clientes</a><span class="sep">›</span><a href="{% url 'cliente_ficha' cliente.pk %}">{{ cliente.nombre_completo }}</a><span class="sep">›</span><span>Asociar mascota</span>{% endblock %}
+{% block encabezado %}Asociar una mascota a {{ cliente.nombre_completo }}{% endblock %}
+{% block subtitulo %}Para cuando la mascota ya está registrada con otro tutor: se comparte la misma ficha y su historial{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'cliente_ficha' cliente.pk %}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<form method="get" class="buscador-rapido" role="search">
+    <svg class="icono"><use href="#i-lupa"/></svg>
+    <input type="search" name="q" value="{{ q }}" placeholder="Nombre de la mascota, o nombre o RUT de su tutor actual" aria-label="Buscar mascota" autofocus>
+    <button type="submit" class="btn btn-suave">Buscar</button>
+</form>
+
+<section class="card">
+    {% if q|length < 2 %}
+    <p class="flujo-vacio">Escribe al menos 2 letras para buscar.</p>
+    {% else %}
+    <ul class="lista-llamadas">
+        {% for m in resultados %}
+        <li>
+            <span class="ficha-emoji">{{ m.especie.emoji }}</span>
+            <div class="llamada-txt">
+                <b>{{ m.nombre }}</b>
+                <span>{{ m.especie.nombre }}{% if m.raza %} · {{ m.raza.nombre }}{% endif %}{% if m.edad %} · {{ m.edad }}{% endif %}</span>
+                <span>Tutores: {% for t in m.tenencias.all %}{{ t.cliente.nombre_completo }} ({{ t.cliente.rut_formateado }}){% if t.es_principal %} ★{% endif %}{% if not forloop.last %}, {% endif %}{% empty %}ninguno{% endfor %}</span>
+            </div>
+            <form method="post" class="asociar-form">
+                {% csrf_token %}
+                <input type="hidden" name="mascota" value="{{ m.pk }}">
+                <select name="relacion" aria-label="Relación con {{ m.nombre }}">
+                    {% for valor, texto in relaciones %}<option value="{{ valor }}" {% if valor == 'familiar' %}selected{% endif %}>{{ texto }}</option>{% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primario btn-chico">Asociar</button>
+            </form>
+        </li>
+        {% empty %}
+        <li class="flujo-vacio">No hay mascotas que coincidan (las que ya son de este cliente no aparecen).</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</section>
+{% endblock %}

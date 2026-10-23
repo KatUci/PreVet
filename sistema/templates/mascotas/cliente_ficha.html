@@ -83,7 +83,11 @@
         <section class="card">
             <div class="card-titulo">
                 <h2><svg class="icono"><use href="#i-paw"/></svg> Mascotas</h2>
+                <span>
+                {% if perms.mascotas.add_tenencia %}<a href="{% url 'asociar_mascota' cliente.pk %}">Asociar una ya registrada</a>{% endif %}
+                {% if perms.mascotas.add_mascota and perms.mascotas.add_tenencia %} · {% endif %}
                 {% if perms.mascotas.add_mascota %}<a href="{% url 'mascota_nueva' cliente.pk %}?next={{ request.path|urlencode }}">Registrar mascota</a>{% endif %}
+                </span>
             </div>
             <div class="ficha-mascotas">
                 {% for t in tenencias %}

@@ -1,4 +1,5 @@
 """Vistas para registrar clientes y sus mascotas."""
+import re
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
@@ -11,6 +12,7 @@ from django.views.decorators.http import require_POST
 from .fotos import guardar_foto
 from .forms import ClienteForm, MascotaEditarForm, MascotaForm
 from .models import Cliente, Etiqueta, Mascota, Tenencia
+from .rut import limpiar_rut
 
 
 def _volver_a(request, por_defecto):
@@ -159,3 +161,59 @@ def mascota_etiquetas(request, pk):
     _guardar_etiquetas(request, mascota, Etiqueta.Para.MASCOTA)
     messages.success(request, f'Se actualizaron las etiquetas de {mascota.nombre}.')
     return redirect(_volver_a(request, reverse('mascota_ficha', args=[mascota.pk])))
+
+
+@login_required
+@permission_required('mascotas.add_tenencia', raise_exception=True)
+def asociar_mascota(request, pk):
+    """Asocia a este cliente una mascota que ya está registrada con otro tutor (PV-CLI-06).
+
+    Sirve cuando otra persona de la familia empieza a traer a la mascota: en
+    vez de registrarla de nuevo (y partir su historial en dos), se agrega
+    este cliente como tutor de la misma ficha.
+    """
+    from django.db.models import Q
+
+    cliente = get_object_or_404(Cliente, pk=pk)
+    ficha = reverse('cliente_ficha', args=[cliente.pk])
+
+    if request.method == 'POST':
+        mascota = get_object_or_404(Mascota, pk=request.POST.get('mascota'), activo=True)
+        relacion = request.POST.get('relacion', '')
+        if relacion not in Tenencia.Relacion.values:
+            messages.error(request, 'Elige qué relación tiene el cliente con la mascota.')
+            return redirect(f"{reverse('asociar_mascota', args=[cliente.pk])}?q={mascota.nombre}")
+        if Tenencia.objects.filter(cliente=cliente, mascota=mascota).exists():
+            messages.info(request, f'{mascota.nombre} ya estaba asociada a {cliente.nombre_completo}.')
+            return redirect(ficha)
+        Tenencia.objects.create(
+            cliente=cliente, mascota=mascota, relacion=relacion,
+            # Si la mascota no tenía responsable principal, este cliente pasa a serlo.
+            es_principal=not mascota.tenencias.filter(es_principal=True).exists(),
+        )
+        messages.success(request, f'{mascota.nombre} quedó asociada a {cliente.nombre_completo} '
+                                  f'({Tenencia.Relacion(relacion).label.lower()}).')
+        return redirect(ficha)
+
+    q = request.GET.get('q', '').strip()
+    resultados = []
+    if len(q) >= 2:
+        condicion = (Q(nombre__icontains=q) | Q(tutores__nombres__icontains=q)
+                     | Q(tutores__apellidos__icontains=q))
+        # El RUT del tutor, escrito con o sin puntos, completo o solo el comienzo.
+        digitos = re.sub(r'[^0-9kK]', '', q)
+        if len(digitos) >= 4 and digitos[:-1].isdigit():
+            condicion |= Q(tutores__rut__startswith=limpiar_rut(digitos)) | Q(tutores__rut__startswith=digitos)
+        resultados = (Mascota.objects.filter(condicion, activo=True)
+                      .exclude(tenencias__cliente=cliente)
+                      .select_related('especie', 'raza')
+                      .prefetch_related('tenencias__cliente')
+                      .distinct().order_by('nombre')[:20])
+
+    return render(request, 'mascotas/asociar_mascota.html', {
+        'seccion': 'clientes',
+        'cliente': cliente,
+        'q': q,
+        'resultados': resultados,
+        'relaciones': Tenencia.Relacion.choices,
+    })

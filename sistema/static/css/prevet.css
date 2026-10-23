@@ -2193,3 +2193,6 @@ select option { background: var(--solido); color: var(--texto); }
 .etq-opciones { display: flex; flex-direction: column; gap: .35rem; margin: .6rem 0; }
 .etq-opcion { display: flex; align-items: center; gap: .45rem; cursor: pointer; }
 .det-etiquetas { display: flex; flex-wrap: wrap; gap: .3rem; margin: .4rem 0 .2rem; }
+.asociar-form { display: flex; gap: .4rem; align-items: center; }
+.asociar-form select { padding: .3rem .5rem; border: 1px solid var(--borde); border-radius: 8px; background: var(--card); color: var(--texto); font-family: inherit; font-size: .8rem; }
+@media (max-width: 600px) { .asociar-form { grid-column: 1 / -1; } }

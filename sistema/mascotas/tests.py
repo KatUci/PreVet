@@ -453,3 +453,65 @@ class EtiquetasDeAlertaTest(TestCase):
         self.recepcion.groups.set([Group.objects.get(name='Administración')])
         respuesta = self.client.post('/mascotas/etiquetas/nueva/', {'nombre': 'Alérgico a anestesia', 'para': 'mascota', 'tono': 'mal', 'activo': 'on'})
         self.assertEqual(respuesta.status_code, 302)
+
+
+class AsociarMascotaTest(TestCase):
+    """PV-CLI-06: asociar a un cliente una mascota ya registrada con otro tutor."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        self.recepcion = User.objects.create_user('recepcion')
+        self.recepcion.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(self.recepcion)
+        perro = Especie.objects.create(nombre='Perro')
+        self.ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto')
+        self.pedro = Cliente.objects.create(rut='16890342-1', nombres='Pedro', apellidos='Soto')
+        self.bruno = Mascota.objects.create(nombre='Bruno', especie=perro, sexo='macho')
+        Tenencia.objects.create(cliente=self.ana, mascota=self.bruno, es_principal=True)
+
+    def test_busca_por_nombre_de_la_mascota_o_rut_del_tutor(self):
+        url = f'/clientes/{self.pedro.pk}/mascotas/asociar/'
+        self.assertEqual(list(self.client.get(url, {'q': 'brun'}).context['resultados']), [self.bruno])
+        self.assertEqual(list(self.client.get(url, {'q': '15.234.871-1'}).context['resultados']), [self.bruno])
+
+    def test_no_ofrece_las_que_ya_son_del_cliente(self):
+        respuesta = self.client.get(f'/clientes/{self.ana.pk}/mascotas/asociar/', {'q': 'Bruno'})
+        self.assertEqual(list(respuesta.context['resultados']), [])
+
+    def test_asociar_agrega_un_tutor_sin_cambiar_al_responsable(self):
+        self.client.post(f'/clientes/{self.pedro.pk}/mascotas/asociar/',
+                         {'mascota': self.bruno.pk, 'relacion': 'familiar'})
+        vinculo = Tenencia.objects.get(cliente=self.pedro, mascota=self.bruno)
+        self.assertEqual(vinculo.relacion, 'familiar')
+        self.assertFalse(vinculo.es_principal)
+        self.assertEqual(self.bruno.responsable, self.ana)
+        self.assertEqual(Mascota.objects.count(), 1)            # no se duplicó la ficha
+
+    def test_sin_responsable_pasa_a_ser_el_principal(self):
+        Tenencia.objects.filter(mascota=self.bruno).update(es_principal=False)
+        self.client.post(f'/clientes/{self.pedro.pk}/mascotas/asociar/',
+                         {'mascota': self.bruno.pk, 'relacion': 'dueno'})
+        self.assertTrue(Tenencia.objects.get(cliente=self.pedro, mascota=self.bruno).es_principal)
+
+    def test_asociar_dos_veces_no_duplica(self):
+        for _ in range(2):
+            self.client.post(f'/clientes/{self.pedro.pk}/mascotas/asociar/',
+                             {'mascota': self.bruno.pk, 'relacion': 'familiar'})
+        self.assertEqual(Tenencia.objects.filter(cliente=self.pedro, mascota=self.bruno).count(), 1)
+
+    def test_relacion_invalida(self):
+        self.client.post(f'/clientes/{self.pedro.pk}/mascotas/asociar/',
+                         {'mascota': self.bruno.pk, 'relacion': 'vecino'})
+        self.assertFalse(Tenencia.objects.filter(cliente=self.pedro).exists())
+
+    def test_el_nuevo_tutor_puede_agendar_para_la_mascota(self):
+        self.client.post(f'/clientes/{self.pedro.pk}/mascotas/asociar/',
+                         {'mascota': self.bruno.pk, 'relacion': 'familiar'})
+        self.assertIn(self.pedro, self.bruno.tutores.all())
+
+    def test_veterinario_no_asocia(self):
+        from django.contrib.auth.models import Group
+        self.recepcion.groups.set([Group.objects.get(name='Veterinarios')])
+        respuesta = self.client.post(f'/clientes/{self.pedro.pk}/mascotas/asociar/',
+                                     {'mascota': self.bruno.pk, 'relacion': 'familiar'})
+        self.assertEqual(respuesta.status_code, 403)

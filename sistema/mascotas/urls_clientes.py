@@ -10,4 +10,5 @@ urlpatterns = [
     path('<int:pk>/etiquetas/', clientes.cliente_etiquetas, name='cliente_etiquetas'),
     path('nuevo/', clientes.cliente_nuevo, name='cliente_nuevo'),
     path('<int:cliente_pk>/mascotas/nueva/', clientes.mascota_nueva, name='mascota_nueva'),
+    path('<int:pk>/mascotas/asociar/', clientes.asociar_mascota, name='asociar_mascota'),
 ]
