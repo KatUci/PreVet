@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Lista de llamadas{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Lista de llamadas</span>{% endblock %}
+{% block encabezado %}Lista de llamadas{% endblock %}
+{% block subtitulo %}Citas del {{ fecha|date:"l j \d\e F"|lower }}, de mayor a menor riesgo de inasistencia{% endblock %}
+
+{% block contenido %}
+
+{# ---------- Día y filtro ---------- #}
+<div class="chips" style="margin-bottom:1rem">
+    {% for d in dias %}
+    <a href="?fecha={{ d|date:'Y-m-d' }}{% if solo_pendientes %}&filtro=pendientes{% endif %}" style="text-decoration:none"
+       class="badge {% if d == fecha %}badge-azul{% else %}badge-neutro{% endif %}">
+        {% if d == hoy %}Hoy{% elif d == manana %}Mañana{% else %}{{ d|date:"D j"|capfirst }}{% endif %}
+    </a>
+    {% endfor %}
+    <span style="flex:1"></span>
+    {% if solo_pendientes %}
+    <a href="?fecha={{ fecha|date:'Y-m-d' }}" class="badge badge-azul" style="text-decoration:none">Solo por llamar ✕</a>
+    {% else %}
+    <a href="?fecha={{ fecha|date:'Y-m-d' }}&filtro=pendientes" class="badge badge-neutro" style="text-decoration:none">Solo por llamar</a>
+    {% endif %}
+</div>
+
+{# ---------- Avance ---------- #}
+<div class="kpis-dia">
+    <div class="kpi"><span class="kpi-num">{{ avance.total }}</span><span class="kpi-txt">citas pendientes</span></div>
+    <div class="kpi kpi-ok"><span class="kpi-num">{{ avance.confirmada }}</span><span class="kpi-txt">confirmaron</span></div>
+    <div class="kpi kpi-warn"><span class="kpi-num">{{ avance.no_contesta }}</span><span class="kpi-txt">no contestan</span></div>
+    <div class="kpi kpi-info"><span class="kpi-num">{{ avance.pidio_cambio }}</span><span class="kpi-txt">pidieron cambio</span></div>
+    <div class="kpi"><span class="kpi-num">{{ avance.pct }}<small>%</small></span><span class="kpi-txt">contactadas</span></div>
+</div>
+
+<section class="card">
+    <ul class="lista-llamadas lista-llamadas-grande">
+        {% for f in filas %}
+        <li>
+            <span class="nivel nivel-{{ f.nivel }}" title="Riesgo {{ f.nivel }}">{{ f.puntaje }}</span>
+            <div class="llamada-txt">
+                <b>{{ f.cita.hora|time:"H:i" }} · {{ f.cita.mascota.especie.emoji }} {{ f.cita.mascota.nombre }} · {{ f.cita.tipo_atencion.nombre }}</b>
+                <span>
+                    {% if perms.mascotas.view_cliente %}<a href="{% url 'cliente_ficha' f.cita.cliente_id %}">{{ f.cita.cliente.nombre_completo }}</a>{% else %}{{ f.cita.cliente.nombre_completo }}{% endif %}
+                    · {{ f.cita.cliente.telefono|default:"sin teléfono" }} · prefiere {{ f.cita.cliente.get_canal_preferido_display|lower }}
+                    · con {{ f.cita.veterinario.get_full_name }}
+                </span>
+                {% if f.nivel != 'bajo' %}<span class="celda-sub">{{ f.accion }}</span>{% endif %}
+                <details class="guion">
+                    <summary>Qué decir</summary>
+                    <ul>{% for g in f.guion %}<li>{{ g }}</li>{% endfor %}</ul>
+                </details>
+                {% if f.cita.confirmacion %}
+                <span class="celda-sub">
+                    <span class="etiqueta conf-{{ f.cita.confirmacion }}">{{ f.cita.get_confirmacion_display }}</span>
+                    {% if f.cita.confirmacion_por %}{{ f.cita.confirmacion_por.get_full_name|default:f.cita.confirmacion_por.username }}, {% endif %}{{ f.cita.confirmacion_fecha|date:"d/m H:i" }}
+                </span>
+                {% endif %}
+                {% if perms.citas.change_cita %}
+                <form method="post" action="{% url 'cita_confirmacion' f.cita.pk %}" class="conf-botones">
+                    {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    {% for valor, texto in resultados %}
+                    <button type="submit" name="resultado" value="{{ valor }}" class="btn btn-suave btn-chico{% if f.cita.confirmacion == valor %} activo{% endif %}">{{ texto }}</button>
+                    {% endfor %}
+                </form>
+                {% endif %}
+            </div>
+            <div class="llamada-acciones">
+                {% if f.cita.cliente.telefono %}
+                <a class="btn btn-suave btn-chico" href="tel:{{ f.cita.cliente.telefono }}" title="Llamar">📞</a>
+                {% if f.whatsapp %}<a class="btn btn-suave btn-chico" href="{{ f.whatsapp }}" target="_blank" rel="noopener" title="WhatsApp con el mensaje para riesgo {{ f.nivel }}">💬</a>{% endif %}
+                {% else %}
+                <span class="etiqueta etiqueta-neutro">Sin teléfono</span>
+                {% endif %}
+            </div>
+        </li>
+        {% empty %}
+        <li class="flujo-vacio">{% if solo_pendientes %}No queda nadie por llamar para este día. 🎉{% else %}No hay citas pendientes para este día.{% endif %}</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endblock %}

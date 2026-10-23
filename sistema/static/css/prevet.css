@@ -2175,3 +2175,5 @@ select option { background: var(--solido); color: var(--texto); }
 .conf-botones { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
 .conf-botones .btn.activo { outline: 2px solid var(--acento); outline-offset: 1px; }
 .cal-card .fc .fc-event.conf-confirmada { border-left: 4px solid var(--verde); }
+.lista-llamadas-grande li { align-items: flex-start; }
+.lista-llamadas-grande .llamada-txt > span { margin-top: .15rem; }

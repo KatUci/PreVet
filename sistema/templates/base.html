@@ -110,6 +110,11 @@
             <a href="/citas/" class="sb-link {% if seccion == 'citas' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-lista"/></svg> Citas
             </a>
+            {% if perms.citas.ver_riesgo %}
+            <a href="{% url 'llamadas' %}" class="sb-link {% if seccion == 'llamadas' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-alerta"/></svg> Lista de llamadas
+            </a>
+            {% endif %}
             {% endif %}
             {% if perms.mascotas.view_cliente %}
             <a href="{% url 'clientes' %}" class="sb-link {% if seccion == 'clientes' %}activo{% endif %}">

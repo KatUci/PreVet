@@ -145,7 +145,7 @@
         <section class="card">
             <div class="card-titulo">
                 <h2><svg class="icono"><use href="#i-alerta"/></svg> Confirmar mañana</h2>
-                <a href="{% url 'riesgo' %}">Horas en riesgo</a>
+                <a href="{% url 'llamadas' %}">Lista de llamadas</a>
             </div>
             <p class="panel-nota">
                 {{ confirmar_total }} cita{{ confirmar_total|pluralize }} el {{ manana|date:"l j"|lower }}{% if altos_manana %},

@@ -1001,3 +1001,63 @@ class ConfirmacionTest(CalendarioTest):
         self.assertEqual(c.hora.strftime('%H:%M'), '11:00')
         self.assertEqual(c.confirmacion, '')
         self.assertIsNone(c.confirmacion_por)
+
+
+class ListaLlamadasTest(BaseCitas):
+    """PV-REC-02: lista de llamadas del día siguiente ordenada por riesgo."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth.models import Group
+        self.tutor.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(self.tutor)
+        # Otro tutor con historial de faltas: sus citas salen con más riesgo.
+        self.faltador = Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva',
+                                               telefono='+56 9 8765 4321')
+        self.luna = Mascota.objects.create(nombre='Luna', especie=self.especie, sexo='hembra')
+        Tenencia.objects.create(cliente=self.faltador, mascota=self.luna, es_principal=True)
+        for dias in (-30, -20, -10):
+            self.crear_cita(dias=dias, mascota=self.luna, estado='no_asistio')
+        self.crear_cita(dias=-15, estado='completada')
+
+    def test_ordena_las_de_manana_de_mayor_a_menor_riesgo(self):
+        tranquila = self.crear_cita(dias=1)
+        riesgosa = self.crear_cita(dias=1, mascota=self.luna)
+        self.crear_cita(dias=2)                      # pasado mañana no aparece
+        filas = self.client.get('/citas/llamadas/').context['filas']
+        self.assertEqual([f['cita'] for f in filas], [riesgosa, tranquila])
+        self.assertGreater(filas[0]['puntaje'], filas[1]['puntaje'])
+
+    def test_trae_el_whatsapp_con_el_mensaje(self):
+        self.crear_cita(dias=1, mascota=self.luna)
+        fila = self.client.get('/citas/llamadas/').context['filas'][0]
+        self.assertTrue(fila['whatsapp'].startswith('https://wa.me/56987654321'))
+
+    def test_registrar_el_resultado_vuelve_a_la_lista(self):
+        cita = self.crear_cita(dias=1)
+        respuesta = self.client.post(f'/citas/{cita.pk}/confirmacion/',
+                                     {'resultado': 'no_contesta', 'next': '/citas/llamadas/'})
+        self.assertEqual(respuesta['Location'], '/citas/llamadas/')
+        avance = self.client.get('/citas/llamadas/').context['avance']
+        self.assertEqual((avance['total'], avance['no_contesta'], avance['contactadas']), (1, 1, 0))
+
+    def test_solo_por_llamar_esconde_las_ya_confirmadas(self):
+        confirmada = self.crear_cita(dias=1)
+        sin_respuesta = self.crear_cita(dias=1, mascota=self.luna)
+        self.client.post(f'/citas/{confirmada.pk}/confirmacion/', {'resultado': 'confirmada'})
+        self.client.post(f'/citas/{sin_respuesta.pk}/confirmacion/', {'resultado': 'no_contesta'})
+        filas = self.client.get('/citas/llamadas/', {'filtro': 'pendientes'}).context['filas']
+        self.assertEqual([f['cita'] for f in filas], [sin_respuesta])
+
+    def test_otra_fecha_y_fechas_pasadas(self):
+        cita = self.crear_cita(dias=2)
+        contexto = self.client.get('/citas/llamadas/', {'fecha': cita.fecha.isoformat()}).context
+        self.assertEqual(len(contexto['filas']), 1)
+        ayer = (timezone.localdate() - timedelta(days=1)).isoformat()
+        self.assertEqual(self.client.get('/citas/llamadas/', {'fecha': ayer}).context['fecha'],
+                         timezone.localdate())
+
+    def test_sin_permiso_de_riesgo_no_entra(self):
+        from django.contrib.auth.models import Group
+        self.tutor.groups.set([Group.objects.get(name='Veterinarios')])
+        self.assertEqual(self.client.get('/citas/llamadas/').status_code, 403)

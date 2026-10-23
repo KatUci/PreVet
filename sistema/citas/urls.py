@@ -6,6 +6,7 @@ urlpatterns = [
     path('', views.listado, name='citas'),
     path('nueva/', views.agendar, name='agendar'),
     path('hoy/', panel.panel_dia, name='panel_dia'),
+    path('llamadas/', confirmacion.llamadas, name='llamadas'),
     path('exportar/', views.exportar, name='citas_exportar'),
     path('<int:pk>/no-asistio/', views.marcar_no_asistio, name='marcar_no_asistio'),
 
