@@ -1,0 +1,2 @@
+{# Muestra las etiquetas de alerta de un cliente o una mascota. Uso: include con lista=objeto.etiquetas.all #}
+{% for e in lista %}<span class="etiqueta etiqueta-{{ e.tono }}" title="Etiqueta de alerta">🏷 {{ e.nombre }}</span>{% endfor %}

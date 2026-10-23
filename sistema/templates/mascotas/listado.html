@@ -62,6 +62,7 @@
             <div class="ta-meta">
                 {{ m.especie.nombre }}{% if m.raza %} · {{ m.raza.nombre }}{% endif %} · {{ m.get_sexo_display }}
             </div>
+            {% if m.etiquetas.all %}<div class="etiquetas">{% include 'mascotas/_etiquetas.html' with lista=m.etiquetas.all %}</div>{% endif %}
 
             <div class="ta-caracter">
                 {{ m.edad|default:"Edad no registrada" }}<br>

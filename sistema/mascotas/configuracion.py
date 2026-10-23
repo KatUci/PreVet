@@ -1,4 +1,4 @@
-"""Configuración de mascotas: tipos de mascota (especies) y razas."""
+"""Configuración de mascotas: tipos de mascota (especies), razas y etiquetas de alerta."""
 from django import forms
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied
@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 
 from core import crud
 
-from .models import Especie, Raza
+from .models import Especie, Etiqueta, Raza
 
 MIGAS = [('Configuración', None)]
 
@@ -121,3 +121,64 @@ def raza_formulario(request, pk=None):
 def raza_eliminar(request, pk):
     return crud.eliminar(request, get_object_or_404(Raza, pk=pk), volver=reverse('razas'),
                          en_uso='hay mascotas registradas con esta raza.')
+
+
+# ---------------- Etiquetas de alerta (PV-CLI-04) ----------------
+
+class EtiquetaForm(forms.ModelForm):
+    class Meta:
+        model = Etiqueta
+        fields = ['nombre', 'para', 'tono', 'activo']
+        labels = {'nombre': 'Etiqueta'}
+        help_texts = {'nombre': 'Corta y clara: «Muerde: usar bozal», «Deuda pendiente».'}
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data['nombre'].strip()
+        if Etiqueta.objects.filter(nombre__iexact=nombre).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('Ya existe una etiqueta con ese nombre.')
+        return nombre
+
+
+@login_required
+@permission_required('mascotas.view_etiqueta', raise_exception=True)
+def etiquetas_listado(request):
+    puede_editar = request.user.has_perm('mascotas.change_etiqueta')
+    puede_eliminar = request.user.has_perm('mascotas.delete_etiqueta')
+    etiquetas = Etiqueta.objects.annotate(
+        n_clientes=Count('clientes', distinct=True), n_mascotas=Count('mascotas', distinct=True))
+    filas = [{
+        'nombre': e.nombre,
+        'inactivo': not e.activo,
+        'celdas': [{'badge': e.nombre, 'clase': f'etq-{e.tono}'}, e.get_para_display(),
+                   e.n_clientes + e.n_mascotas,
+                   {'badge': 'Disponible' if e.activo else 'No disponible',
+                    'clase': 'completada' if e.activo else 'neutro'}],
+        'editar': reverse('etiqueta_editar', args=[e.pk]) if puede_editar else None,
+        'eliminar': reverse('etiqueta_eliminar', args=[e.pk]) if puede_eliminar else None,
+    } for e in etiquetas]
+    return crud.listado(
+        request, seccion='etiquetas', titulo='Etiquetas de alerta',
+        subtitulo='Avisos que se pegan a un cliente o a una mascota y se ven en el panel del día y en el detalle de la cita',
+        columnas=['Etiqueta', 'Se usa en', 'Asignada a', 'Estado'], filas=filas,
+        url_nuevo=reverse('etiqueta_nueva') if request.user.has_perm('mascotas.add_etiqueta') else None,
+        texto_nuevo='Nueva etiqueta', migas=MIGAS + [('Etiquetas de alerta', None)])
+
+
+@login_required
+def etiqueta_formulario(request, pk=None):
+    _exigir(request, 'mascotas.change_etiqueta' if pk else 'mascotas.add_etiqueta')
+    etiqueta = get_object_or_404(Etiqueta, pk=pk) if pk else None
+    volver = reverse('etiquetas')
+    return crud.formulario(
+        request, form=EtiquetaForm(request.POST or None, instance=etiqueta), seccion='etiquetas',
+        titulo=f'Editar «{etiqueta.nombre}»' if etiqueta else 'Nueva etiqueta de alerta', volver=volver,
+        mensaje='Se guardó la etiqueta «{objeto.nombre}».',
+        migas=MIGAS + [('Etiquetas de alerta', volver), ('Editar' if etiqueta else 'Nueva', None)])
+
+
+@require_POST
+@login_required
+@permission_required('mascotas.delete_etiqueta', raise_exception=True)
+def etiqueta_eliminar(request, pk):
+    # Una etiqueta se puede borrar aunque esté asignada: solo se quita el aviso.
+    return crud.eliminar(request, get_object_or_404(Etiqueta, pk=pk), volver=reverse('etiquetas'))

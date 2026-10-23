@@ -25,6 +25,11 @@
         <div class="ficha-avatar">{{ mascota.especie.emoji }}</div>
         {% endif %}
         <h2>{{ mascota.nombre }}</h2>
+        <div class="etiquetas" style="justify-content:center">{% include 'mascotas/_etiquetas.html' with lista=mascota.etiquetas.all %}</div>
+        {% if perms.mascotas.change_mascota %}
+        {% url 'mascota_etiquetas' mascota.pk as accion_etq %}
+        {% include 'mascotas/_etiquetas_form.html' with accion=accion_etq disponibles=etiquetas_disponibles actuales=etiquetas_actuales %}
+        {% endif %}
         <dl class="ficha-datos">
             <dt>Edad</dt><dd>{{ mascota.edad|default:"—" }}</dd>
             <dt>Peso</dt><dd>{% if mascota.peso_kg %}{{ mascota.peso_kg|floatformat:1 }} kg{% else %}—{% endif %}</dd>

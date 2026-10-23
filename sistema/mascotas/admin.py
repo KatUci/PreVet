@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Cliente, Especie, FotoMascota, Mascota, Raza, Tenencia
+from .models import Cliente, Especie, Etiqueta, FotoMascota, Mascota, Raza, Tenencia
 
 
 class RazaInline(admin.TabularInline):
@@ -134,3 +134,10 @@ class TenenciaAdmin(admin.ModelAdmin):
     list_filter = ('relacion', 'es_principal')
     search_fields = ('mascota__nombre', 'cliente__nombres', 'cliente__apellidos', 'cliente__rut')
     autocomplete_fields = ['mascota', 'cliente']
+
+
+@admin.register(Etiqueta)
+class EtiquetaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'para', 'tono', 'activo')
+    list_filter = ('para', 'tono', 'activo')
+    search_fields = ('nombre',)

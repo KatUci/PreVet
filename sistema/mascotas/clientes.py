@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from .fotos import guardar_foto
 from .forms import ClienteForm, MascotaEditarForm, MascotaForm
-from .models import Cliente, Mascota, Tenencia
+from .models import Cliente, Etiqueta, Mascota, Tenencia
 
 
 def _volver_a(request, por_defecto):
@@ -128,3 +128,34 @@ def mascota_estado(request, pk):
     estado = 'volvió a quedar activa' if mascota.activo else 'quedó inactiva: se conserva su historial'
     messages.success(request, f'{mascota.nombre} {estado}.')
     return redirect(_volver_a(request, '/mascotas/'))
+
+
+def _guardar_etiquetas(request, objeto, para):
+    """Deja en el cliente o la mascota exactamente las etiquetas marcadas.
+
+    Solo se aceptan etiquetas disponibles y del tipo que corresponde. Las que
+    ya tenía y luego se desactivaron en el catálogo se conservan.
+    """
+    elegidas = Etiqueta.objects.filter(pk__in=request.POST.getlist('etiquetas'), para=para, activo=True)
+    no_disponibles = objeto.etiquetas.filter(activo=False)
+    objeto.etiquetas.set([*elegidas, *no_disponibles])
+
+
+@require_POST
+@login_required
+@permission_required('mascotas.change_cliente', raise_exception=True)
+def cliente_etiquetas(request, pk):
+    cliente = get_object_or_404(Cliente, pk=pk)
+    _guardar_etiquetas(request, cliente, Etiqueta.Para.CLIENTE)
+    messages.success(request, f'Se actualizaron las etiquetas de {cliente.nombre_completo}.')
+    return redirect(_volver_a(request, reverse('cliente_ficha', args=[cliente.pk])))
+
+
+@require_POST
+@login_required
+@permission_required('mascotas.change_mascota', raise_exception=True)
+def mascota_etiquetas(request, pk):
+    mascota = get_object_or_404(Mascota, pk=pk)
+    _guardar_etiquetas(request, mascota, Etiqueta.Para.MASCOTA)
+    messages.success(request, f'Se actualizaron las etiquetas de {mascota.nombre}.')
+    return redirect(_volver_a(request, reverse('mascota_ficha', args=[mascota.pk])))

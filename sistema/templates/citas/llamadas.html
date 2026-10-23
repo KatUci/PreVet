@@ -44,6 +44,7 @@
                     · {{ f.cita.cliente.telefono|default:"sin teléfono" }} · prefiere {{ f.cita.cliente.get_canal_preferido_display|lower }}
                     · con {{ f.cita.veterinario.get_full_name }}
                 </span>
+                {% if f.cita.cliente.etiquetas.all %}<span class="etiquetas">{% include 'mascotas/_etiquetas.html' with lista=f.cita.cliente.etiquetas.all %}</span>{% endif %}
                 {% if f.nivel != 'bajo' %}<span class="celda-sub">{{ f.accion }}</span>{% endif %}
                 <details class="guion">
                     <summary>Qué decir</summary>

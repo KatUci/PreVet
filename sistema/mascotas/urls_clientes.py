@@ -7,6 +7,7 @@ urlpatterns = [
     path('<int:pk>/', directorio.cliente_ficha, name='cliente_ficha'),
     path('<int:pk>/editar/', clientes.cliente_editar, name='cliente_editar'),
     path('<int:pk>/estado/', clientes.cliente_estado, name='cliente_estado'),
+    path('<int:pk>/etiquetas/', clientes.cliente_etiquetas, name='cliente_etiquetas'),
     path('nuevo/', clientes.cliente_nuevo, name='cliente_nuevo'),
     path('<int:cliente_pk>/mascotas/nueva/', clientes.mascota_nueva, name='mascota_nueva'),
 ]

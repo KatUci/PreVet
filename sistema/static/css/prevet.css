@@ -2183,3 +2183,13 @@ select option { background: var(--solido); color: var(--texto); }
 .paciente-en-box { border-left-color: var(--acento); }
 @media (max-width: 1280px) { .flujo-columnas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .flujo-columnas { grid-template-columns: 1fr; } }
+
+/* ---------- Etiquetas de alerta (Sprint 4) ---------- */
+.badge-etq-mal    { background: var(--error-bg); color: var(--error-txt); }
+.badge-etq-warn   { background: var(--warn-bg); color: var(--warn-txt); }
+.badge-etq-neutro { background: var(--neutro-bg); color: var(--neutro-txt); }
+.etq-editar { margin-top: .6rem; text-align: left; font-size: .85rem; }
+.etq-editar summary { cursor: pointer; color: var(--acento); font-weight: 600; }
+.etq-opciones { display: flex; flex-direction: column; gap: .35rem; margin: .6rem 0; }
+.etq-opcion { display: flex; align-items: center; gap: .45rem; cursor: pointer; }
+.det-etiquetas { display: flex; flex-wrap: wrap; gap: .3rem; margin: .4rem 0 .2rem; }

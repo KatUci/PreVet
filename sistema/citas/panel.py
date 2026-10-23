@@ -66,7 +66,8 @@ def panel_dia(request):
     perfil = getattr(request.user, 'perfil', None)
     es_vet = bool(perfil and perfil.rol == 'veterinario')
 
-    base = Cita.objects.select_related('mascota__especie', 'cliente', 'veterinario', 'tipo_atencion')
+    base = (Cita.objects.select_related('mascota__especie', 'cliente', 'veterinario', 'tipo_atencion')
+            .prefetch_related('mascota__etiquetas', 'cliente__etiquetas'))
     del_dia = base.filter(fecha=hoy).order_by('hora')
     if es_vet:
         del_dia = del_dia.filter(veterinario=request.user)

@@ -3,7 +3,7 @@ from django.db.models import Count, Q
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render
 
-from .models import Especie, Mascota, Tenencia
+from .models import Especie, Etiqueta, Mascota, Tenencia
 from .rut import limpiar_rut
 
 
@@ -17,7 +17,7 @@ def listado(request):
 
     mascotas = (Mascota.objects
                 .select_related('especie', 'raza')
-                .prefetch_related('tenencias__cliente')
+                .prefetch_related('tenencias__cliente', 'etiquetas')
                 .filter(activo=True)
                 .annotate(
                     total_citas=Count('citas'),
@@ -87,4 +87,6 @@ def ficha(request, pk):
         'atenciones': atenciones,
         'citas': Paginator(citas, 10).get_page(request.GET.get('pagina')),
         'resumen': resumen,
+        'etiquetas_disponibles': Etiqueta.objects.filter(para=Etiqueta.Para.MASCOTA, activo=True),
+        'etiquetas_actuales': list(mascota.etiquetas.values_list('pk', flat=True)),
     })

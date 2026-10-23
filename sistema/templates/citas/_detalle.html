@@ -22,6 +22,13 @@
     {% if cita.hora_salida %}<span class="det-estado ev-completada">Salió {{ cita.hora_salida|time:"H:i" }}</span>{% endif %}
 </div>
 
+{% if cita.mascota.etiquetas.all or cita.cliente.etiquetas.all %}
+<div class="det-etiquetas">
+    {% include 'mascotas/_etiquetas.html' with lista=cita.mascota.etiquetas.all %}
+    {% include 'mascotas/_etiquetas.html' with lista=cita.cliente.etiquetas.all %}
+</div>
+{% endif %}
+
 {% if cita.mascota.alergias or cita.mascota.observaciones or cita.mascota.condiciones %}
 <section class="det-alerta">
     {% if cita.mascota.alergias %}<div><b>⚠ Alergias:</b> {{ cita.mascota.alergias }}</div>{% endif %}

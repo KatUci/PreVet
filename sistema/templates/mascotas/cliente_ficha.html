@@ -33,7 +33,12 @@
             {% if reincidente %}<span class="etiqueta etiqueta-mal">Reincidente: faltó {{ resumen.faltas }} veces</span>{% endif %}
             {% if not cliente.telefono %}<span class="etiqueta etiqueta-neutro">Sin teléfono</span>{% endif %}
             {% if resumen.total and not resumen.faltas %}<span class="etiqueta etiqueta-ok">Nunca ha faltado</span>{% endif %}
+            {% include 'mascotas/_etiquetas.html' with lista=cliente.etiquetas.all %}
         </div>
+        {% if perms.mascotas.change_cliente %}
+        {% url 'cliente_etiquetas' cliente.pk as accion_etq %}
+        {% include 'mascotas/_etiquetas_form.html' with accion=accion_etq disponibles=etiquetas_disponibles actuales=etiquetas_actuales %}
+        {% endif %}
         <dl class="ficha-datos">
             <dt>RUT</dt><dd>{{ cliente.rut_formateado }}</dd>
             <dt>Teléfono</dt><dd>{{ cliente.telefono|default:"—" }}</dd>
@@ -97,6 +102,7 @@
                         <div class="celda-sub">{% if t.mascota.microchip %}Chip {{ t.mascota.microchip }}{% elif t.mascota.tiene_microchip %}Con microchip{% endif %}{% if t.mascota.peso_kg %} · {{ t.mascota.peso_kg|floatformat:1 }} kg{% endif %}{% if t.mascota.esterilizada %} · esterilizada{% elif t.mascota.esterilizada is False %} · no esterilizada{% endif %}</div>
                         {% endif %}
                         {% if t.mascota.alergias %}<div><span class="etiqueta etiqueta-mal">⚠ Alergias: {{ t.mascota.alergias|truncatechars:40 }}</span></div>{% endif %}
+                        {% if t.mascota.etiquetas.all %}<div class="etiquetas">{% include 'mascotas/_etiquetas.html' with lista=t.mascota.etiquetas.all %}</div>{% endif %}
                         <div class="celda-sub">{{ t.get_relacion_display }}{% if t.es_principal %} · responsable principal{% endif %}</div>
                         {% if perms.mascotas.change_mascota %}<div class="celda-sub"><a href="{% url 'mascota_editar' t.mascota.pk %}?next={{ request.path|urlencode }}">Editar</a> · <a href="{% url 'mascota_foto_subir' t.mascota.pk %}?next={{ request.path|urlencode }}">📷 {% if t.mascota.foto_version %}Cambiar{% else %}Subir{% endif %} foto</a>{% if not t.mascota.activo %} · inactiva{% endif %}</div>{% endif %}
                     </div>

@@ -72,6 +72,8 @@
                             {% if t.sin_telefono %}<span class="etiqueta etiqueta-neutro">Sin teléfono</span>{% endif %}
                             {% if t.cita.mascota.alergias %}<span class="etiqueta etiqueta-mal" title="{{ t.cita.mascota.alergias }}">⚠ Alergias</span>{% endif %}
                             {% if t.cita.mascota.observaciones %}<span class="etiqueta etiqueta-warn" title="{{ t.cita.mascota.observaciones }}">Manejo especial</span>{% endif %}
+                            {% include 'mascotas/_etiquetas.html' with lista=t.cita.mascota.etiquetas.all %}
+                            {% include 'mascotas/_etiquetas.html' with lista=t.cita.cliente.etiquetas.all %}
                         </div>
                     </div>
                     {% if perms.citas.change_cita %}
@@ -108,6 +110,7 @@
                             <span class="etiqueta {% if t.espera_larga %}etiqueta-warn{% else %}etiqueta-neutro{% endif %}">
                                 Esperando {{ t.espera_txt }}
                             </span>
+                            {% include 'mascotas/_etiquetas.html' with lista=t.cita.mascota.etiquetas.all %}
                         </div>
                     </div>
                     {% if perms.citas.change_cita or perms.citas.add_atencion %}
@@ -139,7 +142,7 @@
                         <div class="paciente-nombre">{{ t.cita.mascota.especie.emoji }} {{ t.cita.mascota.nombre }}</div>
                         <div class="paciente-sub">{{ t.cita.cliente.nombre_completo }} · {{ t.cita.tipo_atencion.nombre }}</div>
                         {% if not es_vet %}<div class="paciente-sub">con {{ t.cita.veterinario.get_full_name }}</div>{% endif %}
-                        <div class="etiquetas"><span class="etiqueta etiqueta-neutro">En box hace {{ t.en_box_txt }}</span></div>
+                        <div class="etiquetas"><span class="etiqueta etiqueta-neutro">En box hace {{ t.en_box_txt }}</span>{% include 'mascotas/_etiquetas.html' with lista=t.cita.mascota.etiquetas.all %}</div>
                     </div>
                     {% if perms.citas.add_atencion %}
                     <div class="paciente-acciones">

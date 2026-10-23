@@ -82,7 +82,8 @@ def llamadas(request):
 
     citas = list(Cita.objects.filter(fecha=fecha, estado='pendiente')
                  .select_related('mascota__especie', 'cliente', 'veterinario', 'tipo_atencion',
-                                 'confirmacion_por'))
+                                 'confirmacion_por')
+                 .prefetch_related('cliente__etiquetas'))
     filas = []
     if citas:
         stats = estadisticas()

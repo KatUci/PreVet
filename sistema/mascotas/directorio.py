@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from citas.contacto import enlace_whatsapp
 
-from .models import Cliente
+from .models import Cliente, Etiqueta
 from .rut import limpiar_rut
 
 # Faltas anteriores desde las que el cliente se marca como reincidente.
@@ -108,6 +108,7 @@ def cliente_ficha(request, pk):
     hoy = timezone.localdate()
 
     tenencias = (cliente.tenencias.select_related('mascota__especie', 'mascota__raza')
+                 .prefetch_related('mascota__etiquetas')
                  .order_by('-es_principal', 'mascota__nombre'))
     citas = (cliente.citas.select_related('mascota__especie', 'veterinario', 'tipo_atencion')
              .order_by('-fecha', '-hora'))
@@ -143,4 +144,6 @@ def cliente_ficha(request, pk):
         'historial': historial,
         'whatsapp': enlace_whatsapp(cliente.telefono, mensaje),
         'hoy': hoy,
+        'etiquetas_disponibles': Etiqueta.objects.filter(para=Etiqueta.Para.CLIENTE, activo=True),
+        'etiquetas_actuales': list(cliente.etiquetas.values_list('pk', flat=True)),
     })

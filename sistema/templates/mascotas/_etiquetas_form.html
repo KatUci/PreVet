@@ -1,0 +1,18 @@
+{# Formulario para marcar las etiquetas de alerta. Recibe: accion, disponibles, actuales (lista de pk). #}
+<details class="etq-editar">
+    <summary>Editar etiquetas</summary>
+    <form method="post" action="{{ accion }}">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+        <div class="etq-opciones">
+            {% for e in disponibles %}
+            <label class="etq-opcion">
+                <input type="checkbox" name="etiquetas" value="{{ e.pk }}" {% if e.pk in actuales %}checked{% endif %}>
+                <span class="etiqueta etiqueta-{{ e.tono }}">{{ e.nombre }}</span>
+            </label>
+            {% empty %}
+            <p class="det-nota">No hay etiquetas disponibles. Administración las crea en Configuración.</p>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primario btn-chico">Guardar etiquetas</button>
+    </form>
+</details>

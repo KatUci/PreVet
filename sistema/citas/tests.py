@@ -1104,3 +1104,17 @@ class EtapasDeAtencionTest(PanelDelDiaTest):
         self.client.post(f'/citas/{c.pk}/salio/')
         c.refresh_from_db()
         self.assertIsNone(c.hora_salida)
+
+
+class EtiquetasEnElPanelTest(PanelDelDiaTest):
+    """Las etiquetas de alerta se ven en el panel del día y en el detalle de la cita."""
+
+    def test_panel_y_detalle(self):
+        from mascotas.models import Etiqueta
+        self.mascota.etiquetas.add(Etiqueta.objects.get(nombre='Muerde: usar bozal'))
+        self.cliente.etiquetas.add(Etiqueta.objects.get(nombre='Deuda pendiente'))
+        cita = self.crear_cita(dias=0)
+        panel = self.client.get('/')
+        self.assertContains(panel, 'Muerde: usar bozal')
+        self.assertContains(panel, 'Deuda pendiente')
+        self.assertContains(self.client.get(f'/citas/{cita.pk}/detalle/'), 'Muerde: usar bozal')

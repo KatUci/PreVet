@@ -57,6 +57,38 @@ REGIONES = [(r, r) for r in (
 CANALES = [('whatsapp', 'WhatsApp'), ('llamada', 'Llamada'), ('correo', 'Correo')]
 
 
+class Etiqueta(models.Model):
+    """Alerta corta que se pega a un cliente o a una mascota (PV-CLI-04).
+
+    Avisa al equipo de algo que conviene saber antes de atender: que la
+    mascota muerde, que el cliente tiene una deuda, que hay que confirmar por
+    teléfono, etc. Administración mantiene el catálogo.
+    """
+
+    class Para(models.TextChoices):
+        CLIENTE = 'cliente', 'Clientes'
+        MASCOTA = 'mascota', 'Mascotas'
+
+    class Tono(models.TextChoices):
+        MAL = 'mal', 'Rojo (cuidado)'
+        WARN = 'warn', 'Ámbar (atención)'
+        NEUTRO = 'neutro', 'Gris (informativa)'
+
+    nombre = models.CharField(max_length=40, unique=True)
+    para = models.CharField('se usa en', max_length=10, choices=Para.choices)
+    tono = models.CharField('color', max_length=10, choices=Tono.choices, default=Tono.WARN)
+    activo = models.BooleanField('disponible', default=True,
+                                 help_text='Si la desmarcas, ya no se puede asignar, pero se conserva donde ya está.')
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = 'etiqueta de alerta'
+        verbose_name_plural = 'etiquetas de alerta'
+        ordering = ['para', 'nombre']
+
+
 class Cliente(models.Model):
     """Persona que trae mascotas a la clínica.
 
@@ -90,6 +122,10 @@ class Cliente(models.Model):
     # Cuenta del portal del tutor (Mi PreVet), si el cliente creó una.
     usuario = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='cliente', verbose_name='cuenta en Mi PreVet')
+
+    etiquetas = models.ManyToManyField(Etiqueta, blank=True, related_name='clientes',
+                                       limit_choices_to={'para': 'cliente'},
+                                       verbose_name='etiquetas de alerta')
 
     activo = models.BooleanField(default=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)
@@ -158,6 +194,10 @@ class Mascota(models.Model):
         through='Tenencia',
         related_name='mascotas',
     )
+
+    etiquetas = models.ManyToManyField(Etiqueta, blank=True, related_name='mascotas',
+                                       limit_choices_to={'para': 'mascota'},
+                                       verbose_name='etiquetas de alerta')
 
     activo = models.BooleanField(default=True)
     fecha_registro = models.DateTimeField(auto_now_add=True)

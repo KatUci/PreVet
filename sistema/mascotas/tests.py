@@ -387,3 +387,69 @@ class FichaMascotaTest(TestCase):
     def test_el_listado_enlaza_a_la_ficha(self):
         self.client.force_login(self.recepcion)
         self.assertContains(self.client.get('/mascotas/'), f'/mascotas/{self.bruno.pk}/"')
+
+
+class EtiquetasDeAlertaTest(TestCase):
+    """PV-CLI-04: etiquetas de alerta en clientes y mascotas."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from .models import Etiqueta
+        self.recepcion = User.objects.create_user('recepcion')
+        self.recepcion.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(self.recepcion)
+        perro = Especie.objects.create(nombre='Perro')
+        self.ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto')
+        self.bruno = Mascota.objects.create(nombre='Bruno', especie=perro, sexo='macho')
+        Tenencia.objects.create(cliente=self.ana, mascota=self.bruno, es_principal=True)
+        self.muerde = Etiqueta.objects.get(nombre='Muerde: usar bozal')
+        self.deuda = Etiqueta.objects.get(nombre='Deuda pendiente')
+
+    def test_vienen_etiquetas_iniciales_de_cada_tipo(self):
+        from .models import Etiqueta
+        self.assertTrue(Etiqueta.objects.filter(para='cliente').exists())
+        self.assertTrue(Etiqueta.objects.filter(para='mascota').exists())
+
+    def test_asignar_a_la_mascota_y_al_cliente(self):
+        self.client.post(f'/mascotas/{self.bruno.pk}/etiquetas/', {'etiquetas': [self.muerde.pk]})
+        self.client.post(f'/clientes/{self.ana.pk}/etiquetas/', {'etiquetas': [self.deuda.pk]})
+        self.assertEqual(list(self.bruno.etiquetas.all()), [self.muerde])
+        self.assertEqual(list(self.ana.etiquetas.all()), [self.deuda])
+
+    def test_no_se_mezclan_los_tipos(self):
+        """Una etiqueta de cliente no se puede pegar a una mascota."""
+        self.client.post(f'/mascotas/{self.bruno.pk}/etiquetas/', {'etiquetas': [self.deuda.pk]})
+        self.assertFalse(self.bruno.etiquetas.exists())
+
+    def test_desmarcar_las_quita(self):
+        self.bruno.etiquetas.add(self.muerde)
+        self.client.post(f'/mascotas/{self.bruno.pk}/etiquetas/', {})
+        self.assertFalse(self.bruno.etiquetas.exists())
+
+    def test_se_ven_en_las_fichas(self):
+        self.bruno.etiquetas.add(self.muerde)
+        self.ana.etiquetas.add(self.deuda)
+        self.assertContains(self.client.get(f'/mascotas/{self.bruno.pk}/'), 'Muerde: usar bozal')
+        self.assertContains(self.client.get(f'/clientes/{self.ana.pk}/'), 'Deuda pendiente')
+        self.assertContains(self.client.get('/mascotas/'), 'Muerde: usar bozal')
+
+    def test_el_tutor_no_ve_ni_edita_etiquetas_en_su_portal(self):
+        from django.contrib.auth.models import User as U
+        self.bruno.etiquetas.add(self.muerde)
+        self.ana.etiquetas.add(self.deuda)
+        cuenta = U.objects.create_user('152348711')
+        self.ana.usuario = cuenta
+        self.ana.save()
+        self.client.force_login(cuenta)
+        respuesta = self.client.get('/mi-prevet/')
+        self.assertContains(respuesta, 'Bruno')               # sí ve a su mascota...
+        self.assertNotContains(respuesta, 'Muerde')           # ...pero no las alertas internas
+        self.assertNotContains(respuesta, 'Deuda pendiente')
+        self.assertEqual(self.client.post(f'/clientes/{self.ana.pk}/etiquetas/', {}).status_code, 403)
+
+    def test_solo_administracion_mantiene_el_catalogo(self):
+        self.assertEqual(self.client.get('/mascotas/etiquetas/nueva/').status_code, 403)
+        from django.contrib.auth.models import Group
+        self.recepcion.groups.set([Group.objects.get(name='Administración')])
+        respuesta = self.client.post('/mascotas/etiquetas/nueva/', {'nombre': 'Alérgico a anestesia', 'para': 'mascota', 'tono': 'mal', 'activo': 'on'})
+        self.assertEqual(respuesta.status_code, 302)
