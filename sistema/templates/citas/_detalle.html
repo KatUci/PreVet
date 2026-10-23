@@ -75,6 +75,27 @@
     {% endif %}
 </section>
 
+{# ---------- Confirmación (PV-CIT-05) ---------- #}
+{% if pendiente %}
+<section class="det-sec">
+    <div class="det-sec-titulo">Confirmación</div>
+    {% if cita.confirmacion %}
+    <p class="det-valor det-valor-normal"><span class="etiqueta conf-{{ cita.confirmacion }}">{{ cita.get_confirmacion_display }}</span></p>
+    <p class="det-nota">{% if cita.confirmacion_por %}Registró {{ cita.confirmacion_por.get_full_name|default:cita.confirmacion_por.username }}, {% endif %}{{ cita.confirmacion_fecha|date:"d/m/Y H:i" }}</p>
+    {% else %}
+    <p class="det-nota">Todavía nadie contacta al tutor.</p>
+    {% endif %}
+    {% if perms.citas.change_cita %}
+    <form method="post" action="{% url 'cita_confirmacion' cita.pk %}" class="conf-botones">
+        {% csrf_token %}<input type="hidden" name="next" class="volver-aqui">
+        {% for valor, texto in resultados %}
+        <button type="submit" name="resultado" value="{{ valor }}" class="btn btn-suave btn-chico{% if cita.confirmacion == valor %} activo{% endif %}">{{ texto }}</button>
+        {% endfor %}
+    </form>
+    {% endif %}
+</section>
+{% endif %}
+
 {# ---------- Riesgo de inasistencia ---------- #}
 {% if nivel %}
 <section class="det-sec det-riesgo riesgo-{{ nivel }}">

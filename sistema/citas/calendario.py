@@ -78,12 +78,15 @@ def eventos(request):
     for c in citas:
         nivel = riesgo.puntuar(c, stats)[1] if c.estado == 'pendiente' else None
         alerta = '⚠ ' if nivel == 'alto' else ''
+        if c.estado == 'pendiente' and c.confirmacion == 'confirmada':
+            alerta = '✓ ' + alerta
         resultado.append({
             'id': c.pk,
             'title': f'{alerta}{c.mascota.especie.emoji} {c.mascota.nombre} · {c.tipo_atencion.nombre}',
             'start': datetime.datetime.combine(c.fecha, c.hora).isoformat(),
             'end': datetime.datetime.combine(c.fecha, c.hora_termino).isoformat(),
-            'classNames': [f'ev-{c.estado}'] + (['riesgo-alto'] if nivel == 'alto' else []),
+            'classNames': ([f'ev-{c.estado}'] + (['riesgo-alto'] if nivel == 'alto' else [])
+                           + ([f'conf-{c.confirmacion}'] if c.estado == 'pendiente' and c.confirmacion else [])),
             'extendedProps': {
                 'mascota': c.mascota.nombre,
                 'emoji': c.mascota.especie.emoji,
@@ -92,6 +95,7 @@ def eventos(request):
                 'profesional': c.veterinario.get_full_name(),
                 'estado': c.get_estado_display(),
                 'riesgo': nivel or '',
+                'confirmacion': c.get_confirmacion_display() if c.estado == 'pendiente' else '',
             },
         })
     return JsonResponse(resultado, safe=False)
@@ -103,7 +107,8 @@ def detalle(request, pk):
     """El panel lateral que se abre al hacer clic en una cita."""
     cita = get_object_or_404(
         Cita.objects.select_related('mascota__especie', 'mascota__raza', 'cliente',
-                                    'veterinario', 'tipo_atencion', 'cancelada_por'), pk=pk)
+                                    'veterinario', 'tipo_atencion', 'cancelada_por',
+                                    'confirmacion_por'), pk=pk)
     hoy = timezone.localdate()
 
     nivel = puntaje = detalle_riesgo = accion = None
@@ -127,6 +132,7 @@ def detalle(request, pk):
         'guion': guion,
         'duracion': cita.tipo_atencion.duracion_minutos,
         'form_cancelar': CancelarForm(),
+        'resultados': Cita.CONFIRMACIONES,
     })
 
 
@@ -197,7 +203,11 @@ def reagendar(request, pk):
 
     form = ReagendarForm(request.POST or None, instance=cita)
     if request.method == 'POST' and form.is_valid():
-        cita = form.save()
+        cita = form.save(commit=False)
+        if form.has_changed():
+            # La confirmación era para la hora anterior: hay que volver a confirmar.
+            cita.confirmacion, cita.confirmacion_fecha, cita.confirmacion_por = '', None, None
+        cita.save()
         messages.success(request, f'{cita.mascota.nombre} quedó para el {cita.fecha:%d/%m/%Y} a las {cita.hora:%H:%M}.')
         return redirect(f'/citas/calendario/?fecha={cita.fecha.isoformat()}')
 

@@ -106,6 +106,7 @@
                             <span class="nivel nivel-{{ e.nivel }}">{{ e.puntaje }}</span>
                             <span class="riesgo-nivel riesgo-{{ e.nivel }}">{{ e.nivel|capfirst }}</span>
                         </div>
+                        {% if e.cita.confirmacion %}<span class="etiqueta conf-{{ e.cita.confirmacion }}" title="Resultado del contacto">{{ e.cita.get_confirmacion_display }}</span>{% endif %}
                     </td>
                     <td style="white-space:nowrap">
                         <b>{{ e.cita.fecha|date:"D d/m"|capfirst }}</b>

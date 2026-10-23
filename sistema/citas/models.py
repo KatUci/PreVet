@@ -119,6 +119,21 @@ class Cita(models.Model):
     # Cuándo llegó de verdad el paciente. Con esto se miden también los atrasos.
     hora_llegada = models.DateTimeField('hora de llegada', null=True, blank=True)
 
+    # Resultado del contacto previo con el tutor (PV-CIT-05). Vacío mientras
+    # nadie lo haya contactado. Se guarda quién y cuándo, para medir después
+    # si confirmar reduce las inasistencias.
+    CONFIRMACIONES = (
+        ('confirmada', 'Confirmó'),
+        ('no_contesta', 'No contesta'),
+        ('pidio_cambio', 'Pidió cambio'),
+    )
+    confirmacion = models.CharField('confirmación', max_length=20, choices=CONFIRMACIONES,
+                                    blank=True, default='', db_default='')
+    confirmacion_fecha = models.DateTimeField('fecha de la confirmación', null=True, blank=True)
+    confirmacion_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                         related_name='citas_confirmadas',
+                                         verbose_name='registrada por')
+
     @property
     def dias_anticipacion(self):
         """Cuántos días antes se reservó esta hora."""

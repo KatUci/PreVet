@@ -158,7 +158,7 @@
                     <span class="nivel nivel-{{ c.nivel }}" title="Riesgo {{ c.nivel }}">{{ c.puntaje }}</span>
                     <div class="llamada-txt">
                         <b>{{ c.cita.hora|time:"H:i" }} · {{ c.cita.mascota.nombre }}</b>
-                        <span>{{ c.cita.cliente.nombre_completo }}</span>
+                        <span>{{ c.cita.cliente.nombre_completo }}{% if c.cita.confirmacion %} · <span class="etiqueta conf-{{ c.cita.confirmacion }}">{{ c.cita.get_confirmacion_display }}</span>{% endif %}</span>
                         <details class="guion">
                             <summary>Qué decir</summary>
                             <ul>{% for g in c.guion %}<li>{{ g }}</li>{% endfor %}</ul>

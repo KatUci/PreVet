@@ -948,3 +948,56 @@ class AtencionClinicaTest(TestCase):
         c = self.cita()
         respuesta = self.client.post(f'/citas/{c.pk}/atender/', self.datos(next='https://otro-sitio.cl/'))
         self.assertTrue(respuesta['Location'].startswith('/citas/calendario/'))
+
+
+class ConfirmacionTest(CalendarioTest):
+    """PV-CIT-05: estado de confirmación con fecha y usuario."""
+
+    def test_registrar_guarda_resultado_fecha_y_usuario(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/confirmacion/', {'resultado': 'confirmada'})
+        c.refresh_from_db()
+        self.assertEqual(c.confirmacion, 'confirmada')
+        self.assertEqual(c.confirmacion_por, self.recepcion)
+        self.assertIsNotNone(c.confirmacion_fecha)
+
+    def test_un_resultado_inventado_no_se_guarda(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/confirmacion/', {'resultado': 'quizas'})
+        c.refresh_from_db()
+        self.assertEqual(c.confirmacion, '')
+
+    def test_pidio_cambio_lleva_a_reagendar(self):
+        c = self.cita()
+        respuesta = self.client.post(f'/citas/{c.pk}/confirmacion/', {'resultado': 'pidio_cambio'})
+        self.assertEqual(respuesta['Location'], f'/citas/{c.pk}/reagendar/')
+
+    def test_no_se_confirma_una_cita_cerrada(self):
+        c = self.cita(estado='cancelada')
+        self.client.post(f'/citas/{c.pk}/confirmacion/', {'resultado': 'confirmada'})
+        c.refresh_from_db()
+        self.assertEqual(c.confirmacion, '')
+
+    def test_se_ve_en_el_calendario_y_en_el_detalle(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/confirmacion/', {'resultado': 'confirmada'})
+        evento = self.eventos()[0]
+        self.assertIn('conf-confirmada', evento['classNames'])
+        self.assertEqual(evento['extendedProps']['confirmacion'], 'Confirmó')
+        self.assertTrue(evento['title'].startswith('✓'))
+        self.assertContains(self.client.get(f'/citas/{c.pk}/detalle/'), 'Confirmó')
+
+    def test_se_ve_en_horas_en_riesgo(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/confirmacion/', {'resultado': 'no_contesta'})
+        self.assertContains(self.client.get('/riesgo/'), 'No contesta')
+
+    def test_al_reagendar_hay_que_volver_a_confirmar(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/confirmacion/', {'resultado': 'confirmada'})
+        self.client.post(f'/citas/{c.pk}/reagendar/', {
+            'veterinario': self.vet.pk, 'fecha': self.manana.isoformat(), 'hora': '11:00'})
+        c.refresh_from_db()
+        self.assertEqual(c.hora.strftime('%H:%M'), '11:00')
+        self.assertEqual(c.confirmacion, '')
+        self.assertIsNone(c.confirmacion_por)

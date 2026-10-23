@@ -2167,3 +2167,11 @@ select option { background: var(--solido); color: var(--texto); }
 @media (max-width: 600px) { .historial-clinico li { grid-template-columns: 1fr; gap: .2rem; } }
 .ta-nombre > a, .det-head-txt h3 a { color: inherit; text-decoration: none; }
 .ta-nombre > a:hover, .det-head-txt h3 a:hover { text-decoration: underline; }
+
+/* ---------- Confirmación de citas (Sprint 4) ---------- */
+.etiqueta.conf-confirmada    { background: var(--ok-bg); color: var(--ok-txt); }
+.etiqueta.conf-no_contesta   { background: var(--warn-bg); color: var(--warn-txt); }
+.etiqueta.conf-pidio_cambio  { background: var(--acento-bg); color: var(--acento); }
+.conf-botones { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
+.conf-botones .btn.activo { outline: 2px solid var(--acento); outline-offset: 1px; }
+.cal-card .fc .fc-event.conf-confirmada { border-left: 4px solid var(--verde); }
