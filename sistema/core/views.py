@@ -98,7 +98,9 @@ def inicio(request):
     hoy_resumen = {
         'total': de_hoy.count(),
         'por_llegar': de_hoy.filter(estado='pendiente', hora_llegada__isnull=True).count(),
-        'en_sala': de_hoy.filter(estado='pendiente', hora_llegada__isnull=False).count(),
+        'en_sala': de_hoy.filter(estado='pendiente', hora_llegada__isnull=False,
+                                 inicio_atencion__isnull=True).count(),
+        'en_atencion': de_hoy.filter(estado='pendiente', inicio_atencion__isnull=False).count(),
         'atendidas': de_hoy.filter(estado='completada').count(),
     }
     from citas.riesgo import estadisticas, puntuar

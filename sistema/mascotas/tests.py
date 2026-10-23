@@ -515,3 +515,26 @@ class AsociarMascotaTest(TestCase):
         respuesta = self.client.post(f'/clientes/{self.pedro.pk}/mascotas/asociar/',
                                      {'mascota': self.bruno.pk, 'relacion': 'familiar'})
         self.assertEqual(respuesta.status_code, 403)
+
+
+class ArreglosAsociarYEtiquetasTest(TestCase):
+    """Casos borde encontrados en la revisión del Sprint 4."""
+
+    setUp = AsociarMascotaTest.setUp
+
+    def test_un_id_invalido_no_rompe_la_pagina(self):
+        respuesta = self.client.post(f'/clientes/{self.pedro.pk}/mascotas/asociar/',
+                                     {'mascota': 'abc', 'relacion': 'familiar'})
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertFalse(Tenencia.objects.filter(cliente=self.pedro).exists())
+
+    def test_no_se_cambia_el_tipo_de_una_etiqueta_asignada(self):
+        from django.contrib.auth.models import Group
+        from .models import Etiqueta
+        muerde = Etiqueta.objects.get(nombre='Muerde: usar bozal')
+        self.bruno.etiquetas.add(muerde)
+        self.recepcion.groups.set([Group.objects.get(name='Administración')])
+        self.client.post(f'/mascotas/etiquetas/{muerde.pk}/',
+                         {'nombre': muerde.nombre, 'para': 'cliente', 'tono': 'mal', 'activo': 'on'})
+        muerde.refresh_from_db()
+        self.assertEqual(muerde.para, 'mascota')

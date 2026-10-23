@@ -170,10 +170,12 @@
         <a href="{% url 'cita_editar' cita.pk %}" class="btn btn-suave">
             <svg class="icono-sm"><use href="#i-editar"/></svg> Editar
         </a>
+        {% if not cita.inicio_atencion %}
         <a href="{% url 'cita_reagendar' cita.pk %}" class="btn btn-suave">
             <svg class="icono-sm"><use href="#i-calendario"/></svg> Reagendar
         </a>
-        {% if ya_ocurrio %}
+        {% endif %}
+        {% if ya_ocurrio and not cita.inicio_atencion %}
         <form method="post" action="{% url 'marcar_no_asistio' cita.pk %}">
             {% csrf_token %}
             <button type="submit" class="btn btn-peligro">No asistió</button>

@@ -132,6 +132,13 @@ class EtiquetaForm(forms.ModelForm):
         labels = {'nombre': 'Etiqueta'}
         help_texts = {'nombre': 'Corta y clara: «Muerde: usar bozal», «Deuda pendiente».'}
 
+    def clean_para(self):
+        para = self.cleaned_data['para']
+        etiqueta = self.instance
+        if etiqueta.pk and para != etiqueta.para and (etiqueta.clientes.exists() or etiqueta.mascotas.exists()):
+            raise forms.ValidationError('Ya está asignada: para cambiar su tipo, primero quítala de quienes la tienen.')
+        return para
+
     def clean_nombre(self):
         nombre = self.cleaned_data['nombre'].strip()
         if Etiqueta.objects.filter(nombre__iexact=nombre).exclude(pk=self.instance.pk).exists():

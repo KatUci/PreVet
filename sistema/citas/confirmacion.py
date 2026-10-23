@@ -80,7 +80,7 @@ def llamadas(request):
     fecha = max(fecha, hoy)
     solo_pendientes = request.GET.get('filtro') == 'pendientes'
 
-    citas = list(Cita.objects.filter(fecha=fecha, estado='pendiente')
+    citas = list(Cita.objects.filter(fecha=fecha, estado='pendiente', hora_llegada__isnull=True)
                  .select_related('mascota__especie', 'cliente', 'veterinario', 'tipo_atencion',
                                  'confirmacion_por')
                  .prefetch_related('cliente__etiquetas'))

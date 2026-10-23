@@ -200,6 +200,9 @@ def reagendar(request, pk):
     if cita.estado != 'pendiente':
         messages.error(request, 'Solo se pueden reagendar las citas pendientes.')
         return _volver(request, cita)
+    if cita.inicio_atencion:
+        messages.error(request, f'{cita.mascota.nombre} ya está en atención: no se puede reagendar.')
+        return _volver(request, cita)
 
     form = ReagendarForm(request.POST or None, instance=cita)
     if request.method == 'POST' and form.is_valid():
@@ -207,6 +210,8 @@ def reagendar(request, pk):
         if form.has_changed():
             # La confirmación era para la hora anterior: hay que volver a confirmar.
             cita.confirmacion, cita.confirmacion_fecha, cita.confirmacion_por = '', None, None
+            # Y si ya había llegado, esa llegada era de la otra hora.
+            cita.hora_llegada = None
         cita.save()
         messages.success(request, f'{cita.mascota.nombre} quedó para el {cita.fecha:%d/%m/%Y} a las {cita.hora:%H:%M}.')
         return redirect(f'/citas/calendario/?fecha={cita.fecha.isoformat()}')
@@ -224,6 +229,9 @@ def pasar_a_atencion(request, pk):
         return salida
     if cita.fecha != timezone.localdate():
         messages.error(request, 'Solo las citas de hoy pueden pasar a atención.')
+        return _volver(request, cita)
+    if cita.inicio_atencion:
+        messages.info(request, f'{cita.mascota.nombre} ya estaba en atención.')
         return _volver(request, cita)
     ahora = timezone.now()
     campos = ['inicio_atencion']

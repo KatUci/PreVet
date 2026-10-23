@@ -198,6 +198,9 @@ def marcar_no_asistio(request, pk):
     if cita.estado != 'pendiente' or cita.fecha > timezone.localdate():
         messages.error(request, 'Solo se puede marcar la inasistencia de una cita pendiente de hoy o de antes.')
         return redirect(volver)
+    if cita.inicio_atencion:
+        messages.error(request, f'{cita.mascota.nombre} ya está en atención: no se puede marcar como inasistencia.')
+        return redirect(volver)
 
     cita.estado = 'no_asistio'
     cita.fecha_marcada_no_asistio = timezone.now()

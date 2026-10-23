@@ -950,8 +950,14 @@ class AtencionClinicaTest(TestCase):
         self.assertTrue(respuesta['Location'].startswith('/citas/calendario/'))
 
 
-class ConfirmacionTest(CalendarioTest):
+class ConfirmacionTest(TestCase):
     """PV-CIT-05: estado de confirmación con fecha y usuario."""
+
+    # Usa la misma clínica de prueba que el calendario, sin repetir sus pruebas.
+    CLAVE = CalendarioTest.CLAVE
+    setUp = CalendarioTest.setUp
+    cita = CalendarioTest.cita
+    eventos = CalendarioTest.eventos
 
     def test_registrar_guarda_resultado_fecha_y_usuario(self):
         c = self.cita()
@@ -1063,7 +1069,17 @@ class ListaLlamadasTest(BaseCitas):
         self.assertEqual(self.client.get('/citas/llamadas/').status_code, 403)
 
 
-class EtapasDeAtencionTest(PanelDelDiaTest):
+class RecepcionLogueada(BaseCitas):
+    """Base sin pruebas propias: una persona de Recepción con la sesión iniciada."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth.models import Group
+        self.tutor.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(self.tutor)
+
+
+class EtapasDeAtencionTest(RecepcionLogueada):
     """PV-REC-05: etapas "En atención" y "Lista para salir" en el flujo de pacientes."""
 
     def test_pasar_a_atencion(self):
@@ -1106,7 +1122,7 @@ class EtapasDeAtencionTest(PanelDelDiaTest):
         self.assertIsNone(c.hora_salida)
 
 
-class EtiquetasEnElPanelTest(PanelDelDiaTest):
+class EtiquetasEnElPanelTest(RecepcionLogueada):
     """Las etiquetas de alerta se ven en el panel del día y en el detalle de la cita."""
 
     def test_panel_y_detalle(self):
@@ -1118,3 +1134,63 @@ class EtiquetasEnElPanelTest(PanelDelDiaTest):
         self.assertContains(panel, 'Muerde: usar bozal')
         self.assertContains(panel, 'Deuda pendiente')
         self.assertContains(self.client.get(f'/citas/{cita.pk}/detalle/'), 'Muerde: usar bozal')
+
+
+class ArreglosDeRevisionTest(RecepcionLogueada):
+    """Casos borde de las etapas encontrados en la revisión del Sprint 4."""
+
+    def setUp(self):
+        super().setUp()
+        from .models import HorarioAtencion
+        from usuarios.models import Perfil
+        Perfil.objects.create(usuario=self.vet, rol='veterinario')
+        for dia in range(7):
+            HorarioAtencion.objects.create(veterinario=self.vet, dia_semana=dia,
+                                           hora_inicio='08:00', hora_fin='13:00')
+
+    def test_no_se_reagenda_a_quien_esta_en_el_box(self):
+        c = self.crear_cita(dias=0)
+        self.client.post(f'/citas/{c.pk}/pasar/')
+        manana = (timezone.localdate() + timedelta(days=1)).isoformat()
+        self.client.post(f'/citas/{c.pk}/reagendar/', {'veterinario': self.vet.pk, 'fecha': manana, 'hora': '11:00'})
+        c.refresh_from_db()
+        self.assertEqual(c.fecha, timezone.localdate())
+
+    def test_al_reagendar_se_borra_la_llegada(self):
+        c = self.crear_cita(dias=0)
+        self.client.post(f'/citas/{c.pk}/llego/')
+        manana = (timezone.localdate() + timedelta(days=1)).isoformat()
+        self.client.post(f'/citas/{c.pk}/reagendar/', {'veterinario': self.vet.pk, 'fecha': manana, 'hora': '11:00'})
+        c.refresh_from_db()
+        self.assertEqual(c.fecha.isoformat(), manana)
+        self.assertIsNone(c.hora_llegada)
+
+    def test_pasar_dos_veces_no_reinicia_el_tiempo(self):
+        c = self.crear_cita(dias=0)
+        self.client.post(f'/citas/{c.pk}/pasar/')
+        c.refresh_from_db()
+        primera = c.inicio_atencion
+        self.client.post(f'/citas/{c.pk}/pasar/')
+        c.refresh_from_db()
+        self.assertEqual(c.inicio_atencion, primera)
+
+    def test_no_asistio_no_se_marca_si_esta_en_el_box(self):
+        c = self.crear_cita(dias=0)
+        self.client.post(f'/citas/{c.pk}/pasar/')
+        self.client.post(f'/citas/{c.pk}/no-asistio/')
+        c.refresh_from_db()
+        self.assertEqual(c.estado, 'pendiente')
+
+    def test_inicio_de_administracion_separa_sala_y_atencion(self):
+        from django.contrib.auth.models import Group
+        en_box = self.crear_cita(dias=0)
+        self.client.post(f'/citas/{en_box.pk}/pasar/')
+        self.tutor.groups.set([Group.objects.get(name='Administración')])
+        resumen = self.client.get('/').context['hoy_resumen']
+        self.assertEqual((resumen['en_sala'], resumen['en_atencion']), (0, 1))
+
+    def test_la_lista_de_hoy_no_incluye_a_quien_ya_llego(self):
+        c = self.crear_cita(dias=0)
+        self.client.post(f'/citas/{c.pk}/llego/')
+        filas = self.client.get('/citas/llamadas/', {'fecha': timezone.localdate().isoformat()}).context['filas']
+        self.assertEqual(filas, [])

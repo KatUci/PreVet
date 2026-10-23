@@ -178,19 +178,33 @@ def asociar_mascota(request, pk):
     ficha = reverse('cliente_ficha', args=[cliente.pk])
 
     if request.method == 'POST':
-        mascota = get_object_or_404(Mascota, pk=request.POST.get('mascota'), activo=True)
+        from urllib.parse import urlencode
+        from django.db import IntegrityError
+
+        id_mascota = request.POST.get('mascota', '')
+        if not id_mascota.isdigit():
+            messages.error(request, 'Elige una mascota de la lista.')
+            return redirect(reverse('asociar_mascota', args=[cliente.pk]))
+        mascota = get_object_or_404(Mascota, pk=id_mascota, activo=True)
         relacion = request.POST.get('relacion', '')
         if relacion not in Tenencia.Relacion.values:
             messages.error(request, 'Elige qué relación tiene el cliente con la mascota.')
-            return redirect(f"{reverse('asociar_mascota', args=[cliente.pk])}?q={mascota.nombre}")
-        if Tenencia.objects.filter(cliente=cliente, mascota=mascota).exists():
+            return redirect(f"{reverse('asociar_mascota', args=[cliente.pk])}?{urlencode({'q': mascota.nombre})}")
+        try:
+            with transaction.atomic():
+                _, creada = Tenencia.objects.get_or_create(
+                    cliente=cliente, mascota=mascota,
+                    defaults={
+                        'relacion': relacion,
+                        # Si la mascota no tenía responsable principal, este cliente pasa a serlo.
+                        'es_principal': not mascota.tenencias.filter(es_principal=True).exists(),
+                    })
+        except IntegrityError:
+            # Dos personas asociaron al mismo tiempo: la base de datos impidió el duplicado.
+            creada = False
+        if not creada:
             messages.info(request, f'{mascota.nombre} ya estaba asociada a {cliente.nombre_completo}.')
             return redirect(ficha)
-        Tenencia.objects.create(
-            cliente=cliente, mascota=mascota, relacion=relacion,
-            # Si la mascota no tenía responsable principal, este cliente pasa a serlo.
-            es_principal=not mascota.tenencias.filter(es_principal=True).exists(),
-        )
         messages.success(request, f'{mascota.nombre} quedó asociada a {cliente.nombre_completo} '
                                   f'({Tenencia.Relacion(relacion).label.lower()}).')
         return redirect(ficha)
