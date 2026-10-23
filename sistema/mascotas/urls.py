@@ -4,6 +4,7 @@ from . import clientes, configuracion, fotos, views
 
 urlpatterns = [
     path('', views.listado, name='mascotas'),
+    path('<int:pk>/', views.ficha, name='mascota_ficha'),
     path('<int:pk>/editar/', clientes.mascota_editar, name='mascota_editar'),
     path('<int:pk>/estado/', clientes.mascota_estado, name='mascota_estado'),
     path('<int:pk>/foto/', fotos.ver_foto, name='mascota_foto'),

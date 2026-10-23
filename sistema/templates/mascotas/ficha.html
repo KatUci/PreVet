@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block titulo %}{{ mascota.nombre }}{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'mascotas' %}">Mascotas</a><span class="sep">›</span><span>{{ mascota.nombre }}</span>{% endblock %}
+{% block encabezado %}{{ mascota.especie.emoji }} {{ mascota.nombre }}{% endblock %}
+{% block subtitulo %}{{ mascota.especie.nombre }}{% if mascota.raza %} · {{ mascota.raza.nombre }}{% endif %} · {{ mascota.get_sexo_display }}{% if not mascota.activo %} · inactiva{% endif %}{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'mascotas' %}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Mascotas</a>
+{% if perms.mascotas.change_mascota %}
+<a href="{% url 'mascota_editar' mascota.pk %}?next={{ request.path|urlencode }}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-editar"/></svg> Editar
+</a>
+{% endif %}
+{% endblock %}
+
+{% block contenido %}
+<div class="ficha-grid">
+
+    {# ---------- Datos de la mascota ---------- #}
+    <section class="card ficha-contacto">
+        {% if mascota.foto_version %}
+        <img class="ficha-foto-grande ampliable" src="{% url 'mascota_foto' mascota.pk %}?v={{ mascota.foto_version }}" alt="Foto de {{ mascota.nombre }}">
+        {% else %}
+        <div class="ficha-avatar">{{ mascota.especie.emoji }}</div>
+        {% endif %}
+        <h2>{{ mascota.nombre }}</h2>
+        <dl class="ficha-datos">
+            <dt>Edad</dt><dd>{{ mascota.edad|default:"—" }}</dd>
+            <dt>Peso</dt><dd>{% if mascota.peso_kg %}{{ mascota.peso_kg|floatformat:1 }} kg{% else %}—{% endif %}</dd>
+            <dt>Color</dt><dd>{{ mascota.color|default:"—" }}</dd>
+            <dt>Microchip</dt><dd>{% if mascota.microchip %}{{ mascota.microchip }}{% elif mascota.tiene_microchip %}Sí{% elif mascota.tiene_microchip is False %}No{% else %}—{% endif %}</dd>
+            <dt>Esterilizada</dt><dd>{% if mascota.esterilizada %}Sí{% elif mascota.esterilizada is False %}No{% else %}—{% endif %}</dd>
+        </dl>
+        {% if mascota.alergias or mascota.condiciones or mascota.observaciones %}
+        <section class="det-alerta" style="text-align:left">
+            {% if mascota.alergias %}<div><b>⚠ Alergias:</b> {{ mascota.alergias }}</div>{% endif %}
+            {% if mascota.condiciones %}<div><b>Condiciones:</b> {{ mascota.condiciones }}</div>{% endif %}
+            {% if mascota.observaciones %}<div><b>Manejo:</b> {{ mascota.observaciones }}</div>{% endif %}
+        </section>
+        {% endif %}
+        <div class="det-sec-titulo" style="text-align:left; margin-top:1rem">Tutores</div>
+        <ul class="lista-simple" style="text-align:left">
+            {% for t in tenencias %}
+            <li>
+                <b>{% if perms.mascotas.view_cliente %}<a href="{% url 'cliente_ficha' t.cliente.pk %}">{{ t.cliente.nombre_completo }}</a>{% else %}{{ t.cliente.nombre_completo }}{% endif %}</b>
+                <span>{{ t.get_relacion_display }}{% if t.es_principal %} · responsable principal{% endif %}{% if t.cliente.telefono %} · {{ t.cliente.telefono }}{% endif %}</span>
+            </li>
+            {% empty %}
+            <li class="flujo-vacio">Sin tutores asociados.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <div class="ficha-principal">
+        <div class="kpis-dia">
+            <div class="kpi"><span class="kpi-num">{{ resumen.total }}</span><span class="kpi-txt">citas</span></div>
+            <div class="kpi kpi-ok"><span class="kpi-num">{{ resumen.atendidas }}</span><span class="kpi-txt">atendidas</span></div>
+            <div class="kpi kpi-mal"><span class="kpi-num">{{ resumen.faltas }}</span><span class="kpi-txt">inasistencias</span></div>
+        </div>
+
+        {# ---------- Historial clínico ---------- #}
+        {% if atenciones is not None %}
+        <section class="card">
+            <div class="card-titulo"><h2><svg class="icono"><use href="#i-estetos"/></svg> Historial clínico</h2></div>
+            <ol class="historial-clinico">
+                {% for a in atenciones %}
+                <li>
+                    <div class="hc-fecha">{{ a.cita.fecha|date:"d/m/Y" }}<span>{{ a.cita.tipo_atencion.nombre }}</span></div>
+                    <div class="hc-cuerpo">
+                        <b>{{ a.motivo }}</b>
+                        <div><span class="det-etiqueta">Diagnóstico</span> {{ a.diagnostico|linebreaksbr }}</div>
+                        {% if a.tratamiento %}<div><span class="det-etiqueta">Tratamiento</span> {{ a.tratamiento|linebreaksbr }}</div>{% endif %}
+                        <div class="celda-sub">{% if a.peso_kg %}{{ a.peso_kg|floatformat:1 }} kg · {% endif %}{{ a.cita.veterinario.get_full_name }}</div>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="flujo-vacio">Todavía no hay atenciones registradas.</li>
+                {% endfor %}
+            </ol>
+        </section>
+        {% endif %}
+
+        {# ---------- Citas ---------- #}
+        <section class="card">
+            <div class="card-titulo"><h2><svg class="icono"><use href="#i-calendario"/></svg> Citas</h2></div>
+            <div class="tabla-wrap">
+                <table>
+                    <thead><tr><th>Fecha</th><th>Atención</th><th>Cliente</th><th>Profesional</th><th>Estado</th></tr></thead>
+                    <tbody>
+                        {% for c in citas %}
+                        <tr>
+                            <td class="sin-corte">{{ c.fecha|date:"d/m/Y" }} {{ c.hora|time:"H:i" }}</td>
+                            <td>{{ c.tipo_atencion.nombre }}</td>
+                            <td>{{ c.cliente.nombre_completo }}</td>
+                            <td class="sin-corte" style="color:var(--gris)">{{ c.veterinario.get_full_name }}</td>
+                            <td><span class="badge badge-{% if c.estado == 'no_asistio' %}no-asistio{% else %}{{ c.estado }}{% endif %}">{{ c.get_estado_display }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="flujo-vacio">Todavía no tiene citas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if citas.paginator.num_pages > 1 %}
+            <nav class="paginador" aria-label="Páginas de citas">
+                <span class="paginador-info">Mostrando {{ citas.start_index }}–{{ citas.end_index }} de {{ citas.paginator.count }}</span>
+                <div class="paginador-paginas">
+                    {% if citas.has_previous %}<a href="?pagina={{ citas.previous_page_number }}" aria-label="Página anterior">‹</a>{% endif %}
+                    <span class="actual">{{ citas.number }}</span>
+                    {% if citas.has_next %}<a href="?pagina={{ citas.next_page_number }}" aria-label="Página siguiente">›</a>{% endif %}
+                </div>
+            </nav>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -39,6 +39,7 @@
 <section class="card">
     <div class="card-titulo">
         <h2><svg class="icono"><use href="#i-historial"/></svg> Últimas atenciones</h2>
+        <a href="{% url 'mascota_ficha' cita.mascota.pk %}">Ver historial completo</a>
     </div>
     <ul class="lista-simple">
         {% for a in anteriores %}

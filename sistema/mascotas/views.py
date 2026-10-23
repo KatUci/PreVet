@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import Count, Q
-from django.shortcuts import render
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, render
 
 from .models import Especie, Mascota, Tenencia
 from .rut import limpiar_rut
@@ -48,4 +49,42 @@ def listado(request):
         'buscar': buscar,
         'tipos': tipos,
         'tipo_activo': tipo,
+    })
+
+
+@login_required
+@permission_required('mascotas.view_mascota', raise_exception=True)
+def ficha(request, pk):
+    """Ficha de la mascota: sus datos, sus tutores, su historial clínico y sus citas.
+
+    El historial clínico (diagnósticos y tratamientos) solo lo ve quien tiene
+    el permiso citas.view_atencion: veterinarios y administración.
+    """
+    from citas.models import Atencion
+
+    mascota = get_object_or_404(Mascota.objects.select_related('especie', 'raza'), pk=pk)
+    tenencias = mascota.tenencias.select_related('cliente').order_by('-es_principal', 'cliente__apellidos')
+
+    atenciones = None
+    if request.user.has_perm('citas.view_atencion'):
+        # Ordenadas por fecha de la atención, de la más reciente a la más antigua.
+        atenciones = (Atencion.objects.filter(cita__mascota=mascota)
+                      .select_related('cita__veterinario', 'cita__tipo_atencion', 'registrada_por')
+                      .order_by('-cita__fecha', '-cita__hora'))
+
+    citas = (mascota.citas.select_related('veterinario', 'tipo_atencion', 'cliente')
+             .order_by('-fecha', '-hora'))
+    resumen = citas.aggregate(
+        total=Count('id', filter=~Q(estado='cancelada')),
+        atendidas=Count('id', filter=Q(estado='completada')),
+        faltas=Count('id', filter=Q(estado='no_asistio')),
+    )
+
+    return render(request, 'mascotas/ficha.html', {
+        'seccion': 'mascotas',
+        'mascota': mascota,
+        'tenencias': tenencias,
+        'atenciones': atenciones,
+        'citas': Paginator(citas, 10).get_page(request.GET.get('pagina')),
+        'resumen': resumen,
     })

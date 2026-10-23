@@ -56,7 +56,7 @@
         </div>
 
         <div class="ta-cuerpo">
-            <div class="ta-nombre">{{ m.nombre }}
+            <div class="ta-nombre"><a href="{% url 'mascota_ficha' m.pk %}">{{ m.nombre }}</a>
                 {% if perms.mascotas.change_mascota %}<a class="ta-editar" href="{% url 'mascota_editar' m.pk %}?next={{ request.get_full_path|urlencode }}" title="Editar a {{ m.nombre }}"><svg class="icono-sm"><use href="#i-editar"/></svg></a>{% endif %}
             </div>
             <div class="ta-meta">

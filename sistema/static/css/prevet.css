@@ -2153,3 +2153,17 @@ select option { background: var(--solido); color: var(--texto); }
 .combo-lista .combo-vacio { color: var(--gris); cursor: default; font-size: .82rem; }
 .combo-lista .combo-vacio:hover { background: none; color: var(--gris); }
 .ampliable { cursor: zoom-in; }
+
+/* ---------- Ficha de la mascota e historial clínico (Sprint 4) ---------- */
+.ficha-foto-grande { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin: 0 auto .8rem; display: block; cursor: zoom-in; }
+.historial-clinico { list-style: none; margin: 0; padding: 0; }
+.historial-clinico li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: .9rem; padding: .8rem 0; border-bottom: 1px solid var(--borde-suave); font-size: .86rem; }
+.historial-clinico li:last-child { border-bottom: 0; }
+.historial-clinico .flujo-vacio { display: block; }
+.hc-fecha { font-weight: 700; color: var(--acento); }
+.hc-fecha span { display: block; font-weight: 500; color: var(--gris); font-size: .78rem; }
+.hc-cuerpo > div { margin-top: .25rem; }
+.hc-cuerpo b { color: var(--titulo); }
+@media (max-width: 600px) { .historial-clinico li { grid-template-columns: 1fr; gap: .2rem; } }
+.ta-nombre > a, .det-head-txt h3 a { color: inherit; text-decoration: none; }
+.ta-nombre > a:hover, .det-head-txt h3 a:hover { text-decoration: underline; }

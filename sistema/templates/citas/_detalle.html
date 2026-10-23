@@ -8,7 +8,7 @@
     <div class="det-avatar">{{ cita.mascota.especie.emoji }}</div>
     {% endif %}
     <div class="det-head-txt">
-        <h3>{{ cita.mascota.nombre }}</h3>
+        <h3>{% if perms.mascotas.view_mascota %}<a href="{% url 'mascota_ficha' cita.mascota.pk %}">{{ cita.mascota.nombre }}</a>{% else %}{{ cita.mascota.nombre }}{% endif %}</h3>
         <div class="det-sub">
             {{ cita.mascota.especie.nombre }}{% if cita.mascota.raza %} · {{ cita.mascota.raza.nombre }}{% endif %}{% if cita.mascota.edad %} · {{ cita.mascota.edad }}{% endif %}{% if cita.mascota.peso_kg %} · {{ cita.mascota.peso_kg|floatformat:1 }} kg{% endif %}
         </div>

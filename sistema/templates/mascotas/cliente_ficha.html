@@ -89,7 +89,7 @@
                     <span class="ficha-emoji">{{ t.mascota.especie.emoji }}</span>
                     {% endif %}
                     <div>
-                        <b>{{ t.mascota.nombre }}</b>
+                        <b>{% if perms.mascotas.view_mascota %}<a href="{% url 'mascota_ficha' t.mascota.pk %}">{{ t.mascota.nombre }}</a>{% else %}{{ t.mascota.nombre }}{% endif %}</b>
                         <div class="celda-sub">
                             {{ t.mascota.especie.nombre }}{% if t.mascota.raza %} · {{ t.mascota.raza.nombre }}{% endif %}{% if t.mascota.edad %} · {{ t.mascota.edad }}{% endif %}
                         </div>

@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from django.contrib.auth.models import User
 from django.test import TestCase
 
-from .models import Especie, Mascota, Raza
+from .models import Cliente, Especie, Mascota, Raza, Tenencia
 
 
 class BaseMascotas(TestCase):
@@ -329,3 +329,61 @@ class DatosCompletosTest(TestCase):
         con, sin = Mascota.objects.get(nombre='Con'), Mascota.objects.get(nombre='Sin')
         self.assertEqual((con.tiene_microchip, con.microchip), (True, ''))
         self.assertEqual((sin.tiene_microchip, sin.microchip), (False, ''))
+
+
+class FichaMascotaTest(TestCase):
+    """PV-FIC-02: historial clínico en la ficha de la mascota."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from django.contrib.auth.models import Group, User
+        from django.utils import timezone
+        from citas.models import Atencion, Cita, TipoAtencion
+
+        self.vet = User.objects.create_user('vet', first_name='Paz', last_name='Herrera')
+        self.vet.groups.add(Group.objects.get(name='Veterinarios'))
+        self.recepcion = User.objects.create_user('recepcion')
+        self.recepcion.groups.add(Group.objects.get(name='Recepción'))
+
+        perro = Especie.objects.create(nombre='Perro')
+        self.ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto')
+        self.bruno = Mascota.objects.create(nombre='Bruno', especie=perro, sexo='macho')
+        Tenencia.objects.create(cliente=self.ana, mascota=self.bruno, es_principal=True)
+        control = TipoAtencion.objects.create(nombre='Control', duracion_minutos=30, precio=20000)
+        hoy = timezone.localdate()
+
+        def atendida(dias, motivo, hora):
+            cita = Cita.objects.create(veterinario=self.vet, mascota=self.bruno, cliente=self.ana,
+                                       tipo_atencion=control, fecha=hoy - timedelta(days=dias),
+                                       hora=hora, estado='completada')
+            Atencion.objects.create(cita=cita, motivo=motivo, diagnostico=f'Diagnóstico de {motivo}')
+
+        atendida(40, 'Vacuna antirrábica', '10:00')
+        atendida(5, 'Cojera', '11:00')
+        atendida(90, 'Primera consulta', '12:00')
+
+    def test_veterinario_ve_el_historial_ordenado_de_lo_mas_reciente(self):
+        self.client.force_login(self.vet)
+        respuesta = self.client.get(f'/mascotas/{self.bruno.pk}/')
+        self.assertEqual(respuesta.status_code, 200)
+        motivos = [a.motivo for a in respuesta.context['atenciones']]
+        self.assertEqual(motivos, ['Cojera', 'Vacuna antirrábica', 'Primera consulta'])
+        self.assertContains(respuesta, 'Diagnóstico de Cojera')
+
+    def test_recepcion_ve_la_ficha_pero_no_los_diagnosticos(self):
+        self.client.force_login(self.recepcion)
+        respuesta = self.client.get(f'/mascotas/{self.bruno.pk}/')
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIsNone(respuesta.context['atenciones'])
+        self.assertNotContains(respuesta, 'Diagnóstico de Cojera')
+        self.assertContains(respuesta, 'Ana Soto')
+
+    def test_sin_permiso_no_entra(self):
+        from django.contrib.auth.models import User
+        nadie = User.objects.create_user('nadie')
+        self.client.force_login(nadie)
+        self.assertEqual(self.client.get(f'/mascotas/{self.bruno.pk}/').status_code, 403)
+
+    def test_el_listado_enlaza_a_la_ficha(self):
+        self.client.force_login(self.recepcion)
+        self.assertContains(self.client.get('/mascotas/'), f'/mascotas/{self.bruno.pk}/"')
