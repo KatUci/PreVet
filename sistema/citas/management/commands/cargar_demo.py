@@ -7,7 +7,8 @@ from django.utils import timezone
 
 from usuarios.models import Perfil
 from mascotas.models import Cliente, Especie, Raza, Mascota, Tenencia
-from citas.models import TipoAtencion, HorarioAtencion, Cita
+from citas.models import Atencion, TipoAtencion, HorarioAtencion, Cita
+from mascotas.models import Etiqueta
 
 BLOQUES = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
            '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30']
@@ -211,7 +212,55 @@ class Command(BaseCommand):
                     fecha_cancelacion=reservada + timedelta(days=1))
             creadas += 1
 
+        atenciones = self._ficha_clinica_y_etiquetas(vets, mascotas, clientes)
+
         self.stdout.write(self.style.SUCCESS(
             f"Listo: {creadas} citas, {len(mascotas)} mascotas, {len(clientes)} clientes, "
             f"{len(vets) + len(vets_nuevos)} veterinarios "
             f"({len(vets)} con histórico), {len(tipos)} tipos de atención."))
+
+    def _ficha_clinica_y_etiquetas(self, vets, mascotas, clientes):
+        """Datos del Sprint 4: atenciones de las citas completadas y algunas etiquetas.
+
+        Usa su propio generador aleatorio para no mover la secuencia de las
+        citas, de modo que los indicadores del informe siguen cuadrando.
+        """
+        rnd = random.Random(2026)
+
+        # Los veterinarios de la demo quedan en su grupo, para que puedan
+        # registrar atenciones (permiso de la ficha clínica).
+        from django.contrib.auth.models import Group
+        grupo = Group.objects.filter(name='Veterinarios').first()
+        if grupo:
+            for vet in User.objects.filter(perfil__rol='veterinario'):
+                vet.groups.add(grupo)
+
+        casos = [
+            ('Control anual', 'Paciente sano, buena condición corporal.', 'Vacunas al día. Control en 12 meses.'),
+            ('Vómitos', 'Gastritis leve por cambio de dieta.', 'Dieta blanda por 3 días y omeprazol. Control si no mejora.'),
+            ('Cojera', 'Esguince leve en miembro posterior.', 'Reposo 7 días y antiinflamatorio por 5 días.'),
+            ('Picazón', 'Dermatitis alérgica.', 'Baño medicado semanal y antihistamínico.'),
+            ('Vacunación', 'Apto para vacunar.', 'Vacuna aplicada. Próxima dosis en 21 días.'),
+            ('Diarrea', 'Enteritis inespecífica.', 'Probióticos y abundante agua. Control en 48 horas.'),
+        ]
+        completadas = Cita.objects.filter(estado='completada').select_related('mascota')
+        for cita in completadas:
+            motivo, diagnostico, tratamiento = rnd.choice(casos)
+            peso = cita.mascota.peso_kg
+            Atencion.objects.create(cita=cita, motivo=motivo, diagnostico=diagnostico,
+                                    tratamiento=tratamiento, peso_kg=peso, registrada_por=cita.veterinario)
+
+        etiquetas_mascota = list(Etiqueta.objects.filter(para='mascota', activo=True))
+        etiquetas_cliente = list(Etiqueta.objects.filter(para='cliente', activo=True))
+        for mascota in mascotas:
+            mascota.etiquetas.clear()
+        for cliente in clientes:
+            cliente.etiquetas.clear()
+        if etiquetas_mascota:
+            for mascota in rnd.sample(mascotas, min(3, len(mascotas))):
+                mascota.etiquetas.add(rnd.choice(etiquetas_mascota))
+        if etiquetas_cliente:
+            for cliente in rnd.sample(clientes, min(2, len(clientes))):
+                cliente.etiquetas.add(rnd.choice(etiquetas_cliente))
+        return completadas.count()
+
