@@ -134,8 +134,8 @@
                         </details>
                         <div class="riesgo-botones">
                             {% if e.cita.cliente.telefono %}
-                            <a class="btn btn-suave btn-chico" href="tel:{{ e.cita.cliente.telefono }}" title="Llamar">📞</a>
-                            {% if e.whatsapp %}<a class="btn btn-suave btn-chico" href="{{ e.whatsapp }}" target="_blank" rel="noopener" title="WhatsApp con el mensaje para riesgo {{ e.nivel }}">💬</a>{% endif %}
+                            {% include 'citas/_llamar.html' with telefono=e.cita.cliente.telefono chico=True %}
+                            {% if e.whatsapp %}<a class="btn btn-suave btn-chico" href="{{ e.whatsapp }}" title="WhatsApp con el mensaje para riesgo {{ e.nivel }}">💬</a>{% endif %}
                             {% endif %}
                             <a class="btn btn-suave btn-chico" href="{% url 'calendario' %}?vista=timeGridDay&fecha={{ e.cita.fecha|date:'Y-m-d' }}" title="Ver en el calendario">Ver</a>
                         </div>
