@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static estaticos %}
+
+{% block titulo %}Pedir hora{% endblock %}
+{% block migas %}<a href="{% url 'portal' %}">Mi PreVet</a><span class="sep">›</span><span>Pedir hora</span>{% endblock %}
+{% block encabezado %}Pedir hora{% endblock %}
+{% block subtitulo %}Elige a tu mascota, el profesional y una de las horas libres{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'portal' %}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<form method="post" novalidate data-disponibles="{% url 'horas_disponibles' %}" data-futuras="1">
+    {% csrf_token %}
+
+    {% for error in form.non_field_errors %}
+    <div class="alerta alerta-error"><svg class="icono"><use href="#i-alerta"/></svg><div>{{ error }}</div></div>
+    {% endfor %}
+
+    {# ---------- Paso 1: la mascota ---------- #}
+    <div class="card" style="margin-bottom:1.2rem">
+        <div class="card-titulo">
+            <h2><span class="paso-num">1</span> ¿Para quién es la hora?</h2>
+            <a href="{% url 'portal_mascota_nueva' %}">+ Agregar otra mascota</a>
+        </div>
+
+        {% with grupos=form.mascotas_por_tipo %}
+        {% if grupos %}
+        {% for tipo, mascotas in grupos %}
+        <div class="grupo-tipo">
+            <div class="grupo-tipo-titulo">{{ tipo.emoji }} {{ tipo.nombre }}</div>
+            <div class="opciones-mascota">
+                {% for opcion, m in mascotas %}
+                <label class="opcion-mascota">
+                    {{ opcion.tag }}
+                    <span>
+                        <strong>{{ m.nombre }}</strong>
+                        <small>{{ m.raza.nombre|default:"Sin raza" }} · {{ m.get_sexo_display }}{% if m.edad %} · {{ m.edad }}{% endif %}</small>
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        {% for error in form.mascota.errors %}
+        <div class="ayuda" style="color:var(--error-txt); font-weight:600">{{ error }}</div>
+        {% endfor %}
+        {% else %}
+        <p class="vacio" style="padding:1.5rem">
+            Primero registra a tu mascota para poder pedirle hora.<br><br>
+            <a href="{% url 'portal_mascota_nueva' %}" class="btn btn-primario">
+                <svg class="icono-sm"><use href="#i-mas"/></svg> Agregar mascota
+            </a>
+        </p>
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    {# ---------- Paso 2: la hora ---------- #}
+    <div class="card">
+        <div class="card-titulo"><h2><span class="paso-num">2</span> La hora</h2></div>
+        {% include 'citas/_horarios.html' %}
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.tipo_atencion %}
+            {% include 'usuarios/_campo.html' with campo=form.veterinario %}
+            {% include 'usuarios/_campo.html' with campo=form.fecha %}
+            {% include 'usuarios/_campo.html' with campo=form.hora %}
+            {% include 'usuarios/_campo.html' with campo=form.notas ancho=True %}
+        </div>
+        <div id="avisoHorario" hidden role="status"></div>
+
+        <div class="form-acciones">
+            <a href="{% url 'portal' %}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">
+                <svg class="icono-sm"><use href="#i-calendario"/></svg> Confirmar hora
+            </button>
+        </div>
+    </div>
+</form>
+
+<script src="{% static_v 'js/horario.js' %}"></script>
+{% endblock %}

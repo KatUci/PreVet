@@ -1,4 +1,5 @@
-"""Mi PreVet: el portal donde cada cliente ve y mantiene sus datos, sus mascotas y sus citas.
+"""Mi PreVet: el portal donde cada cliente ve y mantiene sus datos, sus mascotas y sus citas,
+y pide hora él mismo.
 
 Todo se filtra por el cliente de la sesión: nadie puede ver ni cambiar datos
 de otra persona, aunque cambie los números de la dirección.
@@ -15,11 +16,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
 
+from citas.disponibilidad import resumen_horarios
 from mascotas.fotos import FotoForm, guardar_foto
 from mascotas.forms import MascotaEditarForm, MascotaForm
 from mascotas.models import FotoMascota, Mascota, Tenencia
 
-from .forms import MisDatosForm, RegistroForm
+from .forms import MisDatosForm, PedirHoraForm, RegistroForm
 
 
 def solo_tutores(vista):
@@ -80,6 +82,20 @@ def mis_datos(request):
     return render(request, 'portal/formulario.html', {
         'seccion': 'portal_datos', 'form': form, 'titulo': 'Mis datos',
         'subtitulo': f'RUT {request.cliente.rut_formateado}. Para cambiar tu RUT, acércate a la clínica.',
+    })
+
+
+@solo_tutores
+def pedir_hora(request):
+    """El cliente agenda una hora para una de sus mascotas, sin tener que llamar."""
+    form = PedirHoraForm(request.POST or None, cliente=request.cliente)
+    if request.method == 'POST' and form.is_valid():
+        cita = form.save()
+        messages.success(request, f'¡Listo! {cita.mascota.nombre} tiene hora el {cita.fecha:%d/%m/%Y} a las '
+                                  f'{cita.hora:%H:%M} con {cita.veterinario.get_full_name()}.')
+        return redirect('portal')
+    return render(request, 'portal/pedir_hora.html', {
+        'seccion': 'portal_hora', 'form': form, 'horarios': resumen_horarios(),
     })
 
 

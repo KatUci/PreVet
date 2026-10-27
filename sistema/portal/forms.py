@@ -1,11 +1,13 @@
-"""Formularios del portal del tutor: crear la cuenta y mantener sus datos."""
+"""Formularios del portal del tutor: crear la cuenta, mantener sus datos y pedir hora."""
 import re
 
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
+from django.utils import timezone
 
+from citas.forms import AgendarCitaForm
 from mascotas.forms import ClienteForm
 from mascotas.models import Cliente
 from mascotas.rut import limpiar_rut, validar_rut
@@ -113,3 +115,19 @@ class MisDatosForm(ClienteForm):
             User.objects.filter(pk=cliente.usuario_id).update(
                 first_name=cliente.nombres, last_name=cliente.apellidos, email=cliente.email)
         return cliente
+
+
+class PedirHoraForm(AgendarCitaForm):
+    """El cliente pide hora desde Mi PreVet.
+
+    Es la misma ficha que usa recepción (solo sus mascotas, solo horas en que
+    el profesional atiende y que estén libres), más una regla: no puede pedir
+    una hora de hoy que ya pasó.
+    """
+
+    def clean(self):
+        datos = super().clean()
+        fecha, hora = datos.get('fecha'), datos.get('hora')
+        if fecha == timezone.localdate() and hora and hora <= timezone.localtime().time():
+            self.add_error('hora', 'Esa hora ya pasó. Elige una más tarde.')
+        return datos
