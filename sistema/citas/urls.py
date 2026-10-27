@@ -1,10 +1,11 @@
 from django.urls import path
 
-from . import atencion, calendario, configuracion, confirmacion, panel, views
+from . import atencion, calendario, configuracion, confirmacion, disponibilidad, panel, views
 
 urlpatterns = [
     path('', views.listado, name='citas'),
     path('nueva/', views.agendar, name='agendar'),
+    path('disponibles/', disponibilidad.disponibles, name='horas_disponibles'),
     path('hoy/', panel.panel_dia, name='panel_dia'),
     path('llamadas/', confirmacion.llamadas, name='llamadas'),
     path('exportar/', views.exportar, name='citas_exportar'),

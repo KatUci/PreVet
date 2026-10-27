@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 
 from . import riesgo
 from .contacto import enlace_whatsapp, guion_llamada, mensaje_segun_riesgo
+from .disponibilidad import resumen_horarios
 from .forms import CancelarForm, ReagendarForm
 from .models import Cita
 
@@ -216,7 +217,8 @@ def reagendar(request, pk):
         messages.success(request, f'{cita.mascota.nombre} quedó para el {cita.fecha:%d/%m/%Y} a las {cita.hora:%H:%M}.')
         return redirect(f'/citas/calendario/?fecha={cita.fecha.isoformat()}')
 
-    return render(request, 'citas/reagendar.html', {'seccion': 'calendario', 'cita': cita, 'form': form})
+    return render(request, 'citas/reagendar.html', {'seccion': 'calendario', 'cita': cita, 'form': form,
+                                                    'horarios': resumen_horarios()})
 
 
 @require_POST

@@ -58,7 +58,7 @@
 </div>
 
 {% if cliente %}
-<form method="post" novalidate>
+<form method="post" novalidate data-disponibles="{% url 'horas_disponibles' %}">
     {% csrf_token %}
 
     {% if form.non_field_errors %}
@@ -128,6 +128,7 @@
     {# ---------- Paso 3: los detalles de la hora ---------- #}
     <div class="card">
         <div class="card-titulo"><h2><span class="paso-num">3</span> Detalles de la hora</h2></div>
+        {% include 'citas/_horarios.html' %}
         <div class="form-grid">
             {% include 'usuarios/_campo.html' with campo=form.tipo_atencion %}
             {% include 'usuarios/_campo.html' with campo=form.veterinario %}
@@ -135,6 +136,7 @@
             {% include 'usuarios/_campo.html' with campo=form.hora %}
             {% include 'usuarios/_campo.html' with campo=form.notas ancho=True %}
         </div>
+        <div id="avisoHorario" hidden role="status"></div>
 
         <div class="form-acciones">
             <a href="{% url 'citas' %}" class="btn btn-suave">Cancelar</a>
@@ -146,6 +148,7 @@
 </form>
 
 <script src="{% static_v 'js/agendar.js' %}"></script>
+<script src="{% static_v 'js/horario.js' %}"></script>
 {% endif %}
 
 {% endblock %}

@@ -23,6 +23,12 @@ def campo_hora():
 ESTADOS_QUE_LIBERAN = ['cancelada']
 
 
+def veterinarios_con_horario():
+    """Profesionales activos que tienen al menos un tramo de atención: a los demás no se les puede agendar."""
+    return (User.objects.filter(perfil__rol='veterinario', is_active=True, horarios__activo=True)
+            .distinct().order_by('first_name'))
+
+
 def validar_bloque(vet, fecha, hora, excepto=None):
     """Revisa que el profesional atienda a esa hora y que esté libre.
 
@@ -84,9 +90,7 @@ class AgendarCitaForm(forms.ModelForm):
         self.fields['mascota'].empty_label = None
         self.fields['tipo_atencion'].queryset = TipoAtencion.objects.filter(activo=True)
         self.fields['tipo_atencion'].empty_label = 'Elige la atención'
-        self.fields['veterinario'].queryset = (User.objects
-                                               .filter(perfil__rol='veterinario', is_active=True)
-                                               .order_by('first_name'))
+        self.fields['veterinario'].queryset = veterinarios_con_horario()
         self.fields['veterinario'].empty_label = 'Elige al profesional'
         self.fields['veterinario'].label_from_instance = lambda u: u.get_full_name() or u.username
         self.fields['fecha'].widget.attrs['min'] = timezone.localdate().isoformat()

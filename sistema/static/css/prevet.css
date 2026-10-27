@@ -2199,3 +2199,17 @@ select option { background: var(--solido); color: var(--texto); }
 
 /* Las etiquetas no se parten en dos líneas: si no caben, se acortan con "…". */
 .etiqueta { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: middle; }
+
+/* ------------ RESUMEN DE HORARIOS (agendar) ------------ */
+.horarios-resumen {
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: .9rem 1.1rem;
+    margin-bottom: 1.2rem;
+}
+.horarios-titulo { display: flex; align-items: center; gap: .45rem; font-weight: 700; color: var(--titulo); margin-bottom: .55rem; font-size: .92rem; }
+.horarios-resumen ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+.horarios-resumen li { display: flex; flex-wrap: wrap; gap: .2rem .8rem; font-size: .87rem; }
+.horarios-resumen li b { min-width: 11rem; color: var(--titulo); }
+.horarios-resumen li span { color: var(--gris); }
+#avisoHorario { margin: 1rem 0 0; }

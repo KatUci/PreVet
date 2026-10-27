@@ -330,6 +330,73 @@ class AgendarTest(TestCase):
         self.assertEqual(Cita.objects.count(), 1)
 
 
+
+class HorariosAlAgendarTest(AgendarTest):
+    """Se ven los horarios de cada profesional y solo se ofrecen horas libres."""
+
+    def disponibles(self, **params):
+        datos = {'veterinario': self.vet.pk, 'fecha': self.lunes.isoformat()}
+        datos.update(params)
+        return self.client.get('/citas/disponibles/', datos).json()
+
+    def test_el_resumen_junta_los_dias_seguidos_con_igual_horario(self):
+        from .disponibilidad import resumen_horarios
+        from .models import HorarioAtencion
+        HorarioAtencion.objects.create(veterinario=self.vet, dia_semana=5, hora_inicio='09:00', hora_fin='14:00')
+        resumen = resumen_horarios()
+        self.assertEqual(resumen[0]['lineas'], ['Lun a Vie 09:00 a 13:00', 'Sáb 09:00 a 14:00'])
+        self.assertTrue(resumen[0]['sabado'])
+
+    def test_la_pantalla_de_agendar_muestra_los_horarios(self):
+        respuesta = self.client.get(self.url())
+        self.assertContains(respuesta, 'Horarios de atención')
+        self.assertContains(respuesta, 'Lun a Vie 09:00 a 13:00')
+
+    def test_un_profesional_sin_horario_no_se_ofrece(self):
+        from usuarios.models import Perfil
+        sin_horario = User.objects.create_user('nuevo', first_name='Sin', last_name='Horario')
+        Perfil.objects.create(usuario=sin_horario, rol='veterinario')
+        self.assertNotContains(self.client.get(self.url()), 'Sin Horario')
+
+    def test_avisa_al_tiro_si_ese_dia_no_atiende(self):
+        domingo = self.lunes + timedelta(days=6)
+        datos = self.disponibles(fecha=domingo.isoformat())
+        self.assertFalse(datos['atiende'])
+        self.assertEqual(datos['libres'], [])
+        self.assertIn('no atiende los domingos', datos['mensaje'])
+        self.assertIn('Lun a Vie 09:00 a 13:00', datos['mensaje'])
+
+    def test_solo_ofrece_las_horas_libres_dentro_del_horario(self):
+        self.client.post(self.url(), self.datos(hora='10:00'))
+        datos = self.disponibles()
+        self.assertTrue(datos['atiende'])
+        self.assertEqual(datos['libres'], ['09:00', '09:30', '10:30', '11:00', '11:30', '12:00', '12:30'])
+
+    def test_al_reagendar_su_propia_hora_cuenta_como_libre(self):
+        self.client.post(self.url(), self.datos(hora='10:00'))
+        self.assertIn('10:00', self.disponibles(excepto=Cita.objects.get().pk)['libres'])
+
+    def test_una_cita_cancelada_libera_la_hora(self):
+        self.client.post(self.url(), self.datos(hora='10:00'))
+        Cita.objects.update(estado='cancelada')
+        self.assertIn('10:00', self.disponibles()['libres'])
+
+    def test_pide_profesional_y_fecha_validos_y_sesion(self):
+        self.assertEqual(self.client.get('/citas/disponibles/', {'veterinario': 'x'}).status_code, 400)
+        self.client.logout()
+        self.assertEqual(self.client.get('/citas/disponibles/', {'veterinario': self.vet.pk}).status_code, 302)
+
+
+class LlamarDeVerdadTest(TestCase):
+    """El botón de llamar usa el número completo, para que Enlace Móvil lo marque."""
+
+    def test_enlace_de_llamada_con_codigo_de_chile(self):
+        from .contacto import enlace_llamada
+        self.assertEqual(enlace_llamada('9 1234 5678'), 'tel:+56912345678')
+        self.assertEqual(enlace_llamada('+56 2 2345 6789'), 'tel:+56223456789')
+        self.assertIsNone(enlace_llamada('1234'))
+
+
 class RegistrarClienteYMascotaTest(TestCase):
 
     CLAVE = 'Huellitas.2026!'
@@ -516,11 +583,12 @@ class WhatsAppTest(CalendarioTest):
         self.ana.telefono = '9 1234 5678'
         self.ana.save()
         respuesta = self.client.get(f'/citas/{self.cita().pk}/detalle/')
-        self.assertContains(respuesta, 'https://wa.me/56912345678?text=Hola%20Ana')
+        self.assertContains(respuesta, 'whatsapp://send?phone=56912345678&amp;text=Hola%20Ana')
+        self.assertContains(respuesta, 'href="tel:+56912345678"')
 
     def test_sin_telefono_no_hay_enlace(self):
         respuesta = self.client.get(f'/citas/{self.cita().pk}/detalle/')
-        self.assertNotContains(respuesta, 'wa.me')
+        self.assertNotContains(respuesta, 'whatsapp://')
         self.assertContains(respuesta, 'Sin teléfono registrado')
 
 
@@ -688,7 +756,7 @@ class ContactoSegunRiesgoTest(BaseCitas):
         from .contacto import enlace_whatsapp
         self.assertIsNone(enlace_whatsapp('', 'Hola'))
         self.assertIsNone(enlace_whatsapp('1234', 'Hola'))
-        self.assertTrue(enlace_whatsapp('9 1234 5678', 'Hola').startswith('https://wa.me/56912345678'))
+        self.assertEqual(enlace_whatsapp('9 1234 5678', 'Hola'), 'whatsapp://send?phone=56912345678&text=Hola')
 
     def test_el_guion_menciona_las_faltas_del_tutor(self):
         from .contacto import guion_llamada
@@ -1037,7 +1105,7 @@ class ListaLlamadasTest(BaseCitas):
     def test_trae_el_whatsapp_con_el_mensaje(self):
         self.crear_cita(dias=1, mascota=self.luna)
         fila = self.client.get('/citas/llamadas/').context['filas'][0]
-        self.assertTrue(fila['whatsapp'].startswith('https://wa.me/56987654321'))
+        self.assertTrue(fila['whatsapp'].startswith('whatsapp://send?phone=56987654321'))
 
     def test_registrar_el_resultado_vuelve_a_la_lista(self):
         cita = self.crear_cita(dias=1)
