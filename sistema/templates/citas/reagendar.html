@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load estaticos %}
 
 {% block titulo %}Reagendar{% endblock %}
 {% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'calendario' %}">Calendario</a><span class="sep">›</span><span>Reagendar</span>{% endblock %}
@@ -12,18 +13,21 @@
 {% endblock %}
 
 {% block contenido %}
-<form method="post" novalidate>
+<form method="post" novalidate data-disponibles="{% url 'horas_disponibles' %}" data-excepto="{{ cita.pk }}">
     {% csrf_token %}
     <div class="card">
+        {% include 'citas/_horarios.html' %}
         <div class="form-grid">
             {% include 'usuarios/_campo.html' with campo=form.veterinario %}
             {% include 'usuarios/_campo.html' with campo=form.fecha %}
             {% include 'usuarios/_campo.html' with campo=form.hora %}
         </div>
+        <div id="avisoHorario" hidden role="status"></div>
         <div class="form-acciones">
             <a href="{% url 'calendario' %}?fecha={{ cita.fecha|date:'Y-m-d' }}" class="btn btn-suave">Cancelar</a>
             <button type="submit" class="btn btn-primario">Guardar el cambio</button>
         </div>
     </div>
 </form>
+<script src="{% static_v 'js/horario.js' %}"></script>
 {% endblock %}

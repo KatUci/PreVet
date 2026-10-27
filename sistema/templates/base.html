@@ -82,6 +82,9 @@
             <a href="{% url 'portal' %}" class="sb-link {% if seccion == 'portal' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-inicio"/></svg> Mis mascotas y citas
             </a>
+            <a href="{% url 'portal_pedir_hora' %}" class="sb-link {% if seccion == 'portal_hora' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-calendario"/></svg> Pedir hora
+            </a>
             <a href="{% url 'portal_mascota_nueva' %}" class="sb-link {% if seccion == 'portal_mascota' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-mas"/></svg> Agregar mascota
             </a>

@@ -5,8 +5,11 @@
 {% block subtitulo %}Tus mascotas y tus citas en la clínica{% endblock %}
 
 {% block acciones %}
-<a href="{% url 'portal_mascota_nueva' %}" class="btn btn-primario">
+<a href="{% url 'portal_mascota_nueva' %}" class="btn btn-suave">
     <svg class="icono-sm"><use href="#i-mas"/></svg> Agregar mascota
+</a>
+<a href="{% url 'portal_pedir_hora' %}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-calendario"/></svg> Pedir hora
 </a>
 {% endblock %}
 
@@ -15,7 +18,10 @@
     <div class="panel-principal">
         {# ---------- Próximas citas ---------- #}
         <section class="card">
-            <div class="card-titulo"><h2><svg class="icono"><use href="#i-calendario"/></svg> Próximas citas</h2></div>
+            <div class="card-titulo">
+                <h2><svg class="icono"><use href="#i-calendario"/></svg> Próximas citas</h2>
+                <a href="{% url 'portal_pedir_hora' %}">Pedir hora</a>
+            </div>
             <ul class="lista-llamadas">
                 {% for c in proximas %}
                 <li>
@@ -26,7 +32,7 @@
                     </div>
                 </li>
                 {% empty %}
-                <li class="flujo-vacio">No tienes citas agendadas. Para pedir hora, llama o escribe a la clínica.</li>
+                <li class="flujo-vacio">No tienes citas agendadas. <a href="{% url 'portal_pedir_hora' %}">Pide una hora aquí</a>.</li>
                 {% endfor %}
             </ul>
         </section>

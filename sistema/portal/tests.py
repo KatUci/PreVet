@@ -108,3 +108,81 @@ class PortalTest(TestCase):
         staff.groups.add(Group.objects.get(name='Recepción'))
         self.client.force_login(staff)
         self.assertRedirects(self.client.get('/mi-prevet/'), '/', fetch_redirect_response=False)
+
+
+class PedirHoraTest(PortalTest):
+    """El cliente agenda él mismo una hora para una de sus mascotas."""
+
+    def setUp(self):
+        super().setUp()
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from citas.models import HorarioAtencion, TipoAtencion
+        from usuarios.models import Perfil
+
+        self.vet = User.objects.create_user('vet', first_name='Paz', last_name='Herrera')
+        Perfil.objects.create(usuario=self.vet, rol='veterinario')
+        for dia in range(6):
+            HorarioAtencion.objects.create(veterinario=self.vet, dia_semana=dia,
+                                           hora_inicio='09:00', hora_fin='13:00')
+        self.control = TipoAtencion.objects.create(nombre='Control', duracion_minutos=30, precio=20000)
+        hoy = timezone.localdate()
+        self.lunes = hoy + timedelta(days=7 - hoy.weekday())
+
+    def datos(self, **cambios):
+        datos = {'mascota': self.bruno.pk, 'tipo_atencion': self.control.pk, 'veterinario': self.vet.pk,
+                 'fecha': self.lunes.isoformat(), 'hora': '10:00', 'notas': 'Vacuna'}
+        datos.update(cambios)
+        return datos
+
+    def test_la_pantalla_muestra_sus_mascotas_y_los_horarios(self):
+        respuesta = self.client.get('/mi-prevet/pedir-hora/')
+        self.assertContains(respuesta, 'Bruno')
+        self.assertNotContains(respuesta, 'Toby')
+        self.assertContains(respuesta, 'Lun a Sáb 09:00 a 13:00')
+
+    def test_pide_hora_y_queda_a_su_nombre(self):
+        from citas.models import Cita
+        respuesta = self.client.post('/mi-prevet/pedir-hora/', self.datos())
+        self.assertRedirects(respuesta, '/mi-prevet/')
+        cita = Cita.objects.get()
+        self.assertEqual((cita.cliente, cita.mascota, cita.estado), (self.ana, self.bruno, 'pendiente'))
+        self.assertContains(self.client.get('/mi-prevet/'), 'Control con Paz Herrera')
+
+    def test_no_puede_pedir_hora_para_una_mascota_ajena(self):
+        from citas.models import Cita
+        self.client.post('/mi-prevet/pedir-hora/', self.datos(mascota=self.ajena.pk))
+        self.assertFalse(Cita.objects.exists())
+
+    def test_no_puede_pedir_fuera_del_horario_ni_una_hora_tomada(self):
+        from citas.models import Cita
+        respuesta = self.client.post('/mi-prevet/pedir-hora/', self.datos(hora='15:00'))
+        self.assertContains(respuesta, 'atiende ese día de 09:00 a 13:00')
+        self.client.post('/mi-prevet/pedir-hora/', self.datos())
+        respuesta = self.client.post('/mi-prevet/pedir-hora/', self.datos())
+        self.assertContains(respuesta, 'ya está tomada')
+        self.assertEqual(Cita.objects.count(), 1)
+
+    def test_no_puede_pedir_una_hora_de_hoy_que_ya_paso(self):
+        from datetime import datetime, time
+        from unittest import mock
+
+        from django.utils import timezone
+
+        from citas.models import Cita, HorarioAtencion
+        hoy = timezone.localdate()
+        HorarioAtencion.objects.get_or_create(veterinario=self.vet, dia_semana=hoy.weekday(), hora_inicio='09:00',
+                                              defaults={'hora_fin': '13:00'})
+        a_las_ocho_pm = timezone.make_aware(datetime.combine(hoy, time(20, 0)))
+        with mock.patch('django.utils.timezone.localtime', side_effect=lambda *a, **k: a_las_ocho_pm):
+            respuesta = self.client.post('/mi-prevet/pedir-hora/', self.datos(fecha=hoy.isoformat()))
+        self.assertContains(respuesta, 'Esa hora ya pasó')
+        self.assertFalse(Cita.objects.exists())
+
+    def test_consulta_las_horas_libres(self):
+        respuesta = self.client.get('/citas/disponibles/', {'veterinario': self.vet.pk,
+                                                            'fecha': self.lunes.isoformat()})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn('09:00', respuesta.json()['libres'])

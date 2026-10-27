@@ -186,7 +186,7 @@ class SeccionClientesTest(TestCase):
         self.assertEqual((resumen['total'], resumen['atendidas'], resumen['faltas']), (4, 1, 2))
         self.assertEqual(resumen['perdido_txt'], '40.000')
         self.assertEqual(len(respuesta.context['proximas']), 1)
-        self.assertTrue(respuesta.context['whatsapp'].startswith('https://wa.me/56912345678'))
+        self.assertTrue(respuesta.context['whatsapp'].startswith('whatsapp://send?phone=56912345678'))
 
     def test_cliente_sin_citas_no_rompe_la_ficha(self):
         respuesta = self.client.get(f'/clientes/{self.luis.pk}/')

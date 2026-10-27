@@ -15,6 +15,7 @@ from django.utils import timezone
 from mascotas.models import Cliente
 from mascotas.rut import limpiar_rut, validar_rut
 
+from .disponibilidad import resumen_horarios
 from .forms import AgendarCitaForm
 from .models import Cita, TipoAtencion
 
@@ -248,6 +249,7 @@ def agendar(request):
         'error_rut': error_rut,
         'cliente': cliente,
         'form': form,
+        'horarios': resumen_horarios() if cliente else None,
     })
 
 

@@ -1,0 +1,4 @@
+{% load contacto %}{# Llamar de verdad: tel: con el número completo. En Windows lo marca Enlace Móvil a través del celular de la clínica. #}
+{% with enlace=telefono|enlace_tel %}
+<a class="btn btn-suave{% if chico %} btn-chico{% endif %}" href="{% if enlace %}{{ enlace }}{% else %}tel:{{ telefono }}{% endif %}" title="Llamar a {{ telefono }}">📞{% if not chico %} Llamar{% endif %}</a>
+{% endwith %}

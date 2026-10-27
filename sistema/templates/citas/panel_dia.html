@@ -209,8 +209,8 @@
                     </div>
                     <div class="llamada-acciones">
                         {% if c.cita.cliente.telefono %}
-                        <a class="btn btn-suave btn-chico" href="tel:{{ c.cita.cliente.telefono }}" title="Llamar">📞</a>
-                        {% if c.whatsapp %}<a class="btn btn-suave btn-chico" href="{{ c.whatsapp }}" target="_blank" rel="noopener" title="WhatsApp con el mensaje para riesgo {{ c.nivel }}">💬</a>{% endif %}
+                        {% include 'citas/_llamar.html' with telefono=c.cita.cliente.telefono chico=True %}
+                        {% if c.whatsapp %}<a class="btn btn-suave btn-chico" href="{{ c.whatsapp }}" title="WhatsApp con el mensaje para riesgo {{ c.nivel }}">💬</a>{% endif %}
                         {% else %}
                         <span class="etiqueta etiqueta-neutro">Sin teléfono</span>
                         {% endif %}

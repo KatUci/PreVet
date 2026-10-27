@@ -1,0 +1,14 @@
+{# Qué días y a qué horas atiende cada profesional, para elegir antes de llenar la hora. #}
+{% if horarios %}
+<div class="horarios-resumen">
+    <div class="horarios-titulo"><svg class="icono-sm"><use href="#i-calendario"/></svg> Horarios de atención</div>
+    <ul>
+        {% for h in horarios %}
+        <li>
+            <b>{{ h.nombre }}{% if h.sabado %} <span class="etiqueta etiqueta-ok">Sábados</span>{% endif %}</b>
+            <span>{{ h.lineas|join:" · " }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}

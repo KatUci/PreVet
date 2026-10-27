@@ -76,8 +76,8 @@
     </div>
     {% if cita.cliente.telefono %}
     <div class="det-contacto">
-        <a class="btn btn-suave" href="tel:{{ cita.cliente.telefono }}">📞 Llamar</a>
-        {% if whatsapp %}<a class="btn btn-suave" href="{{ whatsapp }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% endif %}
+        {% include 'citas/_llamar.html' with telefono=cita.cliente.telefono %}
+        {% if whatsapp %}<a class="btn btn-suave" href="{{ whatsapp }}">💬 WhatsApp</a>{% endif %}
     </div>
     {% else %}
     <p class="det-nota" style="margin-top:.5rem; padding-left:2.9rem">Sin teléfono registrado.</p>

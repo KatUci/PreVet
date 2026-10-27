@@ -18,18 +18,38 @@ RESERVA_LEJANA = 14
 SOBRE_PROMEDIO = 1.2
 
 
-def enlace_whatsapp(telefono, mensaje):
-    """Enlace wa.me con el mensaje listo; None si el teléfono no sirve.
-
-    No usa ningún servicio pagado: abre el chat en el teléfono o en
-    WhatsApp Web, y quien atiende decide si lo envía.
-    """
+def numero_internacional(telefono):
+    """Los dígitos del teléfono con el código de Chile; None si el teléfono no sirve."""
     digitos = re.sub(r'\D', '', telefono or '')
     if len(digitos) == 9:            # 9 1234 5678 -> se le agrega el 56 de Chile
         digitos = '56' + digitos
-    if len(digitos) < 11:
+    if not 11 <= len(digitos) <= 15:
         return None
-    return f'https://wa.me/{digitos}?text={quote(mensaje)}'
+    return digitos
+
+
+def enlace_whatsapp(telefono, mensaje):
+    """Enlace que abre la app de WhatsApp con el chat y el mensaje listos.
+
+    Usa el protocolo whatsapp:// en vez de wa.me: así se abre directo la
+    aplicación instalada (WhatsApp de escritorio o del celular), sin pasar
+    por la página intermedia que ofrece WhatsApp Web. Quien atiende decide
+    si lo envía. None si el teléfono no sirve.
+    """
+    digitos = numero_internacional(telefono)
+    if digitos is None:
+        return None
+    return f'whatsapp://send?phone={digitos}&text={quote(mensaje)}'
+
+
+def enlace_llamada(telefono):
+    """Enlace tel: con el número completo, para llamar de verdad.
+
+    En el celular abre el marcador; en Windows, la app Enlace Móvil llama
+    a través del celular de la clínica. None si el teléfono no sirve.
+    """
+    digitos = numero_internacional(telefono)
+    return f'tel:+{digitos}' if digitos else None
 
 
 def mensaje_segun_riesgo(cita, nivel):
