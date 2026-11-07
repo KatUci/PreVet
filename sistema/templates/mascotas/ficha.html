@@ -86,6 +86,31 @@
         </section>
         {% endif %}
 
+        {# ---------- Carnet de vacunas ---------- #}
+        <section class="card">
+            <div class="card-titulo">
+                <h2>💉 Carnet de vacunas</h2>
+                {% if perms.mascotas.add_vacuna %}<a href="{% url 'vacuna_nueva' mascota.pk %}">+ Registrar vacuna</a>{% endif %}
+            </div>
+            <div class="tabla-wrap">
+                <table>
+                    <thead><tr><th>Vacuna</th><th>Aplicada</th><th>Próxima dosis</th><th>Lote</th></tr></thead>
+                    <tbody>
+                        {% for v in vacunas %}
+                        <tr>
+                            <td><b>{{ v.nombre }}</b></td>
+                            <td class="sin-corte">{{ v.fecha_aplicacion|date:"d/m/Y" }}</td>
+                            <td class="sin-corte">{{ v.proxima_dosis|date:"d/m/Y"|default:"—" }}</td>
+                            <td>{{ v.lote|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="flujo-vacio">Todavía no tiene vacunas registradas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         {# ---------- Citas ---------- #}
         <section class="card">
             <div class="card-titulo"><h2><svg class="icono"><use href="#i-calendario"/></svg> Citas</h2></div>

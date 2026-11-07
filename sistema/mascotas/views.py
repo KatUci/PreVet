@@ -86,6 +86,7 @@ def ficha(request, pk):
         'tenencias': tenencias,
         'atenciones': atenciones,
         'citas': Paginator(citas, 10).get_page(request.GET.get('pagina')),
+        'vacunas': mascota.vacunas.all(),
         'resumen': resumen,
         'etiquetas_disponibles': Etiqueta.objects.filter(para=Etiqueta.Para.MASCOTA, activo=True),
         'etiquetas_actuales': list(mascota.etiquetas.values_list('pk', flat=True)),

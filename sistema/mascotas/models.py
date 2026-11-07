@@ -301,3 +301,29 @@ class FotoMascota(models.Model):
     class Meta:
         verbose_name = "foto de mascota"
         verbose_name_plural = "fotos de mascotas"
+
+
+class Vacuna(models.Model):
+    """Una vacuna aplicada a la mascota: forma su carnet de vacunas.
+
+    Si se indica la próxima dosis, recepción la ve en la lista de vacunas
+    por vencer y puede recordarle al tutor antes de la fecha.
+    """
+
+    mascota = models.ForeignKey(Mascota, on_delete=models.CASCADE, related_name='vacunas')
+    nombre = models.CharField('vacuna', max_length=80)
+    fecha_aplicacion = models.DateField('fecha de aplicación')
+    proxima_dosis = models.DateField('próxima dosis', null=True, blank=True)
+    lote = models.CharField('lote o serie', max_length=40, blank=True)
+
+    registrada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='+')
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.nombre} · {self.mascota.nombre} ({self.fecha_aplicacion:%d/%m/%Y})"
+
+    class Meta:
+        verbose_name = "vacuna"
+        verbose_name_plural = "vacunas"
+        ordering = ['-fecha_aplicacion']

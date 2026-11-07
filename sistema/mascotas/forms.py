@@ -1,8 +1,9 @@
 import re
 
 from django import forms
+from django.utils import timezone
 
-from .models import Cliente, Especie, Mascota, Raza, Tenencia
+from .models import Cliente, Especie, Mascota, Raza, Tenencia, Vacuna
 from .rut import limpiar_rut
 
 
@@ -160,3 +161,31 @@ class MascotaEditarForm(MascotaForm):
         super().__init__(*args, **kwargs)
         del self.fields['relacion']
         del self.fields['foto']
+
+
+class VacunaForm(forms.ModelForm):
+    """Lo que el veterinario anota al aplicar una vacuna."""
+
+    class Meta:
+        model = Vacuna
+        fields = ['nombre', 'fecha_aplicacion', 'proxima_dosis', 'lote']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'placeholder': 'Antirrábica, Óctuple, Triple felina…'}),
+            'fecha_aplicacion': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'proxima_dosis': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+        }
+        help_texts = {'proxima_dosis': 'Si la indicas, recepción la verá en Vacunas por vencer.'}
+
+    def clean_fecha_aplicacion(self):
+        fecha = self.cleaned_data['fecha_aplicacion']
+        if fecha > timezone.localdate():
+            raise forms.ValidationError('La vacuna no puede tener una fecha futura.')
+        return fecha
+
+    def clean(self):
+        datos = super().clean()
+        aplicada = datos.get('fecha_aplicacion')
+        proxima = datos.get('proxima_dosis')
+        if aplicada and proxima and proxima <= aplicada:
+            self.add_error('proxima_dosis', 'La próxima dosis debe ser después de la fecha de aplicación.')
+        return datos
