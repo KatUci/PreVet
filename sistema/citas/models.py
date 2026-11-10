@@ -125,6 +125,10 @@ class Cita(models.Model):
     inicio_atencion = models.DateTimeField('inicio de la atención', null=True, blank=True)
     hora_salida = models.DateTimeField('hora de salida', null=True, blank=True)
 
+    # Atención sin hora (PV-CIT-07): una urgencia o un sobrecupo que llega
+    # sin reserva y entra directo a la sala de espera.
+    sin_hora = models.BooleanField('sin hora (urgencia o sobrecupo)', default=False, db_default=False)
+
     # Resultado del contacto previo con el tutor (PV-CIT-05). Vacío mientras
     # nadie lo haya contactado. Se guarda quién y cuándo, para medir después
     # si confirmar reduce las inasistencias.

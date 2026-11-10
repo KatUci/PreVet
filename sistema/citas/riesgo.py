@@ -37,7 +37,9 @@ def estadisticas():
     Se hace así, y no consultando dentro del bucle, para no golpear la
     base de datos una vez por cita.
     """
-    resueltas = Cita.objects.filter(estado__in=['completada', 'no_asistio'])
+    # Las atenciones sin hora no cuentan: el paciente ya estaba en la clínica,
+    # así que siempre "asiste" y haría ver el riesgo más bajo de lo que es.
+    resueltas = Cita.objects.filter(estado__in=['completada', 'no_asistio']).exclude(sin_hora=True)
 
     por_dia, por_tipo, por_tutor = {}, {}, {}
     total_global = faltas_global = 0

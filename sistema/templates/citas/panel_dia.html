@@ -10,6 +10,7 @@
 <a href="{% url 'agendar' %}" class="btn btn-primario">
     <svg class="icono-sm"><use href="#i-mas"/></svg> Agendar hora
 </a>
+<a href="{% url 'cita_sin_hora' %}" class="btn btn-suave">🚑 Atención sin hora</a>
 {% endif %}
 {% if perms.mascotas.add_cliente %}
 <a href="{% url 'cliente_nuevo' %}" class="btn btn-suave">Nuevo cliente</a>
@@ -110,6 +111,7 @@
                             <span class="etiqueta {% if t.espera_larga %}etiqueta-warn{% else %}etiqueta-neutro{% endif %}">
                                 Esperando {{ t.espera_txt }}
                             </span>
+                            {% if t.cita.sin_hora %}<span class="etiqueta etiqueta-mal">Sin hora</span>{% endif %}
                             {% include 'mascotas/_etiquetas.html' with lista=t.cita.mascota.etiquetas.all %}
                         </div>
                     </div>

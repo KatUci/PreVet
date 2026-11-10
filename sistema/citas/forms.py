@@ -93,7 +93,9 @@ class AgendarCitaForm(forms.ModelForm):
         self.fields['veterinario'].queryset = veterinarios_con_horario()
         self.fields['veterinario'].empty_label = 'Elige al profesional'
         self.fields['veterinario'].label_from_instance = lambda u: u.get_full_name() or u.username
-        self.fields['fecha'].widget.attrs['min'] = timezone.localdate().isoformat()
+        # La atención sin hora no tiene fecha (SinHoraForm, más abajo).
+        if 'fecha' in self.fields:
+            self.fields['fecha'].widget.attrs['min'] = timezone.localdate().isoformat()
 
     def mascotas_por_tipo(self):
         """Las opciones de mascota agrupadas por tipo, para mostrar primero el tipo."""
@@ -120,6 +122,17 @@ class AgendarCitaForm(forms.ModelForm):
     def validate_unique(self):
         # La revisión de hora tomada ya se hizo arriba, con un mensaje claro.
         pass
+
+
+class SinHoraForm(AgendarCitaForm):
+    """Atención sin hora: igual que agendar, pero sin elegir fecha ni hora,
+    porque el paciente ya está en la clínica."""
+
+    hora = None
+
+    class Meta(AgendarCitaForm.Meta):
+        fields = ['mascota', 'tipo_atencion', 'veterinario', 'notas']
+        labels = dict(AgendarCitaForm.Meta.labels, notas='Motivo de la urgencia')
 
 
 class ReagendarForm(forms.ModelForm):

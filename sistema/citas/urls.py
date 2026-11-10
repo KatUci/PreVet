@@ -5,6 +5,7 @@ from . import atencion, calendario, configuracion, confirmacion, disponibilidad,
 urlpatterns = [
     path('', views.listado, name='citas'),
     path('nueva/', views.agendar, name='agendar'),
+    path('sin-hora/', views.sin_hora, name='cita_sin_hora'),
     path('disponibles/', disponibilidad.disponibles, name='horas_disponibles'),
     path('hoy/', panel.panel_dia, name='panel_dia'),
     path('llamadas/', confirmacion.llamadas, name='llamadas'),

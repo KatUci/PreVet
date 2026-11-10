@@ -1262,3 +1262,52 @@ class ArreglosDeRevisionTest(RecepcionLogueada):
         self.client.post(f'/citas/{c.pk}/llego/')
         filas = self.client.get('/citas/llamadas/', {'fecha': timezone.localdate().isoformat()}).context['filas']
         self.assertEqual(filas, [])
+
+
+class AtencionSinHoraTest(RecepcionLogueada):
+    """PV-CIT-07: una urgencia o sobrecupo entra directo a la sala de espera."""
+
+    def setUp(self):
+        super().setUp()
+        from usuarios.models import Perfil
+        from .models import HorarioAtencion
+        Perfil.objects.create(usuario=self.vet, rol='veterinario')
+        HorarioAtencion.objects.create(veterinario=self.vet, dia_semana=0,
+                                       hora_inicio='09:00', hora_fin='13:00')
+
+    def registrar(self, **datos):
+        datos = {'mascota': self.mascota.pk, 'tipo_atencion': self.control.pk,
+                 'veterinario': self.vet.pk, 'notas': 'Atropellado', **datos}
+        return self.client.post('/citas/sin-hora/?rut=15.234.871-1', datos)
+
+    def test_queda_en_la_sala_de_espera_con_la_hora_actual(self):
+        respuesta = self.registrar()
+        self.assertRedirects(respuesta, '/citas/hoy/')
+        cita = Cita.objects.get()
+        self.assertTrue(cita.sin_hora)
+        self.assertEqual(cita.fecha, timezone.localdate())
+        self.assertIsNotNone(cita.hora_llegada)
+        contexto = self.client.get('/citas/hoy/').context
+        self.assertEqual([t['cita'] for t in contexto['en_sala']], [cita])
+
+    def test_no_choca_con_una_hora_agendada(self):
+        self.crear_cita(dias=0)
+        self.registrar()
+        self.registrar()
+        self.assertEqual(Cita.objects.filter(sin_hora=True).count(), 2)
+
+    def test_la_mascota_debe_ser_del_cliente(self):
+        otra = Mascota.objects.create(nombre='Kira', especie=self.especie, sexo='hembra')
+        respuesta = self.registrar(mascota=otra.pk)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(Cita.objects.exists())
+
+    def test_sin_permiso_no_puede_registrar(self):
+        self.client.force_login(self.vet)
+        respuesta = self.registrar()
+        self.assertEqual(respuesta.status_code, 403)
+
+    def test_no_cuenta_para_el_modelo_de_riesgo(self):
+        cita = self.crear_cita(dias=-1, estado='completada')
+        Cita.objects.filter(pk=cita.pk).update(sin_hora=True)
+        self.assertEqual(riesgo.estadisticas()['tutor'], {})
