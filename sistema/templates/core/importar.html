@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Importar datos{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Importar datos</span>{% endblock %}
+{% block encabezado %}Importar datos{% endblock %}
+{% block subtitulo %}Carga los clientes, mascotas y citas que la clínica ya tiene en Excel. Primero los clientes, después las citas{% endblock %}
+
+{% block contenido %}
+
+{% if error %}
+<div class="alerta alerta-error">
+    <svg class="icono"><use href="#i-alerta"/></svg>
+    <div>{{ error }}</div>
+</div>
+{% endif %}
+
+{% if resultado %}
+<section class="card" style="margin-bottom:1.2rem">
+    <div class="card-titulo"><h2>Resultado: {{ resultado.titulo }}</h2></div>
+    <div class="alerta {% if resultado.total_errores %}alerta-warning{% else %}alerta-success{% endif %}">
+        <div>
+            {% if resultado.clientes or resultado.mascotas %}Se agregaron <b>{{ resultado.clientes }}</b> clientes y <b>{{ resultado.mascotas }}</b> mascotas.{% endif %}
+            {% if resultado.citas %}Se agregaron <b>{{ resultado.citas }}</b> citas.{% endif %}
+            {% if not resultado.clientes and not resultado.mascotas and not resultado.citas %}No se agregó nada nuevo.{% endif %}
+            {% if resultado.omitidas %}Se saltaron <b>{{ resultado.omitidas }}</b> filas que ya estaban registradas.{% endif %}
+            {% if resultado.total_errores %}<b>{{ resultado.total_errores }}</b> filas tienen errores y no se cargaron: corrígelas en el archivo y vuelve a importarlo.{% endif %}
+        </div>
+    </div>
+    {% if resultado.errores %}
+    <ul class="lista-errores">
+        {% for e in resultado.errores %}<li>{{ e }}</li>{% endfor %}
+        {% if resultado.total_errores > resultado.errores|length %}<li>… y {{ resultado.total_errores|add:"-50" }} más.</li>{% endif %}
+    </ul>
+    {% endif %}
+</section>
+{% endif %}
+
+<div class="importar-grid">
+    {% for clave, formato in formatos.items %}
+    <section class="card">
+        <div class="card-titulo">
+            <h2><span class="paso-num">{{ forloop.counter }}</span> {{ formato.titulo }}</h2>
+            <a href="{% url 'importar_plantilla' clave %}">Descargar plantilla</a>
+        </div>
+        <p class="panel-nota">
+            Columnas: {% for c in formato.columnas %}<b>{{ c }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}.
+            {% if clave == 'clientes' %}
+            Una fila por mascota: si un cliente tiene dos mascotas, repite sus datos en dos filas.
+            {% else %}
+            El estado puede ser Asistió, No asistió, Cancelada o Pendiente. El cliente y la mascota deben estar importados antes.
+            {% endif %}
+        </p>
+        <form method="post" enctype="multipart/form-data" class="importar-form">
+            {% csrf_token %}
+            <input type="hidden" name="tipo" value="{{ clave }}">
+            <input type="file" name="archivo" accept=".xlsx,.csv" required aria-label="Archivo de {{ formato.titulo|lower }}">
+            <button type="submit" class="btn btn-primario">Importar</button>
+        </form>
+    </section>
+    {% endfor %}
+</div>
+{% endblock %}

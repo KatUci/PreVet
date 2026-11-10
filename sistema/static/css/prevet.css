@@ -2219,3 +2219,10 @@ select option { background: var(--solido); color: var(--texto); }
 .horarios-resumen li b { min-width: 11rem; color: var(--titulo); }
 .horarios-resumen li span { color: var(--gris); }
 #avisoHorario { margin: 1rem 0 0; }
+
+/* Importar datos desde Excel */
+.importar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.2rem; }
+.importar-form { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .8rem; }
+.importar-form input[type=file] { max-width: 100%; font-size: .85rem; }
+.lista-errores { margin: .8rem 0 0; padding-left: 1.2rem; font-size: .85rem; color: var(--error-txt); }
+.lista-errores li { margin-bottom: .2rem; }

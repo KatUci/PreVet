@@ -156,6 +156,8 @@ class Cliente(models.Model):
         verbose_name = "cliente"
         verbose_name_plural = "clientes"
         ordering = ['apellidos', 'nombres']
+        # Cargar los datos de la clínica desde Excel (PV-DAT-01 y PV-DAT-02).
+        permissions = [('importar_datos', 'Importar clientes, mascotas y citas desde Excel')]
 
 
 class Mascota(models.Model):
