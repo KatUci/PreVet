@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load pesos %}
 
 {% block titulo %}Hoy en la clínica{% endblock %}
 {% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Hoy en la clínica</span>{% endblock %}
@@ -37,6 +38,9 @@
     <div class="kpi kpi-info"><span class="kpi-num">{{ en_atencion|length }}</span><span class="kpi-txt">en atención</span></div>
     <div class="kpi kpi-ok"><span class="kpi-num">{{ atendidas|length }}</span><span class="kpi-txt">atendidas</span></div>
     <div class="kpi kpi-mal"><span class="kpi-num">{{ no_llegaron }}</span><span class="kpi-txt">no llegaron</span></div>
+    {% if perms.citas.view_pago %}
+    <a href="{% url 'pagos' %}" class="kpi kpi-ok"><span class="kpi-num">{{ cobrado_hoy|pesos }}</span><span class="kpi-txt">cobrado hoy</span></a>
+    {% endif %}
     <div class="kpi">
         <span class="kpi-num">{% if espera_promedio is not None %}{{ espera_promedio }}<small> min</small>{% else %}—{% endif %}</span>
         <span class="kpi-txt">espera promedio</span>
@@ -166,13 +170,25 @@
                     <div class="paciente-cuerpo">
                         <div class="paciente-nombre">{{ t.cita.mascota.especie.emoji }} {{ t.cita.mascota.nombre }}</div>
                         <div class="paciente-sub">{{ t.cita.cliente.nombre_completo }}</div>
+                        <div class="etiquetas">
+                            {% if t.cita.pago %}
+                            <span class="etiqueta etiqueta-ok">Pagado {{ t.cita.pago.monto_txt }}</span>
+                            {% else %}
+                            <span class="etiqueta etiqueta-warn">Por pagar {{ t.cita.tipo_atencion.precio|pesos }}</span>
+                            {% endif %}
+                        </div>
                     </div>
-                    {% if perms.citas.change_cita %}
+                    {% if perms.citas.change_cita or perms.citas.add_pago %}
                     <div class="paciente-acciones">
+                        {% if perms.citas.add_pago and not t.cita.pago %}
+                        <a href="{% url 'cita_cobrar' t.cita.pk %}?next={{ request.path|urlencode }}" class="btn btn-primario btn-chico">Cobrar</a>
+                        {% endif %}
+                        {% if perms.citas.change_cita %}
                         <form method="post" action="{% url 'cita_salio' t.cita.pk %}">
                             {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
                             <button type="submit" class="btn btn-suave btn-chico">Salió</button>
                         </form>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </article>

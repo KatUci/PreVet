@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load pesos %}
+
+{% block titulo %}Pagos{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Pagos</span>{% endblock %}
+{% block encabezado %}💵 Pagos{% endblock %}
+{% block subtitulo %}Lo que entra a la clínica por las atenciones{% endblock %}
+
+{% block contenido %}
+<form method="get" class="buscador-linea">
+    <label>Desde <input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}"></label>
+    <label>Hasta <input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}"></label>
+    <button type="submit" class="btn btn-suave">Ver</button>
+</form>
+
+<div class="kpis-dia">
+    <div class="kpi kpi-ok"><span class="kpi-num">{{ hoy_total|pesos }}</span><span class="kpi-txt">cobrado hoy</span></div>
+    <div class="kpi kpi-info"><span class="kpi-num">{{ total|pesos }}</span><span class="kpi-txt">total del período ({{ pagos|length }} pagos)</span></div>
+    {% for m in por_medio %}
+    <div class="kpi"><span class="kpi-num">{{ m.total|pesos }}</span><span class="kpi-txt">{{ m.medio|lower }} ({{ m.cantidad }})</span></div>
+    {% endfor %}
+</div>
+
+<section class="card">
+    <div class="tabla-wrap">
+        <table>
+            <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Mascota</th><th>Atención</th><th>Medio</th><th>Monto</th><th></th></tr></thead>
+            <tbody>
+                {% for p in pagos %}
+                <tr>
+                    <td>{{ p.numero }}</td>
+                    <td class="sin-corte">{{ p.fecha|date:"d/m/Y H:i" }}</td>
+                    <td>{{ p.cita.cliente.nombre_completo }}</td>
+                    <td>{{ p.cita.mascota.nombre }}</td>
+                    <td>{{ p.cita.tipo_atencion.nombre }}</td>
+                    <td>{{ p.get_medio_display }}</td>
+                    <td class="sin-corte"><b>{{ p.monto_txt }}</b></td>
+                    <td><a href="{% url 'comprobante' p.pk %}" class="btn btn-suave btn-chico">Comprobante</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="flujo-vacio">No hay pagos en estas fechas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

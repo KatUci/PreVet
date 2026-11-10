@@ -11,7 +11,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from mascotas.models import Cliente, Especie, Mascota, Tenencia
-from .models import Cita, PlantillaMensaje, TipoAtencion
+from .models import Cita, Pago, PlantillaMensaje, TipoAtencion
 from . import riesgo
 
 
@@ -1425,3 +1425,78 @@ class DocumentosAdjuntosTest(TestCase):
         self.adjuntar(self.archivo())
         respuesta = self.client.get(f'/mascotas/{self.mascota.pk}/')
         self.assertContains(respuesta, 'receta.pdf')
+
+
+class PagosTest(RecepcionLogueada):
+    """PV-PAG-01 y PV-PAG-02: cobrar la atención, comprobante y lo que entra."""
+
+    def cobrar(self, cita, **datos):
+        datos = {'monto': 20000, 'medio': 'debito', 'detalle': '', **datos}
+        return self.client.post(f'/citas/{cita.pk}/cobrar/', datos)
+
+    def test_el_panel_muestra_lo_que_debe_pagar(self):
+        self.crear_cita(dias=0, estado='completada')
+        respuesta = self.client.get('/citas/hoy/')
+        self.assertContains(respuesta, 'Por pagar $20.000')
+        self.assertContains(respuesta, 'Cobrar')
+
+    def test_cobrar_registra_el_pago_y_la_salida(self):
+        cita = self.crear_cita(dias=0, estado='completada')
+        respuesta = self.cobrar(cita, monto=25000, detalle='Vacuna antirrábica')
+        pago = Pago.objects.get()
+        self.assertRedirects(respuesta, f'/citas/pagos/{pago.pk}/')
+        self.assertEqual((pago.monto, pago.medio, pago.cobrado_por), (25000, 'debito', self.tutor))
+        cita.refresh_from_db()
+        self.assertIsNotNone(cita.hora_salida)
+        comprobante = self.client.get(f'/citas/pagos/{pago.pk}/')
+        self.assertContains(comprobante, '$25.000')
+        self.assertContains(comprobante, 'Vacuna antirrábica')
+
+    def test_no_se_cobra_dos_veces_ni_una_cita_sin_atender(self):
+        cita = self.crear_cita(dias=0, estado='completada')
+        self.cobrar(cita)
+        self.cobrar(cita)
+        pendiente = self.crear_cita(dias=0)
+        self.cobrar(pendiente)
+        self.assertEqual(Pago.objects.count(), 1)
+
+    def test_el_monto_debe_ser_mayor_que_cero(self):
+        cita = self.crear_cita(dias=0, estado='completada')
+        respuesta = self.cobrar(cita, monto=0)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(Pago.objects.exists())
+
+    def test_el_listado_suma_lo_que_entra(self):
+        self.cobrar(self.crear_cita(dias=0, estado='completada'), monto=20000, medio='efectivo')
+        self.cobrar(self.crear_cita(dias=0, estado='completada'), monto=15000, medio='debito')
+        respuesta = self.client.get('/citas/pagos/')
+        self.assertEqual(respuesta.context['total'], 35000)
+        self.assertEqual(respuesta.context['hoy_total'], 35000)
+        self.assertEqual(self.client.get('/citas/hoy/').context['cobrado_hoy'], 35000)
+
+    def test_el_veterinario_no_cobra(self):
+        from django.contrib.auth.models import Group
+        self.vet.groups.add(Group.objects.get(name='Veterinarios'))
+        self.client.force_login(self.vet)
+        cita = self.crear_cita(dias=0, estado='completada')
+        self.assertEqual(self.cobrar(cita).status_code, 403)
+
+    def test_el_cliente_ve_sus_pagos_y_no_los_de_otros(self):
+        cita = self.crear_cita(dias=0, estado='completada')
+        self.cobrar(cita)
+        pago = Pago.objects.get()
+        # Ana entra a Mi PreVet.
+        from usuarios.models import Perfil
+        ana = User.objects.create_user('15234871-1')
+        Perfil.objects.create(usuario=ana, rol='dueno')
+        self.cliente.usuario = ana
+        self.cliente.save()
+        self.client.force_login(ana)
+        self.assertContains(self.client.get('/mi-prevet/'), 'Ver comprobante')
+        self.assertContains(self.client.get(f'/mi-prevet/pagos/{pago.pk}/'), f'N° {pago.numero}')
+        # Otro cliente no puede ver el comprobante de Ana.
+        otro = User.objects.create_user('16890342-1')
+        Perfil.objects.create(usuario=otro, rol='dueno')
+        Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva', usuario=otro)
+        self.client.force_login(otro)
+        self.assertEqual(self.client.get(f'/mi-prevet/pagos/{pago.pk}/').status_code, 404)

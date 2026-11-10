@@ -252,6 +252,46 @@ class DocumentoAtencion(models.Model):
         ordering = ['fecha_subida']
 
 
+class Pago(models.Model):
+    """Lo que el cliente pagó por una atención (PV-PAG-01).
+
+    Recepción lo registra al cobrar, antes de que la mascota se vaya. Es un
+    comprobante interno de la clínica, no una boleta electrónica del SII.
+    """
+
+    MEDIOS = (
+        ('efectivo', 'Efectivo'),
+        ('debito', 'Débito'),
+        ('credito', 'Crédito'),
+        ('transferencia', 'Transferencia'),
+    )
+
+    cita = models.OneToOneField(Cita, on_delete=models.PROTECT, related_name='pago')
+    monto = models.IntegerField('monto ($)')
+    medio = models.CharField('medio de pago', max_length=15, choices=MEDIOS)
+    detalle = models.CharField('detalle', max_length=200, blank=True,
+                               help_text='Opcional: lo que se cobró además de la atención (vacuna, remedios…).')
+    cobrado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    fecha = models.DateTimeField('fecha del pago', auto_now_add=True)
+
+    @property
+    def numero(self):
+        """Número del comprobante: 000123."""
+        return f'{self.pk:06d}'
+
+    @property
+    def monto_txt(self):
+        return f'${self.monto:,}'.replace(',', '.')
+
+    def __str__(self):
+        return f"Comprobante N° {self.numero} · {self.monto_txt}"
+
+    class Meta:
+        verbose_name = "pago"
+        verbose_name_plural = "pagos"
+        ordering = ['-fecha']
+
+
 class PlantillaMensaje(models.Model):
     """Texto editable de un mensaje de WhatsApp (PV-REC-06).
 

@@ -129,6 +129,11 @@
                 <svg class="icono"><use href="#i-paw"/></svg> Mascotas
             </a>
             {% endif %}
+            {% if perms.citas.view_pago %}
+            <a href="{% url 'pagos' %}" class="sb-link {% if seccion == 'pagos' %}activo{% endif %}">
+                <span class="icono" style="text-align:center">💵</span> Pagos
+            </a>
+            {% endif %}
             {% if perms.mascotas.view_vacuna %}
             <a href="{% url 'vacunas_por_vencer' %}" class="sb-link {% if seccion == 'vacunas' %}activo{% endif %}">
                 <span class="icono" style="text-align:center">💉</span> Vacunas por vencer

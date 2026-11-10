@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import Atencion, Cita, DocumentoAtencion, HorarioAtencion, PlantillaMensaje, TipoAtencion
+from .models import Atencion, Cita, DocumentoAtencion, HorarioAtencion, Pago, PlantillaMensaje, TipoAtencion
 
 
 @admin.register(TipoAtencion)
@@ -66,3 +66,12 @@ class DocumentoAtencionAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'atencion', 'tamano', 'subido_por', 'fecha_subida')
     exclude = ('archivo',)
     readonly_fields = ('atencion', 'nombre', 'tamano', 'subido_por', 'fecha_subida')
+
+
+@admin.register(Pago)
+class PagoAdmin(admin.ModelAdmin):
+    list_display = ('numero', 'fecha', 'cita', 'monto', 'medio', 'cobrado_por')
+    list_filter = ('medio',)
+    search_fields = ('cita__mascota__nombre', 'cita__cliente__rut', 'cita__cliente__apellidos')
+    raw_id_fields = ('cita',)
+    readonly_fields = ('cobrado_por', 'fecha')

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import atencion, calendario, configuracion, confirmacion, disponibilidad, documentos, panel, views
+from . import atencion, calendario, configuracion, confirmacion, disponibilidad, documentos, pagos, panel, views
 
 urlpatterns = [
     path('', views.listado, name='citas'),
@@ -20,6 +20,9 @@ urlpatterns = [
     path('<int:pk>/salio/', calendario.marcar_salida, name='cita_salio'),
     path('<int:pk>/atender/', atencion.atender, name='cita_atender'),
     path('atenciones/<int:pk>/adjuntar/', documentos.adjuntar, name='atencion_adjuntar'),
+    path('<int:pk>/cobrar/', pagos.cobrar, name='cita_cobrar'),
+    path('pagos/', pagos.listado, name='pagos'),
+    path('pagos/<int:pk>/', pagos.comprobante, name='comprobante'),
     path('documentos/<int:pk>/', documentos.descargar, name='documento_descargar'),
     path('documentos/<int:pk>/quitar/', documentos.quitar, name='documento_quitar'),
     path('<int:pk>/confirmacion/', confirmacion.registrar, name='cita_confirmacion'),

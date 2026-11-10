@@ -17,6 +17,7 @@ from django.urls import reverse_lazy
 from django.utils import timezone
 
 from citas.disponibilidad import resumen_horarios
+from citas.models import Pago
 from mascotas.fotos import FotoForm, guardar_foto
 from mascotas.forms import MascotaEditarForm, MascotaForm
 from mascotas.models import FotoMascota, Mascota, Tenencia
@@ -69,7 +70,19 @@ def inicio(request):
         'tenencias': tenencias,
         'proximas': citas.filter(estado='pendiente', fecha__gte=hoy).order_by('fecha', 'hora'),
         'historial': citas.exclude(estado='pendiente', fecha__gte=hoy).order_by('-fecha', '-hora')[:10],
+        # Lo que ha pagado en la clínica, con su comprobante (PV-PAG-01).
+        'pagos': (Pago.objects.filter(cita__cliente=cliente)
+                  .select_related('cita__mascota', 'cita__tipo_atencion')[:10]),
     })
+
+
+@solo_tutores
+def comprobante(request, pk):
+    """El comprobante de uno de sus pagos. Si el pago es de otra persona, no existe."""
+    pago = get_object_or_404(Pago.objects.select_related(
+        'cita__mascota__especie', 'cita__cliente', 'cita__tipo_atencion', 'cita__veterinario'),
+        pk=pk, cita__cliente=request.cliente)
+    return render(request, 'citas/comprobante.html', {'seccion': 'portal', 'pago': pago, 'volver': '/mi-prevet/'})
 
 
 @solo_tutores
