@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import Atencion, Cita, HorarioAtencion, PlantillaMensaje, TipoAtencion
+from .models import Atencion, Cita, DocumentoAtencion, HorarioAtencion, PlantillaMensaje, TipoAtencion
 
 
 @admin.register(TipoAtencion)
@@ -59,3 +59,10 @@ class AtencionAdmin(admin.ModelAdmin):
 @admin.register(PlantillaMensaje)
 class PlantillaMensajeAdmin(admin.ModelAdmin):
     list_display = ('clave', 'fecha_modificacion')
+
+
+@admin.register(DocumentoAtencion)
+class DocumentoAtencionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'atencion', 'tamano', 'subido_por', 'fecha_subida')
+    exclude = ('archivo',)
+    readonly_fields = ('atencion', 'nombre', 'tamano', 'subido_por', 'fecha_subida')

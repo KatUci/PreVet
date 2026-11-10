@@ -60,7 +60,8 @@ def ficha(request, pk):
     El historial clínico (diagnósticos y tratamientos) solo lo ve quien tiene
     el permiso citas.view_atencion: veterinarios y administración.
     """
-    from citas.models import Atencion
+    from django.db.models import Prefetch
+    from citas.models import Atencion, DocumentoAtencion
 
     mascota = get_object_or_404(Mascota.objects.select_related('especie', 'raza'), pk=pk)
     tenencias = mascota.tenencias.select_related('cliente').order_by('-es_principal', 'cliente__apellidos')
@@ -70,6 +71,8 @@ def ficha(request, pk):
         # Ordenadas por fecha de la atención, de la más reciente a la más antigua.
         atenciones = (Atencion.objects.filter(cita__mascota=mascota)
                       .select_related('cita__veterinario', 'cita__tipo_atencion', 'registrada_por')
+                      # Los documentos sin el archivo, que se carga solo al descargarlo.
+                      .prefetch_related(Prefetch('documentos', DocumentoAtencion.objects.defer('archivo')))
                       .order_by('-cita__fecha', '-cita__hora'))
 
     citas = (mascota.citas.select_related('veterinario', 'tipo_atencion', 'cliente')

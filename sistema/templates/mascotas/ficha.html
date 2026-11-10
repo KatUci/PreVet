@@ -77,6 +77,30 @@
                         <div><span class="det-etiqueta">Diagnóstico</span> {{ a.diagnostico|linebreaksbr }}</div>
                         {% if a.tratamiento %}<div><span class="det-etiqueta">Tratamiento</span> {{ a.tratamiento|linebreaksbr }}</div>{% endif %}
                         <div class="celda-sub">{% if a.peso_kg %}{{ a.peso_kg|floatformat:1 }} kg · {% endif %}{{ a.cita.veterinario.get_full_name }}</div>
+                        {# Documentos adjuntos (PV-FIC-03) #}
+                        {% for d in a.documentos.all %}
+                        <div class="hc-documento">
+                            📎 <a href="{% url 'documento_descargar' d.pk %}">{{ d.nombre }}</a>
+                            <span class="celda-sub">{{ d.tamano_txt }}</span>
+                            {% if perms.citas.add_atencion %}
+                            <form method="post" action="{% url 'documento_quitar' d.pk %}" style="display:inline"
+                                  onsubmit="return confirm('¿Quitar «{{ d.nombre|escapejs }}»?')">
+                                {% csrf_token %}<button type="submit" class="btn btn-suave btn-chico">Quitar</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        {% if perms.citas.add_atencion %}
+                        <details class="hc-adjuntar">
+                            <summary>+ Adjuntar documento</summary>
+                            <form method="post" action="{% url 'atencion_adjuntar' a.pk %}" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="file" name="documento" accept=".pdf,.doc,.docx" required aria-label="Documento para adjuntar">
+                                <button type="submit" class="btn btn-suave btn-chico">Adjuntar</button>
+                                <span class="celda-sub">PDF o Word de hasta 5 MB</span>
+                            </form>
+                        </details>
+                        {% endif %}
                     </div>
                 </li>
                 {% empty %}

@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from .documentos import guardar
 from .forms import AtencionForm
 from .models import Atencion, Cita
 
@@ -38,7 +39,7 @@ def atender(request, pk):
         messages.error(request, 'Una cita futura todavía no se puede marcar como atendida.')
         return redirect(volver)
 
-    form = AtencionForm(request.POST or None, initial={
+    form = AtencionForm(request.POST or None, request.FILES or None, initial={
         'motivo': cita.notas[:200] or cita.tipo_atencion.nombre,
         'peso_kg': cita.mascota.peso_kg,
     })
@@ -53,6 +54,8 @@ def atender(request, pk):
             atencion.cita = cita
             atencion.registrada_por = request.user
             atencion.save()
+            if form.cleaned_data['documento']:
+                guardar(atencion, form.cleaned_data['documento'], request.user)
             cita.estado = 'completada'
             cita.save(update_fields=['estado'])
             if atencion.peso_kg:

@@ -2165,6 +2165,12 @@ select option { background: var(--solido); color: var(--texto); }
 .hc-cuerpo > div { margin-top: .25rem; }
 .hc-cuerpo b { color: var(--titulo); }
 @media (max-width: 600px) { .historial-clinico li { grid-template-columns: 1fr; gap: .2rem; } }
+/* Documentos adjuntos a la atención */
+.hc-documento { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.hc-adjuntar { margin-top: .4rem; font-size: .8rem; }
+.hc-adjuntar summary { cursor: pointer; color: var(--acento); font-weight: 600; }
+.hc-adjuntar form { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .4rem; }
+.hc-adjuntar input[type=file] { max-width: 100%; }
 .ta-nombre > a, .det-head-txt h3 a { color: inherit; text-decoration: none; }
 .ta-nombre > a:hover, .det-head-txt h3 a:hover { text-decoration: underline; }
 

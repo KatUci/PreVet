@@ -1353,3 +1353,75 @@ class PlantillasDeMensajesTest(BaseCitas):
     def test_el_listado_muestra_las_cinco_plantillas(self):
         respuesta = self.client.get('/citas/mensajes/')
         self.assertEqual(len(respuesta.context['filas']), 5)
+
+
+class DocumentosAdjuntosTest(TestCase):
+    """PV-FIC-03: el veterinario adjunta un PDF o Word a la atención."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from .models import Atencion
+        self.vet = User.objects.create_user('vet', first_name='Paz', last_name='Herrera')
+        self.vet.groups.add(Group.objects.get(name='Veterinarios'))
+        self.recepcion = User.objects.create_user('recepcion')
+        self.recepcion.groups.add(Group.objects.get(name='Recepción'))
+        especie = Especie.objects.create(nombre='Perro')
+        self.mascota = Mascota.objects.create(nombre='Bruno', especie=especie, sexo='macho')
+        cliente = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto')
+        Tenencia.objects.create(cliente=cliente, mascota=self.mascota, es_principal=True)
+        tipo = TipoAtencion.objects.create(nombre='Control', duracion_minutos=30, precio=20000)
+        self.cita = Cita.objects.create(veterinario=self.vet, mascota=self.mascota, cliente=cliente,
+                                        tipo_atencion=tipo, fecha=timezone.localdate(), hora='10:00',
+                                        estado='completada')
+        self.atencion = Atencion.objects.create(cita=self.cita, motivo='Control', diagnostico='Sano')
+        self.client.force_login(self.vet)
+
+    def archivo(self, nombre='receta.pdf', contenido=b'%PDF-1.4 receta'):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        return SimpleUploadedFile(nombre, contenido)
+
+    def adjuntar(self, archivo):
+        return self.client.post(f'/citas/atenciones/{self.atencion.pk}/adjuntar/', {'documento': archivo})
+
+    def test_adjunta_un_pdf_y_se_descarga(self):
+        self.adjuntar(self.archivo())
+        documento = self.atencion.documentos.get()
+        self.assertEqual(documento.nombre, 'receta.pdf')
+        respuesta = self.client.get(f'/citas/documentos/{documento.pk}/')
+        self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+        self.assertEqual(respuesta.content, b'%PDF-1.4 receta')
+
+    def test_acepta_word(self):
+        self.adjuntar(self.archivo('indicaciones.docx', b'PK\x03\x04contenido'))
+        self.assertEqual(self.atencion.documentos.count(), 1)
+
+    def test_rechaza_otros_tipos_y_archivos_renombrados(self):
+        self.adjuntar(self.archivo('foto.jpg', b'\xff\xd8\xff'))
+        self.adjuntar(self.archivo('falso.pdf', b'MZ programa'))
+        self.assertFalse(self.atencion.documentos.exists())
+
+    def test_rechaza_archivos_de_mas_de_5_mb(self):
+        self.adjuntar(self.archivo(contenido=b'%PDF' + b'0' * (5 * 1024 * 1024)))
+        self.assertFalse(self.atencion.documentos.exists())
+
+    def test_recepcion_no_puede_subir_ni_descargar(self):
+        self.adjuntar(self.archivo())
+        documento = self.atencion.documentos.get()
+        self.client.force_login(self.recepcion)
+        self.assertEqual(self.adjuntar(self.archivo()).status_code, 403)
+        self.assertEqual(self.client.get(f'/citas/documentos/{documento.pk}/').status_code, 403)
+
+    def test_se_puede_adjuntar_al_registrar_la_atencion(self):
+        self.cita.estado = 'pendiente'
+        self.cita.save()
+        self.atencion.delete()
+        self.client.post(f'/citas/{self.cita.pk}/atender/', {
+            'motivo': 'Vómitos', 'diagnostico': 'Gastritis', 'documento': self.archivo()})
+        self.cita.refresh_from_db()
+        self.assertEqual(self.cita.estado, 'completada')
+        self.assertEqual(self.cita.atencion.documentos.count(), 1)
+
+    def test_la_ficha_muestra_el_documento(self):
+        self.adjuntar(self.archivo())
+        respuesta = self.client.get(f'/mascotas/{self.mascota.pk}/')
+        self.assertContains(respuesta, 'receta.pdf')

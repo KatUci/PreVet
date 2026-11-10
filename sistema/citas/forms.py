@@ -196,6 +196,11 @@ class CancelarForm(forms.Form):
 class AtencionForm(forms.ModelForm):
     """Lo que el veterinario registra al cerrar la atención."""
 
+    documento = forms.FileField(
+        label='Adjuntar receta o indicaciones (opcional)', required=False,
+        help_text='PDF o Word de hasta 5 MB.',
+        widget=forms.ClearableFileInput(attrs={'accept': '.pdf,.doc,.docx'}))
+
     class Meta:
         model = Atencion
         fields = ['motivo', 'diagnostico', 'tratamiento', 'peso_kg']
@@ -205,6 +210,11 @@ class AtencionForm(forms.ModelForm):
             'tratamiento': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Medicamentos, dosis, cuidados en casa, próximo control…'}),
             'peso_kg': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
         }
+
+    def clean_documento(self):
+        from .documentos import validar_documento
+        archivo = self.cleaned_data.get('documento')
+        return validar_documento(archivo) if archivo else None
 
     def clean_peso_kg(self):
         peso = self.cleaned_data.get('peso_kg')

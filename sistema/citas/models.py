@@ -221,6 +221,37 @@ class Atencion(models.Model):
         ordering = ['-cita__fecha', '-cita__hora']
 
 
+class DocumentoAtencion(models.Model):
+    """Un PDF o Word adjunto a la atención: recetas, exámenes, indicaciones (PV-FIC-03).
+
+    Se guarda dentro de la base de datos, igual que las fotos, para que todo
+    el equipo lo vea aunque cada una corra el sistema en su computador. No
+    queda en una carpeta pública: solo se descarga desde PreVet y con permiso.
+    """
+
+    atencion = models.ForeignKey(Atencion, on_delete=models.CASCADE, related_name='documentos')
+    nombre = models.CharField('nombre del archivo', max_length=150)
+    archivo = models.BinaryField()
+    tamano = models.IntegerField('tamaño (bytes)')
+    subido_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def tamano_txt(self):
+        """1234567 -> '1,2 MB'; 45000 -> '44 KB'."""
+        if self.tamano >= 1024 * 1024:
+            return f'{self.tamano / 1024 / 1024:.1f} MB'.replace('.', ',')
+        return f'{max(self.tamano // 1024, 1)} KB'
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "documento de la atención"
+        verbose_name_plural = "documentos de las atenciones"
+        ordering = ['fecha_subida']
+
+
 class PlantillaMensaje(models.Model):
     """Texto editable de un mensaje de WhatsApp (PV-REC-06).
 

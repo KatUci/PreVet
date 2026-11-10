@@ -18,7 +18,7 @@
 </section>
 {% endif %}
 
-<form method="post" novalidate>
+<form method="post" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
     <input type="hidden" name="next" value="{{ next }}">
     <div class="card">
@@ -27,6 +27,7 @@
             {% include 'usuarios/_campo.html' with campo=form.peso_kg %}
             {% include 'usuarios/_campo.html' with campo=form.diagnostico ancho=True %}
             {% include 'usuarios/_campo.html' with campo=form.tratamiento ancho=True %}
+            {% include 'usuarios/_campo.html' with campo=form.documento ancho=True %}
         </div>
         <div class="form-acciones">
             <a href="{{ next }}" class="btn btn-suave">Cancelar</a>
