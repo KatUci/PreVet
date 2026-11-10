@@ -11,7 +11,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from mascotas.models import Cliente, Especie, Mascota, Tenencia
-from .models import Cita, TipoAtencion
+from .models import Cita, PlantillaMensaje, TipoAtencion
 from . import riesgo
 
 
@@ -1311,3 +1311,45 @@ class AtencionSinHoraTest(RecepcionLogueada):
         cita = self.crear_cita(dias=-1, estado='completada')
         Cita.objects.filter(pk=cita.pk).update(sin_hora=True)
         self.assertEqual(riesgo.estadisticas()['tutor'], {})
+
+
+class PlantillasDeMensajesTest(BaseCitas):
+    """PV-REC-06: administración edita los textos de WhatsApp."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth.models import Group
+        self.admin = User.objects.create_user('jefa')
+        self.admin.groups.add(Group.objects.get(name='Administración'))
+        self.client.force_login(self.admin)
+
+    def test_sin_editar_usa_el_texto_original(self):
+        from .contacto import mensaje_segun_riesgo
+        cita = self.crear_cita()
+        self.assertIn('¡Te esperamos!', mensaje_segun_riesgo(cita, 'bajo'))
+
+    def test_al_guardar_los_mensajes_siguientes_usan_el_nuevo_texto(self):
+        from .contacto import mensaje_segun_riesgo
+        respuesta = self.client.post('/citas/mensajes/riesgo_bajo/',
+                                     {'texto': 'Hola {tutor}, {mascota} te espera el {fecha} a las {hora} 🐾'})
+        self.assertRedirects(respuesta, '/citas/mensajes/')
+        cita = self.crear_cita()
+        mensaje = mensaje_segun_riesgo(cita, 'bajo')
+        self.assertTrue(mensaje.startswith('Hola Ana, Bruno te espera el'))
+        self.assertNotIn('{', mensaje)
+
+    def test_no_acepta_variables_que_no_existen(self):
+        respuesta = self.client.post('/citas/mensajes/riesgo_bajo/', {'texto': 'Hola {perro}'})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, 'La variable {perro} no existe')
+        self.assertFalse(PlantillaMensaje.objects.exists())
+
+    def test_recepcion_no_puede_editarlos(self):
+        from django.contrib.auth.models import Group
+        self.tutor.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(self.tutor)
+        self.assertEqual(self.client.get('/citas/mensajes/').status_code, 403)
+
+    def test_el_listado_muestra_las_cinco_plantillas(self):
+        respuesta = self.client.get('/citas/mensajes/')
+        self.assertEqual(len(respuesta.context['filas']), 5)

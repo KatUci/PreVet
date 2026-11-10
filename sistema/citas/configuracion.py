@@ -1,4 +1,7 @@
-"""Configuración de la agenda: tipos de atención y horarios de cada veterinario."""
+"""Configuración de la agenda: tipos de atención, horarios de cada veterinario
+y los textos de los mensajes de WhatsApp."""
+import re
+
 from django import forms
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.models import User
@@ -8,7 +11,8 @@ from django.views.decorators.http import require_POST
 
 from core import crud
 
-from .models import DIAS_SEMANA, HorarioAtencion, TipoAtencion
+from .contacto import TEXTOS_ORIGINALES, VARIABLES
+from .models import DIAS_SEMANA, HorarioAtencion, PlantillaMensaje, TipoAtencion
 
 MIGAS = [('Configuración', None)]
 
@@ -160,3 +164,68 @@ def horario_formulario(request, pk=None):
 @permission_required('citas.delete_horarioatencion', raise_exception=True)
 def horario_eliminar(request, pk):
     return crud.eliminar(request, get_object_or_404(HorarioAtencion, pk=pk), volver=reverse('horarios'))
+
+
+# ---------------- Mensajes de WhatsApp (PV-REC-06) ----------------
+
+class PlantillaForm(forms.ModelForm):
+    class Meta:
+        model = PlantillaMensaje
+        fields = ['texto']
+        labels = {'texto': 'Texto del mensaje'}
+        widgets = {'texto': forms.Textarea(attrs={'rows': 6})}
+
+    def clean_texto(self):
+        texto = self.cleaned_data['texto'].strip()
+        # Revisa que cada {variable} exista, para que no le llegue al tutor
+        # un mensaje con una palabra entre llaves.
+        permitidas = VARIABLES[self.instance.clave]
+        for variable in re.findall(r'{(.*?)}', texto):
+            if variable not in permitidas:
+                raise forms.ValidationError(
+                    f'La variable {{{variable}}} no existe. Puedes usar: '
+                    + ', '.join('{' + v + '}' for v in permitidas) + '.')
+        return texto
+
+
+@login_required
+@permission_required('citas.change_plantillamensaje', raise_exception=True)
+def mensajes_listado(request):
+    editadas = {p.clave: p for p in PlantillaMensaje.objects.all()}
+    filas = []
+    for clave, nombre in PlantillaMensaje.CLAVES:
+        plantilla = editadas.get(clave)
+        texto = plantilla.texto if plantilla else TEXTOS_ORIGINALES[clave]
+        filas.append({
+            'nombre': nombre,
+            'celdas': [nombre, texto[:90] + ('…' if len(texto) > 90 else ''),
+                       {'badge': 'Editado' if plantilla else 'Original',
+                        'clase': 'completada' if plantilla else 'neutro'}],
+            'editar': reverse('mensaje_editar', args=[clave]),
+            'eliminar': None,
+        })
+    return crud.listado(
+        request, seccion='mensajes', titulo='Mensajes de WhatsApp',
+        subtitulo='Los textos que se envían a los tutores. Al guardar un cambio, los mensajes siguientes usan el nuevo texto',
+        columnas=['Mensaje', 'Texto', 'Estado'], filas=filas,
+        migas=MIGAS + [('Mensajes de WhatsApp', None)])
+
+
+@login_required
+@permission_required('citas.change_plantillamensaje', raise_exception=True)
+def mensaje_editar(request, clave):
+    if clave not in TEXTOS_ORIGINALES:
+        from django.http import Http404
+        raise Http404
+    # Si todavía no se ha editado, se parte del texto original.
+    plantilla = (PlantillaMensaje.objects.filter(clave=clave).first()
+                 or PlantillaMensaje(clave=clave, texto=TEXTOS_ORIGINALES[clave]))
+    volver = reverse('mensajes')
+    variables = ', '.join('{' + v + '}' for v in VARIABLES[clave])
+    return crud.formulario(
+        request, form=PlantillaForm(request.POST or None, instance=plantilla), seccion='mensajes',
+        titulo=plantilla.get_clave_display(), volver=volver,
+        mensaje='Se guardó el mensaje «{objeto}».',
+        ayuda=f'Puedes usar estas variables y se reemplazan por los datos de cada cita: {variables}. '
+              f'Texto original: «{TEXTOS_ORIGINALES[clave]}»',
+        migas=MIGAS + [('Mensajes de WhatsApp', volver), ('Editar', None)])

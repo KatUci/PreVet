@@ -52,19 +52,61 @@ def enlace_llamada(telefono):
     return f'tel:+{digitos}' if digitos else None
 
 
+# Textos originales de los mensajes (PV-REC-06). Administración los puede
+# cambiar en Configuración > Mensajes de WhatsApp; si no los ha cambiado,
+# se usan estos.
+TEXTOS_ORIGINALES = {
+    'riesgo_alto': ('Hola {tutor}, te escribimos de la clínica veterinaria para confirmar la hora de '
+                    '{mascota} el {dia} {fecha} a las {hora} con {profesional}. '
+                    '¿Nos respondes SÍ para confirmarla? Si no puedes venir, avísanos y te buscamos otra hora: '
+                    'así podemos dar ese espacio a otra mascota que lo necesita.'),
+    'riesgo_medio': ('Hola {tutor}, te recordamos la hora de {mascota} el {dia} {fecha} a las {hora}. '
+                     'Si necesitas cambiarla, respóndenos este mensaje y te ayudamos.'),
+    'riesgo_bajo': 'Hola {tutor}, te recordamos la hora de {mascota} el {dia} {fecha} a las {hora}. ¡Te esperamos!',
+    'recordatorio': ('Hola {tutor}, te escribimos de la clínica para recordarte la hora de {mascota} '
+                     'el {fecha} a las {hora}. ¿Nos confirmas tu asistencia?'),
+    'vacuna': ('Hola {tutor}, te escribimos de la clínica veterinaria. A {mascota} le corresponde '
+               'la vacuna {vacuna} el {fecha}. ¿Te agendamos una hora?'),
+}
+
+# Variables que se pueden usar en cada plantilla.
+VARIABLES_CITA = ['tutor', 'mascota', 'dia', 'fecha', 'hora', 'profesional']
+VARIABLES = {clave: VARIABLES_CITA for clave in TEXTOS_ORIGINALES}
+VARIABLES['vacuna'] = ['tutor', 'mascota', 'vacuna', 'fecha']
+
+
+def texto_plantilla(clave):
+    """El texto que está usando la clínica: el editado, o si no, el original."""
+    from .models import PlantillaMensaje
+    plantilla = PlantillaMensaje.objects.filter(clave=clave).first()
+    return plantilla.texto if plantilla else TEXTOS_ORIGINALES[clave]
+
+
+def armar_mensaje(clave, datos):
+    """Reemplaza cada {variable} de la plantilla por su valor."""
+    texto = texto_plantilla(clave)
+    for variable, valor in datos.items():
+        texto = texto.replace('{' + variable + '}', str(valor))
+    return texto
+
+
+def datos_de_cita(cita):
+    """Los valores de las variables para una cita."""
+    return {
+        'tutor': cita.cliente.nombres,
+        'mascota': cita.mascota.nombre,
+        'dia': DIAS[cita.fecha.weekday()],
+        'fecha': cita.fecha.strftime('%d/%m'),
+        'hora': cita.hora.strftime('%H:%M'),
+        'profesional': cita.veterinario.get_full_name(),
+    }
+
+
 def mensaje_segun_riesgo(cita, nivel):
     """El texto del WhatsApp cambia según el riesgo de que el tutor no llegue."""
-    nombre = cita.cliente.nombres
-    cuando = f'el {DIAS[cita.fecha.weekday()]} {cita.fecha:%d/%m} a las {cita.hora:%H:%M}'
-    if nivel == 'alto':
-        return (f'Hola {nombre}, te escribimos de la clínica veterinaria para confirmar la hora de '
-                f'{cita.mascota.nombre} {cuando} con {cita.veterinario.get_full_name()}. '
-                f'¿Nos respondes SÍ para confirmarla? Si no puedes venir, avísanos y te buscamos otra hora: '
-                f'así podemos dar ese espacio a otra mascota que lo necesita.')
-    if nivel == 'medio':
-        return (f'Hola {nombre}, te recordamos la hora de {cita.mascota.nombre} {cuando}. '
-                f'Si necesitas cambiarla, respóndenos este mensaje y te ayudamos.')
-    return f'Hola {nombre}, te recordamos la hora de {cita.mascota.nombre} {cuando}. ¡Te esperamos!'
+    if nivel not in ('alto', 'medio'):
+        nivel = 'bajo'
+    return armar_mensaje('riesgo_' + nivel, datos_de_cita(cita))
 
 
 def guion_llamada(cita, nivel, stats):

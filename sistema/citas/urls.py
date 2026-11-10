@@ -32,4 +32,6 @@ urlpatterns = [
     path('horarios/nuevo/', configuracion.horario_formulario, name='horario_nuevo'),
     path('horarios/<int:pk>/', configuracion.horario_formulario, name='horario_editar'),
     path('horarios/<int:pk>/eliminar/', configuracion.horario_eliminar, name='horario_eliminar'),
+    path('mensajes/', configuracion.mensajes_listado, name='mensajes'),
+    path('mensajes/<str:clave>/', configuracion.mensaje_editar, name='mensaje_editar'),
 ]

@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from citas.contacto import enlace_whatsapp
+from citas.contacto import armar_mensaje, enlace_whatsapp
 
 from .forms import VacunaForm
 from .models import Mascota, Vacuna
@@ -64,9 +64,9 @@ def por_vencer(request):
         tutor = vacuna.mascota.responsable
         whatsapp = None
         if tutor:
-            mensaje = (f'Hola {tutor.nombres}, te escribimos de la clínica veterinaria. '
-                       f'A {vacuna.mascota.nombre} le corresponde la vacuna {vacuna.nombre} '
-                       f'el {vacuna.proxima_dosis:%d/%m/%Y}. ¿Te agendamos una hora?')
+            mensaje = armar_mensaje('vacuna', {
+                'tutor': tutor.nombres, 'mascota': vacuna.mascota.nombre,
+                'vacuna': vacuna.nombre, 'fecha': vacuna.proxima_dosis.strftime('%d/%m/%Y')})
             whatsapp = enlace_whatsapp(tutor.telefono, mensaje)
         filas.append({
             'vacuna': vacuna,

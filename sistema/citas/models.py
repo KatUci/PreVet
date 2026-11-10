@@ -219,3 +219,32 @@ class Atencion(models.Model):
         verbose_name = "atención"
         verbose_name_plural = "atenciones"
         ordering = ['-cita__fecha', '-cita__hora']
+
+
+class PlantillaMensaje(models.Model):
+    """Texto editable de un mensaje de WhatsApp (PV-REC-06).
+
+    Mientras administración no edite una plantilla, se usa el texto original
+    que está en contacto.py. El texto lleva variables entre llaves, como
+    {tutor} o {mascota}, que se reemplazan por los datos de cada cita.
+    """
+
+    CLAVES = (
+        ('riesgo_alto', 'Recordatorio para riesgo alto'),
+        ('riesgo_medio', 'Recordatorio para riesgo medio'),
+        ('riesgo_bajo', 'Recordatorio para riesgo bajo'),
+        ('recordatorio', 'Recordatorio general'),
+        ('vacuna', 'Aviso de vacuna por vencer'),
+    )
+
+    clave = models.CharField(max_length=20, choices=CLAVES, unique=True)
+    texto = models.TextField()
+    fecha_modificacion = models.DateTimeField('última modificación', auto_now=True)
+
+    def __str__(self):
+        return self.get_clave_display()
+
+    class Meta:
+        verbose_name = "plantilla de mensaje"
+        verbose_name_plural = "plantillas de mensajes"
+        ordering = ['clave']
