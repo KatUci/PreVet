@@ -33,6 +33,7 @@ CAMPOS = [
     ('hora_llegada', 'Llegada'),
     ('inicio_atencion', 'Pasó a atención'),
     ('hora_salida', 'Salida'),
+    ('seguimiento', 'Seguimiento tras la inasistencia'),
 ]
 
 
@@ -94,7 +95,8 @@ def _accion(antes, despues, cambiados):
     if {'fecha', 'hora', 'veterinario'} & cambiados:
         return 'Reagendada'
     for campo, accion in (('hora_salida', 'Salió'), ('inicio_atencion', 'Pasó a atención'),
-                          ('hora_llegada', 'Llegó'), ('confirmacion', 'Confirmación')):
+                          ('hora_llegada', 'Llegó'), ('confirmacion', 'Confirmación'),
+                          ('seguimiento', 'Seguimiento')):
         if campo in cambiados:
             return accion
     return 'Editada'

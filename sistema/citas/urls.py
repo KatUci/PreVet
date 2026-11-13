@@ -1,7 +1,7 @@
 from django.urls import path
 
 from . import (atencion, calendario, configuracion, confirmacion, disponibilidad, documentos, espera, pagos,
-               panel, views)
+               panel, seguimiento, views)
 
 urlpatterns = [
     path('', views.listado, name='citas'),
@@ -30,6 +30,7 @@ urlpatterns = [
     path('documentos/<int:pk>/', documentos.descargar, name='documento_descargar'),
     path('documentos/<int:pk>/quitar/', documentos.quitar, name='documento_quitar'),
     path('<int:pk>/confirmacion/', confirmacion.registrar, name='cita_confirmacion'),
+    path('<int:pk>/seguimiento/', seguimiento.registrar, name='cita_seguimiento'),
     path('<int:pk>/cancelar/', calendario.cancelar, name='cita_cancelar'),
     path('<int:pk>/reagendar/', calendario.reagendar, name='cita_reagendar'),
     path('<int:pk>/editar/', views.editar, name='cita_editar'),

@@ -1697,3 +1697,77 @@ class ListaDeEsperaTest(CalendarioTest):
         self.vet.groups.add(Group.objects.get(name='Veterinarios'))
         self.client.force_login(self.vet)
         self.assertEqual(self.client.get('/citas/espera/').status_code, 403)
+
+
+class SeguimientoTrasInasistenciaTest(CalendarioTest):
+    """Llamar dentro de 24 horas al tutor que no asistió (PV-REC-07)."""
+
+    def faltar(self, horas_atras=0):
+        c = self.cita(dias=0)
+        self.ana.telefono = '9 1234 5678'
+        self.ana.save()
+        self.client.post(f'/citas/{c.pk}/no-asistio/')
+        if horas_atras:
+            Cita.objects.filter(pk=c.pk).update(
+                fecha_marcada_no_asistio=timezone.now() - timedelta(hours=horas_atras))
+        c.refresh_from_db()
+        return c
+
+    def tareas(self):
+        return self.client.get('/citas/llamadas/').context['seguimientos']
+
+    def test_al_marcar_la_inasistencia_aparece_la_tarea_con_su_plazo(self):
+        c = self.faltar()
+        [tarea] = self.tareas()
+        self.assertEqual(tarea['cita'], c)
+        self.assertFalse(tarea['atrasada'])
+        self.assertIn(tarea['horas'], (23, 24))
+        self.assertContains(self.client.get('/citas/llamadas/'), 'Llamar a quienes no asistieron')
+
+    def test_el_aviso_dice_que_hay_que_llamar(self):
+        c = self.cita(dias=0)
+        respuesta = self.client.post(f'/citas/{c.pk}/no-asistio/', follow=True)
+        self.assertTrue(any('dentro de las próximas 24 horas' in str(m) for m in respuesta.context['messages']))
+
+    def test_pasadas_las_24_horas_queda_atrasada(self):
+        self.faltar(horas_atras=30)
+        [tarea] = self.tareas()
+        self.assertTrue(tarea['atrasada'])
+        self.assertEqual(tarea['horas'], 6)
+
+    def test_despues_de_una_semana_sale_de_la_lista(self):
+        self.faltar(horas_atras=8 * 24)
+        self.assertEqual(self.tareas(), [])
+
+    def test_las_inasistencias_importadas_no_generan_tarea(self):
+        self.cita(dias=-2, estado='no_asistio')            # sin fecha en que se marcó
+        self.assertEqual(self.tareas(), [])
+
+    def test_se_cierra_con_su_resultado(self):
+        c = self.faltar()
+        respuesta = self.client.post(f'/citas/{c.pk}/seguimiento/', {'resultado': 'no_contesta'})
+        self.assertRedirects(respuesta, '/citas/llamadas/', fetch_redirect_response=False)
+        c.refresh_from_db()
+        self.assertEqual((c.seguimiento, c.seguimiento_por), ('no_contesta', self.recepcion))
+        self.assertEqual(self.tareas(), [])
+        self.assertEqual(c.cambios.first().accion, 'Seguimiento')        # queda en el historial (PV-ADM-05)
+
+    def test_si_reagendo_sigue_a_agendar_con_su_mascota(self):
+        c = self.faltar()
+        respuesta = self.client.post(f'/citas/{c.pk}/seguimiento/', {'resultado': 'reagendo'})
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertIn('/citas/nueva/?rut=15234871-1', respuesta['Location'])
+        formulario = self.client.get(respuesta['Location'])
+        self.assertEqual(str(formulario.context['form'].initial['mascota']), str(self.bruno.pk))
+
+    def test_sin_resultado_no_cierra_nada(self):
+        c = self.faltar()
+        self.client.post(f'/citas/{c.pk}/seguimiento/', {'resultado': 'cualquiera'})
+        c.refresh_from_db()
+        self.assertEqual(c.seguimiento, '')
+
+    def test_el_whatsapp_usa_el_mensaje_de_inasistencia(self):
+        self.faltar()
+        [tarea] = self.tareas()
+        self.assertTrue(tarea['whatsapp'].startswith('whatsapp://send?phone=56912345678'))
+        self.assertIn('no%20alcanzaron%20a%20venir', tarea['whatsapp'])

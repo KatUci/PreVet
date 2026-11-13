@@ -144,6 +144,20 @@ class Cita(models.Model):
                                          related_name='citas_confirmadas',
                                          verbose_name='registrada por')
 
+    # Seguimiento tras una inasistencia (PV-REC-07): hay que llamar al tutor
+    # dentro de las 24 horas siguientes para recuperar la atención. Vacío
+    # mientras nadie lo haya llamado.
+    SEGUIMIENTOS = (
+        ('reagendo', 'Reagendó'),
+        ('no_contesta', 'No contesta'),
+        ('no_quiere', 'No quiere reagendar por ahora'),
+    )
+    seguimiento = models.CharField('seguimiento tras la inasistencia', max_length=15, choices=SEGUIMIENTOS,
+                                   blank=True, default='', db_default='')
+    seguimiento_fecha = models.DateTimeField('fecha del seguimiento', null=True, blank=True)
+    seguimiento_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name='+', verbose_name='seguimiento registrado por')
+
     @property
     def dias_anticipacion(self):
         """Cuántos días antes se reservó esta hora."""
@@ -306,6 +320,7 @@ class PlantillaMensaje(models.Model):
         ('riesgo_bajo', 'Recordatorio para riesgo bajo'),
         ('recordatorio', 'Recordatorio general'),
         ('vacuna', 'Aviso de vacuna por vencer'),
+        ('inasistencia', 'Después de una inasistencia'),
     )
 
     clave = models.CharField(max_length=20, choices=CLAVES, unique=True)

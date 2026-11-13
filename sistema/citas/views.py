@@ -212,6 +212,9 @@ def marcar_no_asistio(request, pk):
         f'{cita.mascota.nombre} quedó registrada como inasistencia. '
         f'Se perdieron ${cita.tipo_atencion.precio:,}'.replace(',', '.')
     )
+    # Seguimiento (PV-REC-07): hay 24 horas para llamar y tratar de recuperarla.
+    messages.info(request, f'Llama a {cita.cliente.nombre_completo} dentro de las próximas 24 horas para '
+                           f'reagendar a {cita.mascota.nombre}: la tarea quedó en la Lista de llamadas.')
     return redirect(volver)
 
 def _buscar_cliente(request):
@@ -245,7 +248,8 @@ def agendar(request):
         if id_espera.isdigit():
             espera = EsperaHora.objects.filter(pk=id_espera, cliente=cliente,
                                                estado='esperando').select_related('mascota').first()
-        inicial = {clave: request.GET[clave] for clave in ('veterinario', 'fecha', 'hora') if request.GET.get(clave)}
+        inicial = {clave: request.GET[clave] for clave in ('mascota', 'veterinario', 'fecha', 'hora')
+                   if request.GET.get(clave)}
         if espera:
             inicial.update(mascota=espera.mascota_id, tipo_atencion=espera.tipo_atencion_id)
         form = AgendarCitaForm(request.POST or None, cliente=cliente, initial=inicial)
