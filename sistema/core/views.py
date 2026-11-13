@@ -275,6 +275,42 @@ def riesgo_exportar(request):
     return respuesta
 
 
+def _rango_fechas(g):
+    """Lee ?desde= y ?hasta= de la dirección; None si vienen vacías o mal escritas."""
+    import datetime
+
+    fechas = []
+    for clave in ('desde', 'hasta'):
+        try:
+            fechas.append(datetime.date.fromisoformat(g.get(clave, '')))
+        except ValueError:
+            fechas.append(None)
+    return fechas
+
+
+@login_required
+@permission_required('citas.ver_indicadores', raise_exception=True)
+def evaluacion_modelo(request):
+    """¿Acierta el modelo? El riesgo que estimó contra lo que pasó (PV-RIE-03)."""
+
+    from citas import riesgo as modelo
+
+    desde, hasta = _rango_fechas(request.GET)
+    resumen = modelo.resumen_evaluacion(modelo.evaluar(desde, hasta))
+    tope = max([n['tasa'] for n in resumen['niveles']] + [1])
+    for n in resumen['niveles']:
+        n['ancho'] = round(n['tasa'] / tope * 100)
+
+    return render(request, 'core/evaluacion.html', {
+        'seccion': 'evaluacion',
+        'resumen': resumen,
+        'desde': desde,
+        'hasta': hasta,
+        'umbral_alto': modelo.UMBRAL_ALTO,
+        'umbral_medio': modelo.UMBRAL_MEDIO,
+    })
+
+
 @login_required
 @permission_required('citas.ver_indicadores', raise_exception=True)
 def indicadores(request):

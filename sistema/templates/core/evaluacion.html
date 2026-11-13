@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block titulo %}¿Acierta el modelo?{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Análisis</span><span class="sep">›</span><span>¿Acierta el modelo?</span>{% endblock %}
+{% block encabezado %}¿Acierta el modelo?{% endblock %}
+{% block subtitulo %}El riesgo que estimó para cada cita pasada, comparado con lo que de verdad ocurrió{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'riesgo' %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-alerta"/></svg> Horas en riesgo
+</a>
+{% endblock %}
+
+{% block contenido %}
+
+<form method="get" class="card filtros-citas">
+    <div class="filtros-fila filtros-campos">
+        <label>Desde <input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}"></label>
+        <label>Hasta <input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}"></label>
+        <button type="submit" class="btn btn-primario">Evaluar</button>
+        {% if desde or hasta %}<a href="{% url 'evaluacion_modelo' %}" class="btn btn-suave">Todas las fechas</a>{% endif %}
+    </div>
+</form>
+
+{% if resumen.total %}
+
+<div class="kpis-dia">
+    <div class="kpi"><span class="kpi-num">{{ resumen.total }}</span><span class="kpi-txt">citas evaluadas · {{ resumen.faltas }} terminaron en falta ({{ resumen.tasa }}%)</span></div>
+    <div class="kpi kpi-mal"><span class="kpi-num">{{ resumen.niveles.0.tasa }}%</span><span class="kpi-txt">faltó en riesgo alto</span></div>
+    <div class="kpi kpi-ok"><span class="kpi-num">{{ resumen.niveles.2.tasa }}%</span><span class="kpi-txt">faltó en riesgo bajo</span></div>
+    <div class="kpi kpi-info"><span class="kpi-num">{{ resumen.anticipadas }}%</span><span class="kpi-txt">de las faltas se marcaron con riesgo alto o medio</span></div>
+    <div class="kpi"><span class="kpi-num">{{ resumen.aciertos }}%</span><span class="kpi-txt">de aciertos (avisó a quien faltó y no a quien llegó)</span></div>
+</div>
+
+<div class="card" style="margin-bottom:1.6rem">
+    <div class="card-titulo">
+        <h2>¿Cuántos faltaron en cada nivel de riesgo?</h2>
+        <span class="badge badge-neutro">alto desde {{ umbral_alto }} pts · medio desde {{ umbral_medio }}</span>
+    </div>
+
+    {% for n in resumen.niveles %}
+    <div style="display:grid; grid-template-columns:120px 1fr 210px; align-items:center; gap:1rem; padding:.55rem 0">
+        <div><span class="nivel nivel-{{ n.nivel }}">{{ n.nivel|capfirst }}</span></div>
+        <div style="background:var(--tinte); height:24px; position:relative">
+            <div class="tramo-{{ n.nivel }}" style="width:{{ n.ancho }}%; height:100%"></div>
+            <span style="position:absolute; left:.6rem; top:3px; font-size:.78rem; font-weight:700; color:var(--titulo)">{{ n.tasa }}%</span>
+        </div>
+        <div style="font-size:.78rem; color:var(--gris); text-align:right">
+            {{ n.faltas }} faltas de {{ n.citas }} citas · {{ n.de_las_faltas }}% de todas las faltas
+        </div>
+    </div>
+    {% endfor %}
+
+    <div style="font-size:.85rem; color:var(--titulo); margin-top:.9rem; padding-top:.8rem; border-top:1px solid var(--borde)">
+        {% if resumen.veces and resumen.veces > 1 %}
+        En las citas de <b>riesgo alto</b> faltó el {{ resumen.niveles.0.tasa }}% de los tutores: <b>{{ resumen.veces }} veces más</b>
+        que en las de riesgo bajo ({{ resumen.niveles.2.tasa }}%). Si el modelo acierta, la falta debe subir de bajo a medio y de medio a alto.
+        {% elif resumen.veces is not None %}
+        En las citas de <b>riesgo alto</b> faltó el {{ resumen.niveles.0.tasa }}%, <b>no más</b> que en las de riesgo bajo
+        ({{ resumen.niveles.2.tasa }}%): con estos datos el modelo <b>no está separando</b> a quienes faltan de quienes llegan.
+        Para corregirlo se ajustan los pesos de los factores.
+        {% else %}
+        Todavía no hay citas suficientes en riesgo alto y bajo para compararlas.
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-titulo"><h2>Cómo se mide</h2></div>
+    <ul style="font-size:.85rem; color:var(--gris); line-height:1.6; padding-left:1.1rem; margin:0">
+        <li>Cada cita pasada se puntúa <b>solo con lo que se sabía antes de su fecha</b>, como si el modelo la hubiera evaluado ese día. Su propio resultado no influye en su puntaje.</li>
+        <li>Se evalúan las citas que ya se resolvieron (atendidas o con inasistencia). Las canceladas y las atenciones sin hora no cuentan.</li>
+        <li>Las primeras citas se evalúan con poco historial, así que el modelo mejora a medida que se acumulan datos.</li>
+        <li>La evaluación se hace con datos de prueba del sistema.</li>
+    </ul>
+</div>
+
+{% else %}
+<div class="card"><p class="vacio">No hay citas resueltas en esas fechas para evaluar el modelo.</p></div>
+{% endif %}
+
+{% endblock %}

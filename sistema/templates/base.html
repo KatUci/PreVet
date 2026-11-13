@@ -151,6 +151,9 @@
             <a href="/indicadores/" class="sb-link {% if seccion == 'indicadores' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-grafico"/></svg> Indicadores
             </a>
+            <a href="{% url 'evaluacion_modelo' %}" class="sb-link {% if seccion == 'evaluacion' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-check"/></svg> ¿Acierta el modelo?
+            </a>
             {% endif %}
             {% endif %}
 

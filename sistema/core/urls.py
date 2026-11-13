@@ -8,6 +8,7 @@ urlpatterns = [
     path('buscar/', views.buscar, name='buscar'),
     path('riesgo/', views.riesgo, name='riesgo'),
     path('riesgo/exportar/', views.riesgo_exportar, name='riesgo_exportar'),
+    path('riesgo/evaluacion/', views.evaluacion_modelo, name='evaluacion_modelo'),
     path('importar/', importar.importar, name='importar'),
     path('importar/plantilla/<str:tipo>/', importar.plantilla, name='importar_plantilla'),
 ]

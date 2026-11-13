@@ -5,6 +5,8 @@ se presente. No usa aprendizaje automático: son reglas ponderadas sobre
 el historial, de modo que cada puntaje se puede explicar.
 """
 
+from django.utils import timezone
+
 from .models import Cita
 
 # Cuánto pesa cada factor sobre un total de 100.
@@ -31,53 +33,65 @@ def _tasa(faltas, total):
     return faltas / total if total else None
 
 
+def resueltas():
+    """Las citas de las que ya se sabe si el tutor llegó o no.
+
+    Las atenciones sin hora no cuentan: el paciente ya estaba en la clínica,
+    así que siempre "asiste" y haría ver el riesgo más bajo de lo que es.
+    """
+    return Cita.objects.filter(estado__in=['completada', 'no_asistio']).exclude(sin_hora=True)
+
+
+class Historial:
+    """Va contando asistencias y faltas por día, tipo de atención y tutor.
+
+    Se puede llenar de una vez (para puntuar las citas pendientes) o de a
+    poco, fecha por fecha, para evaluar el modelo como si se hubiera usado
+    en el pasado (ver evaluar()).
+    """
+
+    def __init__(self):
+        self.por_dia, self.por_tipo, self.por_tutor = {}, {}, {}
+        self.total = self.faltas = 0
+
+    def agregar(self, cita):
+        falto = cita.estado == 'no_asistio'
+        self.total += 1
+        self.faltas += falto
+        # El historial es de la persona que agenda, no de la mascota.
+        for cuenta, clave in ((self.por_dia, cita.fecha.weekday()),
+                              (self.por_tipo, cita.tipo_atencion_id),
+                              (self.por_tutor, cita.cliente_id)):
+            cuenta.setdefault(clave, [0, 0])
+            cuenta[clave][0] += falto
+            cuenta[clave][1] += 1
+
+    def stats(self):
+        tasas_dia = {d: _tasa(*v) for d, v in self.por_dia.items()}
+        tasas_tipo = {t: _tasa(*v) for t, v in self.por_tipo.items()}
+        return {
+            'global': _tasa(self.faltas, self.total) or 0,
+            'dia': tasas_dia,
+            'tipo': tasas_tipo,
+            # Copia: si después se siguen agregando citas, estas tasas no cambian.
+            'tutor': {t: tuple(v) for t, v in self.por_tutor.items()},
+            # Las tasas de día y tipo se comparan contra la peor observada,
+            # para que el factor quede entre 0 y 1.
+            'peor_dia': max(tasas_dia.values(), default=0) or 1,
+            'peor_tipo': max(tasas_tipo.values(), default=0) or 1,
+        }
+
+
 def estadisticas():
     """Calcula de una sola vez las tasas históricas que necesita el modelo.
 
     Se hace así, y no consultando dentro del bucle, para no golpear la
     base de datos una vez por cita.
     """
-    # Las atenciones sin hora no cuentan: el paciente ya estaba en la clínica,
-    # así que siempre "asiste" y haría ver el riesgo más bajo de lo que es.
-    resueltas = Cita.objects.filter(estado__in=['completada', 'no_asistio']).exclude(sin_hora=True)
-
-    por_dia, por_tipo, por_tutor = {}, {}, {}
-    total_global = faltas_global = 0
-
-    for cita in resueltas.select_related('tipo_atencion'):
-        falto = cita.estado == 'no_asistio'
-        total_global += 1
-        faltas_global += falto
-
-        dia = cita.fecha.weekday()
-        por_dia.setdefault(dia, [0, 0])
-        por_dia[dia][0] += falto
-        por_dia[dia][1] += 1
-
-        tipo = cita.tipo_atencion_id
-        por_tipo.setdefault(tipo, [0, 0])
-        por_tipo[tipo][0] += falto
-        por_tipo[tipo][1] += 1
-
-        # El historial es de la persona que agenda, no de la mascota.
-        tutor = cita.cliente_id
-        por_tutor.setdefault(tutor, [0, 0])
-        por_tutor[tutor][0] += falto
-        por_tutor[tutor][1] += 1
-
-    tasas_dia = {d: _tasa(*v) for d, v in por_dia.items()}
-    tasas_tipo = {t: _tasa(*v) for t, v in por_tipo.items()}
-
-    return {
-        'global': _tasa(faltas_global, total_global) or 0,
-        'dia': tasas_dia,
-        'tipo': tasas_tipo,
-        'tutor': por_tutor,
-        # Las tasas de día y tipo se comparan contra la peor observada,
-        # para que el factor quede entre 0 y 1.
-        'peor_dia': max(tasas_dia.values(), default=0) or 1,
-        'peor_tipo': max(tasas_tipo.values(), default=0) or 1,
-    }
+    historial = Historial()
+    for cita in resueltas():
+        historial.agregar(cita)
+    return historial.stats()
 
 
 def puntuar(cita, stats):
@@ -126,3 +140,72 @@ def puntuar(cita, stats):
         nivel = 'bajo'
 
     return puntaje, nivel, ACCIONES[nivel], detalle
+
+def evaluar(desde=None, hasta=None):
+    """¿Acierta el modelo? Compara el riesgo estimado con lo que pasó (PV-RIE-03).
+
+    Recorre las citas resueltas de la más antigua a la más nueva y puntúa
+    cada una solo con el historial de las fechas anteriores, como si el
+    modelo la hubiera evaluado el día antes. Si se usara todo el historial,
+    la falta de la propia cita subiría su puntaje y el modelo parecería
+    acertar más de lo que acierta.
+
+    Devuelve una lista de (cita, puntaje, nivel), solo de las citas entre
+    `desde` y `hasta`; las anteriores igual alimentan el historial.
+    """
+    from itertools import groupby
+
+    citas = (resueltas().select_related('tipo_atencion')
+             .filter(fecha__lt=timezone.localdate()).order_by('fecha', 'hora'))
+    if hasta:
+        citas = citas.filter(fecha__lte=hasta)
+
+    historial = Historial()
+    evaluadas = []
+    for fecha, del_dia in groupby(citas, key=lambda c: c.fecha):
+        del_dia = list(del_dia)
+        if not desde or fecha >= desde:
+            stats = historial.stats()
+            for cita in del_dia:
+                puntaje, nivel, _, _ = puntuar(cita, stats)
+                evaluadas.append((cita, puntaje, nivel))
+        for cita in del_dia:
+            historial.agregar(cita)
+    return evaluadas
+
+
+def resumen_evaluacion(evaluadas):
+    """Cuántas citas cayeron en cada nivel y cuántas de ellas terminaron en falta."""
+    total = len(evaluadas)
+    faltas = sum(1 for c, _, _ in evaluadas if c.estado == 'no_asistio')
+    niveles = []
+    for nivel in ('alto', 'medio', 'bajo'):
+        grupo = [c for c, _, n in evaluadas if n == nivel]
+        faltaron = sum(1 for c in grupo if c.estado == 'no_asistio')
+        niveles.append({
+            'nivel': nivel,
+            'citas': len(grupo),
+            'faltas': faltaron,
+            'asistieron': len(grupo) - faltaron,
+            'tasa': round(faltaron / len(grupo) * 100, 1) if grupo else 0,
+            # Qué parte de todas las faltas cayó en este nivel.
+            'de_las_faltas': round(faltaron / faltas * 100) if faltas else 0,
+        })
+    por_nivel = {n['nivel']: n for n in niveles}
+
+    # Se cuenta como acierto avisar (alto o medio) a quien faltó y no
+    # avisar (bajo) a quien llegó.
+    aciertos = (por_nivel['alto']['faltas'] + por_nivel['medio']['faltas']
+                + por_nivel['bajo']['asistieron'])
+    bajo = por_nivel['bajo']['tasa']
+    return {
+        'total': total,
+        'faltas': faltas,
+        'tasa': round(faltas / total * 100, 1) if total else 0,
+        'niveles': niveles,
+        'aciertos': round(aciertos / total * 100) if total else 0,
+        # De todas las faltas, cuántas el modelo marcó con riesgo alto o medio.
+        'anticipadas': por_nivel['alto']['de_las_faltas'] + por_nivel['medio']['de_las_faltas'],
+        # Cuántas veces más se falta en riesgo alto que en riesgo bajo.
+        'veces': round(por_nivel['alto']['tasa'] / bajo, 1) if bajo and por_nivel['alto']['citas'] else None,
+    }
