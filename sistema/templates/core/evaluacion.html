@@ -6,6 +6,11 @@
 {% block subtitulo %}El riesgo que estimó para cada cita pasada, comparado con lo que de verdad ocurrió{% endblock %}
 
 {% block acciones %}
+{% if perms.citas.change_pesosmodelo %}
+<a href="{% url 'pesos_modelo' %}" class="btn btn-suave">
+    <svg class="icono-sm"><use href="#i-grafico"/></svg> Ajustar pesos
+</a>
+{% endif %}
 <a href="{% url 'riesgo' %}" class="btn btn-suave">
     <svg class="icono-sm"><use href="#i-alerta"/></svg> Horas en riesgo
 </a>

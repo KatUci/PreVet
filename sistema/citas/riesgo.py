@@ -7,13 +7,15 @@ el historial, de modo que cada puntaje se puede explicar.
 
 from django.utils import timezone
 
-from .models import Cita
+from .models import Cita, PesosModelo
 
-# Cuánto pesa cada factor sobre un total de 100.
+# Cuánto pesa cada factor sobre un total de 100. Son los pesos originales:
+# administración puede ajustarlos desde Configuración (PV-RIE-04).
 PESO_TUTOR = 40
 PESO_ANTICIPACION = 20
 PESO_DIA = 20
 PESO_TIPO = 20
+PESOS_ORIGINALES = {'tutor': PESO_TUTOR, 'anticipacion': PESO_ANTICIPACION, 'dia': PESO_DIA, 'tipo': PESO_TIPO}
 
 # Una reserva hecha con esta anticipación o más se considera el máximo riesgo.
 DIAS_MAXIMA_ANTICIPACION = 21
@@ -26,6 +28,12 @@ ACCIONES = {
     'medio': 'Reforzar el recordatorio el día anterior',
     'bajo': 'Sin acción',
 }
+
+
+def pesos_actuales():
+    """Los pesos que usa el modelo: los ajustados por administración o, si nadie los ha cambiado, los originales."""
+    ajustados = PesosModelo.objects.first()
+    return ajustados.como_dict() if ajustados else dict(PESOS_ORIGINALES)
 
 
 def _tasa(faltas, total):
@@ -91,7 +99,9 @@ def estadisticas():
     historial = Historial()
     for cita in resueltas():
         historial.agregar(cita)
-    return historial.stats()
+    stats = historial.stats()
+    stats['pesos'] = pesos_actuales()
+    return stats
 
 
 def puntuar(cita, stats):
@@ -102,32 +112,33 @@ def puntuar(cita, stats):
     """
     detalle = []
     puntaje = 0
+    pesos = stats.get('pesos') or PESOS_ORIGINALES
 
     # 1. Historial del tutor
     faltas, total = stats['tutor'].get(cita.cliente_id, (0, 0))
     if total == 0:
-        aporte = PESO_TUTOR * 0.375        # primera visita: incertidumbre
+        aporte = pesos['tutor'] * 0.375    # primera visita: incertidumbre
         detalle.append('Primera visita, sin historial')
     else:
         tasa = faltas / total
-        aporte = PESO_TUTOR * tasa
+        aporte = pesos['tutor'] * tasa
         detalle.append(f'Ha faltado {faltas} de {total} veces')
     puntaje += aporte
 
     # 2. Anticipación de la reserva
     dias = max(cita.dias_anticipacion, 0)
     proporcion = min(dias / DIAS_MAXIMA_ANTICIPACION, 1)
-    puntaje += PESO_ANTICIPACION * proporcion
+    puntaje += pesos['anticipacion'] * proporcion
     detalle.append(f'Reservada con {dias} días de anticipación')
 
     # 3. Día de la semana
     tasa_dia = stats['dia'].get(cita.fecha.weekday()) or stats['global']
-    puntaje += PESO_DIA * (tasa_dia / stats['peor_dia'])
+    puntaje += pesos['dia'] * (tasa_dia / stats['peor_dia'])
     detalle.append(f'Ese día falta el {tasa_dia * 100:.0f}% de la gente')
 
     # 4. Tipo de atención
     tasa_tipo = stats['tipo'].get(cita.tipo_atencion_id) or stats['global']
-    puntaje += PESO_TIPO * (tasa_tipo / stats['peor_tipo'])
+    puntaje += pesos['tipo'] * (tasa_tipo / stats['peor_tipo'])
     detalle.append(f'A {cita.tipo_atencion.nombre} falta el {tasa_tipo * 100:.0f}%')
 
     puntaje = round(min(puntaje, 100))
@@ -141,7 +152,7 @@ def puntuar(cita, stats):
 
     return puntaje, nivel, ACCIONES[nivel], detalle
 
-def evaluar(desde=None, hasta=None):
+def evaluar(desde=None, hasta=None, pesos=None):
     """¿Acierta el modelo? Compara el riesgo estimado con lo que pasó (PV-RIE-03).
 
     Recorre las citas resueltas de la más antigua a la más nueva y puntúa
@@ -151,7 +162,8 @@ def evaluar(desde=None, hasta=None):
     acertar más de lo que acierta.
 
     Devuelve una lista de (cita, puntaje, nivel), solo de las citas entre
-    `desde` y `hasta`; las anteriores igual alimentan el historial.
+    `desde` y `hasta`; las anteriores igual alimentan el historial. Con
+    `pesos` se prueba otra combinación sin guardarla (PV-RIE-04).
     """
     from itertools import groupby
 
@@ -160,12 +172,14 @@ def evaluar(desde=None, hasta=None):
     if hasta:
         citas = citas.filter(fecha__lte=hasta)
 
+    pesos = pesos or pesos_actuales()
     historial = Historial()
     evaluadas = []
     for fecha, del_dia in groupby(citas, key=lambda c: c.fecha):
         del_dia = list(del_dia)
         if not desde or fecha >= desde:
             stats = historial.stats()
+            stats['pesos'] = pesos
             for cita in del_dia:
                 puntaje, nivel, _, _ = puntuar(cita, stats)
                 evaluadas.append((cita, puntaje, nivel))

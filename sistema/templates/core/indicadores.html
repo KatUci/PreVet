@@ -115,7 +115,7 @@
 <div class="card" style="margin-bottom:1.6rem">
     <div class="card-titulo">
         <h2>¿Qué atenciones se faltan más?</h2>
-        <span class="badge badge-neutro">peso 20 en el modelo</span>
+        <span class="badge badge-neutro">peso {{ pesos.tipo }} en el modelo</span>
     </div>
 
     {% for f in por_tipo %}
@@ -145,7 +145,7 @@
 <div class="card" style="margin-bottom:1.6rem">
     <div class="card-titulo">
         <h2>¿Influye cuánto antes se pidió la hora?</h2>
-        <span class="badge badge-neutro">peso 20 en el modelo</span>
+        <span class="badge badge-neutro">peso {{ pesos.anticipacion }} en el modelo</span>
     </div>
 
     {% for f in por_anticipacion %}
@@ -176,7 +176,7 @@
 <div class="card">
     <div class="card-titulo">
         <h2>¿Quiénes faltan más de una vez?</h2>
-        <span class="badge badge-azul">peso 40, el más alto</span>
+        <span class="badge badge-azul">peso {{ pesos.tutor }} en el modelo</span>
     </div>
 
     <div class="tabla-wrap">
@@ -215,7 +215,7 @@
     <div style="font-size:.8rem; color:var(--gris); margin-top:.9rem;
                 padding-top:.8rem; border-top:1px solid var(--borde)">
         El historial del tutor es el factor que más predice: quien faltó antes tiende
-        a faltar de nuevo. Por eso vale el doble que los demás en el puntaje.
+        a faltar de nuevo. Con los pesos originales vale el doble que cada uno de los demás factores.
     </div>
 </div>
 

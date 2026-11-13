@@ -201,6 +201,7 @@ def riesgo(request):
 
     evaluadas, filtros, resumen = _evaluar_riesgo(request.GET)
     pagina = Paginator(evaluadas, 15).get_page(request.GET.get('pagina'))
+    pesos = modelo.pesos_actuales()
 
     parametros = request.GET.copy()
     parametros.pop('pagina', None)
@@ -222,10 +223,10 @@ def riesgo(request):
         'atajos': [('Hoy', hoy, hoy), ('Mañana', manana, manana),
                    ('Próximos 7 días', hoy, hoy + datetime.timedelta(days=6))],
         'hay_filtros': any(request.GET.get(k) for k in ('q', 'nivel', 'veterinario', 'desde', 'hasta')),
-        'pesos': [('Historial de faltas del tutor', modelo.PESO_TUTOR),
-                  ('Días de anticipación de la reserva', modelo.PESO_ANTICIPACION),
-                  ('Día de la semana', modelo.PESO_DIA),
-                  ('Tipo de atención', modelo.PESO_TIPO)],
+        'pesos': [('Historial de faltas del tutor', pesos['tutor']),
+                  ('Días de anticipación de la reserva', pesos['anticipacion']),
+                  ('Día de la semana', pesos['dia']),
+                  ('Tipo de atención', pesos['tipo'])],
         'umbral_alto': modelo.UMBRAL_ALTO,
         'umbral_medio': modelo.UMBRAL_MEDIO,
         'acciones': modelo.ACCIONES,
@@ -321,6 +322,7 @@ def indicadores(request):
     import datetime
 
     from citas.models import Pago
+    from citas.riesgo import pesos_actuales
 
     hoy = timezone.localdate()
     desde, hasta = _rango_fechas(request.GET)
@@ -428,6 +430,7 @@ def indicadores(request):
         'por_tipo': por_tipo,
         'por_anticipacion': por_anticipacion,
         'reincidentes': reincidentes,
+        'pesos': pesos_actuales(),
         'general': resumen(ocurridas),
     })
 

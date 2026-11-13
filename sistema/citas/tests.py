@@ -1500,3 +1500,62 @@ class PagosTest(RecepcionLogueada):
         Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva', usuario=otro)
         self.client.force_login(otro)
         self.assertEqual(self.client.get(f'/mi-prevet/pagos/{pago.pk}/').status_code, 404)
+
+
+class PesosDelModeloTest(BaseCitas):
+    """Administración ajusta cuánto pesa cada factor (PV-RIE-04)."""
+
+    URL = '/citas/modelo/pesos/'
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth.models import Group
+        self.tutor.groups.add(Group.objects.get(name='Administración'))
+        self.client.force_login(self.tutor)
+
+    def datos(self, tutor=40, anticipacion=20, dia=20, tipo=20, accion='guardar'):
+        return {'peso_tutor': tutor, 'peso_anticipacion': anticipacion, 'peso_dia': dia, 'peso_tipo': tipo,
+                'accion': accion}
+
+    def test_sin_ajustes_usa_los_pesos_originales(self):
+        self.assertEqual(riesgo.pesos_actuales(), riesgo.PESOS_ORIGINALES)
+
+    def test_pesos_que_suman_cien_se_aplican(self):
+        respuesta = self.client.post(self.URL, self.datos(tutor=70, anticipacion=0, dia=10, tipo=20))
+        self.assertRedirects(respuesta, self.URL)
+        self.assertEqual(riesgo.pesos_actuales(), {'tutor': 70, 'anticipacion': 0, 'dia': 10, 'tipo': 20})
+        self.assertEqual(riesgo.estadisticas()['pesos']['tutor'], 70)
+
+    def test_pesos_que_no_suman_cien_muestran_error_y_no_se_aplican(self):
+        respuesta = self.client.post(self.URL, self.datos(tutor=50))
+        self.assertContains(respuesta, 'Los pesos suman 110 y deben sumar 100')
+        self.assertEqual(riesgo.pesos_actuales(), riesgo.PESOS_ORIGINALES)
+
+    def test_el_puntaje_usa_los_pesos_guardados(self):
+        self.crear_cita(estado='no_asistio', dias=-3)
+        cita = self.crear_cita(anticipacion=0)
+        self.client.post(self.URL, self.datos(tutor=100, anticipacion=0, dia=0, tipo=0))
+        # Solo cuenta el tutor, que faltó 1 de 1 veces: 100 puntos.
+        self.assertEqual(riesgo.puntuar(cita, riesgo.estadisticas())[0], 100)
+
+    def test_probar_compara_sin_guardar(self):
+        self.crear_cita(estado='no_asistio', dias=-10)
+        self.crear_cita(estado='completada', dias=-5)
+        respuesta = self.client.post(self.URL, self.datos(tutor=10, anticipacion=30, dia=30, tipo=30,
+                                                          accion='probar'))
+        self.assertContains(respuesta, '¿Acierta más con estos pesos?')
+        self.assertEqual(len(respuesta.context['comparacion']), 5)
+        self.assertFalse(riesgo.PesosModelo.objects.exists())
+
+    def test_volver_a_los_originales_solo_llena_el_formulario(self):
+        self.client.post(self.URL, self.datos(tutor=70, anticipacion=0, dia=10, tipo=20))
+        respuesta = self.client.post(self.URL, {'accion': 'originales'})
+        self.assertEqual(respuesta.context['form']['peso_tutor'].value(), 40)
+        self.assertEqual(riesgo.pesos_actuales()['tutor'], 70)          # todavía no se guardan
+
+    def test_recepcion_no_puede_cambiarlos(self):
+        from django.contrib.auth.models import Group
+        recepcion = User.objects.create_user('recep')
+        recepcion.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(recepcion)
+        self.assertEqual(self.client.get(self.URL).status_code, 403)

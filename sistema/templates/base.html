@@ -172,7 +172,7 @@
             {% endif %}
             {% endif %}
 
-            {% if perms.citas.change_tipoatencion or perms.citas.change_horarioatencion or perms.mascotas.change_especie or perms.mascotas.change_etiqueta or perms.citas.change_plantillamensaje or perms.mascotas.importar_datos %}
+            {% if perms.citas.change_tipoatencion or perms.citas.change_horarioatencion or perms.mascotas.change_especie or perms.mascotas.change_etiqueta or perms.citas.change_plantillamensaje or perms.mascotas.importar_datos or perms.citas.change_pesosmodelo %}
             <div class="sb-seccion">Configuración</div>
             {% if perms.citas.change_tipoatencion %}
             <a href="{% url 'tipos_atencion' %}" class="sb-link {% if seccion == 'tipos' %}activo{% endif %}">
@@ -192,6 +192,11 @@
             {% if perms.citas.change_plantillamensaje %}
             <a href="{% url 'mensajes' %}" class="sb-link {% if seccion == 'mensajes' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-lista"/></svg> Mensajes de WhatsApp
+            </a>
+            {% endif %}
+            {% if perms.citas.change_pesosmodelo %}
+            <a href="{% url 'pesos_modelo' %}" class="sb-link {% if seccion == 'pesos' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-grafico"/></svg> Pesos del modelo
             </a>
             {% endif %}
             {% if perms.mascotas.change_especie %}

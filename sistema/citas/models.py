@@ -319,3 +319,30 @@ class PlantillaMensaje(models.Model):
         verbose_name = "plantilla de mensaje"
         verbose_name_plural = "plantillas de mensajes"
         ordering = ['clave']
+
+
+class PesosModelo(models.Model):
+    """Cuánto pesa cada factor en el puntaje de riesgo (PV-RIE-04).
+
+    Hay una sola fila. Mientras administración no ajuste los pesos, el modelo
+    usa los originales de riesgo.py (40, 20, 20 y 20). Deben sumar 100.
+    """
+
+    peso_tutor = models.PositiveSmallIntegerField('historial de faltas del tutor')
+    peso_anticipacion = models.PositiveSmallIntegerField('días de anticipación de la reserva')
+    peso_dia = models.PositiveSmallIntegerField('día de la semana')
+    peso_tipo = models.PositiveSmallIntegerField('tipo de atención')
+
+    modificado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    fecha_modificacion = models.DateTimeField('última modificación', auto_now=True)
+
+    def como_dict(self):
+        return {'tutor': self.peso_tutor, 'anticipacion': self.peso_anticipacion,
+                'dia': self.peso_dia, 'tipo': self.peso_tipo}
+
+    def __str__(self):
+        return 'Pesos del modelo de riesgo'
+
+    class Meta:
+        verbose_name = "pesos del modelo de riesgo"
+        verbose_name_plural = "pesos del modelo de riesgo"
