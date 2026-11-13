@@ -1350,9 +1350,10 @@ class PlantillasDeMensajesTest(BaseCitas):
         self.client.force_login(self.tutor)
         self.assertEqual(self.client.get('/citas/mensajes/').status_code, 403)
 
-    def test_el_listado_muestra_las_cinco_plantillas(self):
+    def test_el_listado_muestra_las_seis_plantillas(self):
+        # La sexta, "Después de una inasistencia", es del seguimiento (PV-REC-07).
         respuesta = self.client.get('/citas/mensajes/')
-        self.assertEqual(len(respuesta.context['filas']), 5)
+        self.assertEqual(len(respuesta.context['filas']), 6)
 
 
 class DocumentosAdjuntosTest(TestCase):
