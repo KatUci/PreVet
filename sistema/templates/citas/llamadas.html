@@ -23,6 +23,50 @@
     {% endif %}
 </div>
 
+{# ---------- Llamar a quienes no asistieron (PV-REC-07) ---------- #}
+{% if seguimientos %}
+<section class="card" style="margin-bottom:1.2rem">
+    <div class="card-titulo">
+        <h2><svg class="icono"><use href="#i-reloj"/></svg> Llamar a quienes no asistieron</h2>
+        <span class="badge badge-neutro">plazo de 24 horas</span>
+    </div>
+    <ul class="lista-llamadas">
+        {% for s in seguimientos %}
+        {% with c=s.cita %}
+        <li>
+            <span class="nivel {% if s.atrasada %}nivel-alto{% else %}nivel-medio{% endif %}">{{ c.mascota.especie.emoji }}</span>
+            <div class="llamada-txt">
+                <b>{{ c.mascota.nombre }} · faltó el {{ c.fecha|date:"l j"|lower }} a las {{ c.hora|time:"H:i" }} · {{ c.tipo_atencion.nombre }}</b>
+                <span>{{ c.cliente.nombre_completo }} · {{ c.cliente.telefono|default:"sin teléfono" }} · con {{ c.veterinario.get_full_name }}</span>
+                <span class="celda-sub">
+                    {% if s.atrasada %}<span class="etiqueta etiqueta-mal">Atrasada {{ s.horas }} h</span>
+                    {% else %}<span class="etiqueta etiqueta-warn">Quedan {{ s.horas }} h</span>{% endif %}
+                    Llamar antes del {{ s.vence|date:"d/m H:i" }}
+                </span>
+                {% if perms.citas.change_cita %}
+                <form method="post" action="{% url 'cita_seguimiento' c.pk %}" class="conf-botones">
+                    {% csrf_token %}
+                    {% for valor, texto in resultados_seguimiento %}
+                    <button type="submit" name="resultado" value="{{ valor }}" class="btn btn-suave btn-chico">{{ texto }}</button>
+                    {% endfor %}
+                </form>
+                {% endif %}
+            </div>
+            <div class="llamada-acciones">
+                {% if c.cliente.telefono %}
+                {% include 'citas/_llamar.html' with telefono=c.cliente.telefono chico=True %}
+                {% if s.whatsapp %}<a class="btn btn-suave btn-chico" href="{{ s.whatsapp }}" title="WhatsApp para reagendar">💬</a>{% endif %}
+                {% else %}
+                <span class="etiqueta etiqueta-neutro">Sin teléfono</span>
+                {% endif %}
+            </div>
+        </li>
+        {% endwith %}
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
 {# ---------- Avance ---------- #}
 <div class="kpis-dia">
     <div class="kpi"><span class="kpi-num">{{ avance.total }}</span><span class="kpi-txt">citas pendientes</span></div>

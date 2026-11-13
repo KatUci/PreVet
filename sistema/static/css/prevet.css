@@ -2247,3 +2247,9 @@ select option { background: var(--solido); color: var(--texto); }
 .comprobante-pie { margin-top: 1rem; color: var(--gris); font-size: .78rem; text-align: center; }
 a.kpi { text-decoration: none; color: inherit; }
 @media print { .comprobante { border: 1px solid #999; } }
+
+/* ------------ HISTORIAL DE CAMBIOS DE LA CITA (PV-ADM-05) ------------ */
+.det-historial summary { cursor: pointer; list-style: revert; }
+.historial-cambios { list-style: none; margin: .6rem 0 0; padding: 0 0 0 .9rem; border-left: 2px solid var(--borde); }
+.historial-cambios li { padding: .35rem 0; font-size: .86rem; }
+.historial-cambios li b { color: var(--titulo); margin-right: .35rem; }

@@ -1350,9 +1350,10 @@ class PlantillasDeMensajesTest(BaseCitas):
         self.client.force_login(self.tutor)
         self.assertEqual(self.client.get('/citas/mensajes/').status_code, 403)
 
-    def test_el_listado_muestra_las_cinco_plantillas(self):
+    def test_el_listado_muestra_las_seis_plantillas(self):
+        # La sexta, "Después de una inasistencia", es del seguimiento (PV-REC-07).
         respuesta = self.client.get('/citas/mensajes/')
-        self.assertEqual(len(respuesta.context['filas']), 5)
+        self.assertEqual(len(respuesta.context['filas']), 6)
 
 
 class DocumentosAdjuntosTest(TestCase):
@@ -1500,3 +1501,274 @@ class PagosTest(RecepcionLogueada):
         Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva', usuario=otro)
         self.client.force_login(otro)
         self.assertEqual(self.client.get(f'/mi-prevet/pagos/{pago.pk}/').status_code, 404)
+
+
+class PesosDelModeloTest(BaseCitas):
+    """Administración ajusta cuánto pesa cada factor (PV-RIE-04)."""
+
+    URL = '/citas/modelo/pesos/'
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth.models import Group
+        self.tutor.groups.add(Group.objects.get(name='Administración'))
+        self.client.force_login(self.tutor)
+
+    def datos(self, tutor=40, anticipacion=20, dia=20, tipo=20, accion='guardar'):
+        return {'peso_tutor': tutor, 'peso_anticipacion': anticipacion, 'peso_dia': dia, 'peso_tipo': tipo,
+                'accion': accion}
+
+    def test_sin_ajustes_usa_los_pesos_originales(self):
+        self.assertEqual(riesgo.pesos_actuales(), riesgo.PESOS_ORIGINALES)
+
+    def test_pesos_que_suman_cien_se_aplican(self):
+        respuesta = self.client.post(self.URL, self.datos(tutor=70, anticipacion=0, dia=10, tipo=20))
+        self.assertRedirects(respuesta, self.URL)
+        self.assertEqual(riesgo.pesos_actuales(), {'tutor': 70, 'anticipacion': 0, 'dia': 10, 'tipo': 20})
+        self.assertEqual(riesgo.estadisticas()['pesos']['tutor'], 70)
+
+    def test_pesos_que_no_suman_cien_muestran_error_y_no_se_aplican(self):
+        respuesta = self.client.post(self.URL, self.datos(tutor=50))
+        self.assertContains(respuesta, 'Los pesos suman 110 y deben sumar 100')
+        self.assertEqual(riesgo.pesos_actuales(), riesgo.PESOS_ORIGINALES)
+
+    def test_el_puntaje_usa_los_pesos_guardados(self):
+        self.crear_cita(estado='no_asistio', dias=-3)
+        cita = self.crear_cita(anticipacion=0)
+        self.client.post(self.URL, self.datos(tutor=100, anticipacion=0, dia=0, tipo=0))
+        # Solo cuenta el tutor, que faltó 1 de 1 veces: 100 puntos.
+        self.assertEqual(riesgo.puntuar(cita, riesgo.estadisticas())[0], 100)
+
+    def test_probar_compara_sin_guardar(self):
+        self.crear_cita(estado='no_asistio', dias=-10)
+        self.crear_cita(estado='completada', dias=-5)
+        respuesta = self.client.post(self.URL, self.datos(tutor=10, anticipacion=30, dia=30, tipo=30,
+                                                          accion='probar'))
+        self.assertContains(respuesta, '¿Acierta más con estos pesos?')
+        self.assertEqual(len(respuesta.context['comparacion']), 5)
+        self.assertFalse(riesgo.PesosModelo.objects.exists())
+
+    def test_volver_a_los_originales_solo_llena_el_formulario(self):
+        self.client.post(self.URL, self.datos(tutor=70, anticipacion=0, dia=10, tipo=20))
+        respuesta = self.client.post(self.URL, {'accion': 'originales'})
+        self.assertEqual(respuesta.context['form']['peso_tutor'].value(), 40)
+        self.assertEqual(riesgo.pesos_actuales()['tutor'], 70)          # todavía no se guardan
+
+    def test_recepcion_no_puede_cambiarlos(self):
+        from django.contrib.auth.models import Group
+        recepcion = User.objects.create_user('recep')
+        recepcion.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(recepcion)
+        self.assertEqual(self.client.get(self.URL).status_code, 403)
+
+
+class HistorialDeCambiosTest(CalendarioTest):
+    """Quién cambió cada cita, qué cambió y cuándo (PV-ADM-05)."""
+
+    def ultimo(self, cita):
+        return cita.cambios.first()
+
+    def test_al_crearla_queda_agendada_sin_usuario_si_no_hay_peticion(self):
+        c = self.cita()
+        cambio = self.ultimo(c)
+        self.assertEqual((cambio.accion, cambio.usuario), ('Agendada', None))
+        self.assertIn('10:00', cambio.detalle)
+
+    def test_reagendar_anota_quien_y_que_cambio(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/reagendar/', {
+            'veterinario': self.otro_vet.pk, 'fecha': self.manana.isoformat(), 'hora': '11:00'})
+        cambio = self.ultimo(c)
+        self.assertEqual((cambio.accion, cambio.usuario), ('Reagendada', self.recepcion))
+        self.assertIn('Hora: 10:00 → 11:00', cambio.detalle)
+        self.assertIn('Profesional: Paz Herrera → Luis Contreras', cambio.detalle)
+
+    def test_cancelar_queda_en_el_historial(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/cancelar/', {'motivo': 'Otro', 'detalle': 'Viaje'})
+        cambio = self.ultimo(c)
+        self.assertEqual((cambio.accion, cambio.usuario), ('Cancelada', self.recepcion))
+        self.assertIn('Estado: Pendiente → Cancelada', cambio.detalle)
+        self.assertIn('Otro: Viaje', cambio.detalle)
+
+    def test_guardar_sin_cambios_no_anota_nada(self):
+        c = self.cita()
+        c.save()
+        self.assertEqual(c.cambios.count(), 1)
+
+    def test_la_accion_del_admin_tambien_queda_registrada(self):
+        from django.contrib.admin.sites import site
+        from django.test import RequestFactory
+        c = self.cita(dias=-1)
+        admin_citas = site._registry[Cita]
+        peticion = RequestFactory().post('/admin/')
+        peticion.user = self.recepcion
+        admin_citas.message_user = lambda *a, **k: None
+        admin_citas.marcar_no_asistio(peticion, Cita.objects.filter(pk=c.pk))
+        self.assertEqual(self.ultimo(c).accion, 'Marcada como no asistió')
+
+    def test_administracion_ve_el_historial_en_el_detalle(self):
+        from django.contrib.auth.models import Group
+        admin = User.objects.create_user('admin')
+        admin.groups.add(Group.objects.get(name='Administración'))
+        c = self.cita()
+        self.client.force_login(admin)
+        self.assertContains(self.client.get(f'/citas/{c.pk}/detalle/'), 'Historial de cambios (1)')
+
+    def test_recepcion_no_ve_el_historial(self):
+        c = self.cita()
+        self.assertNotContains(self.client.get(f'/citas/{c.pk}/detalle/'), 'Historial de cambios')
+
+
+class ListaDeEsperaTest(CalendarioTest):
+    """Lista de espera por profesional y día (PV-REC-01)."""
+
+    def esperar(self, dias=1, vet=None, **datos):
+        from .models import EsperaHora
+        return EsperaHora.objects.create(cliente=self.ana, mascota=self.bruno, veterinario=vet,
+                                         fecha=self.hoy + timedelta(days=dias), **datos)
+
+    def test_anotar_a_un_cliente(self):
+        from .models import EsperaHora
+        url = '/citas/espera/anotar/?rut=15.234.871-1'
+        self.assertContains(self.client.get(url), 'Bruno')
+        respuesta = self.client.post(url, {'mascota': self.bruno.pk, 'fecha': self.manana.isoformat(),
+                                           'veterinario': self.vet.pk, 'notas': 'Solo en la mañana'})
+        self.assertRedirects(respuesta, '/citas/espera/')
+        espera = EsperaHora.objects.get()
+        self.assertEqual((espera.cliente, espera.estado, espera.creada_por), (self.ana, 'esperando', self.recepcion))
+
+    def test_no_acepta_la_mascota_de_otro_cliente(self):
+        from .models import EsperaHora
+        otro = Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva')
+        ajena = Mascota.objects.create(nombre='Kira', especie=self.bruno.especie, sexo='hembra')
+        Tenencia.objects.create(cliente=otro, mascota=ajena, es_principal=True)
+        self.client.post('/citas/espera/anotar/?rut=15.234.871-1',
+                         {'mascota': ajena.pk, 'fecha': self.manana.isoformat()})
+        self.assertFalse(EsperaHora.objects.exists())
+
+    def test_la_lista_muestra_las_horas_libres_de_ese_dia(self):
+        self.esperar(vet=self.vet)
+        respuesta = self.client.get('/citas/espera/')
+        self.assertContains(respuesta, 'Hay horas libres')
+        self.assertEqual(respuesta.context['con_horas'], 1)
+
+    def test_si_el_dia_esta_lleno_lo_dice(self):
+        for hora in ('09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30'):
+            self.cita(hora=hora)
+        self.esperar(vet=self.vet)
+        self.assertContains(self.client.get('/citas/espera/'), 'Todavía no hay horas libres ese día')
+
+    def test_al_cancelar_sugiere_a_quien_llamar(self):
+        self.esperar()                                           # le da lo mismo el profesional
+        c = self.cita()
+        respuesta = self.client.post(f'/citas/{c.pk}/cancelar/', {'motivo': 'Otro'}, follow=True)
+        avisos = [str(m) for m in respuesta.context['messages']]
+        self.assertTrue(any('En la lista de espera para ese día están: Ana Soto (Bruno)' in a for a in avisos))
+
+    def test_no_sugiere_a_quien_espera_a_otro_profesional(self):
+        self.esperar(vet=self.otro_vet)
+        c = self.cita()
+        respuesta = self.client.post(f'/citas/{c.pk}/cancelar/', {'motivo': 'Otro'}, follow=True)
+        self.assertFalse(any('lista de espera' in str(m) for m in respuesta.context['messages']))
+
+    def test_agendar_desde_la_lista_la_saca_de_la_espera(self):
+        espera = self.esperar(vet=self.vet, tipo_atencion=self.control)
+        url = self.client.get('/citas/espera/').context['filas'][0]['opciones'][0]['agendar']
+        formulario = self.client.get(url)
+        self.assertContains(formulario, 'Agendando desde la <b>lista de espera</b>')
+        self.assertEqual(formulario.context['form'].initial['mascota'], self.bruno.pk)
+        respuesta = self.client.post(url, {'mascota': self.bruno.pk, 'tipo_atencion': self.control.pk,
+                                           'veterinario': self.vet.pk, 'fecha': self.manana.isoformat(),
+                                           'hora': '09:00', 'notas': ''})
+        self.assertRedirects(respuesta, '/citas/espera/')
+        espera.refresh_from_db()
+        self.assertEqual(espera.estado, 'agendada')
+        self.assertEqual(espera.cita.hora.strftime('%H:%M'), '09:00')
+
+    def test_quitar_de_la_lista(self):
+        espera = self.esperar()
+        self.client.post(f'/citas/espera/{espera.pk}/quitar/')
+        espera.refresh_from_db()
+        self.assertEqual(espera.estado, 'descartada')
+        self.assertEqual(self.client.get('/citas/espera/').context['filas'], [])
+
+    def test_los_veterinarios_no_la_ven(self):
+        from django.contrib.auth.models import Group
+        self.vet.groups.add(Group.objects.get(name='Veterinarios'))
+        self.client.force_login(self.vet)
+        self.assertEqual(self.client.get('/citas/espera/').status_code, 403)
+
+
+class SeguimientoTrasInasistenciaTest(CalendarioTest):
+    """Llamar dentro de 24 horas al tutor que no asistió (PV-REC-07)."""
+
+    def faltar(self, horas_atras=0):
+        c = self.cita(dias=0)
+        self.ana.telefono = '9 1234 5678'
+        self.ana.save()
+        self.client.post(f'/citas/{c.pk}/no-asistio/')
+        if horas_atras:
+            Cita.objects.filter(pk=c.pk).update(
+                fecha_marcada_no_asistio=timezone.now() - timedelta(hours=horas_atras))
+        c.refresh_from_db()
+        return c
+
+    def tareas(self):
+        return self.client.get('/citas/llamadas/').context['seguimientos']
+
+    def test_al_marcar_la_inasistencia_aparece_la_tarea_con_su_plazo(self):
+        c = self.faltar()
+        [tarea] = self.tareas()
+        self.assertEqual(tarea['cita'], c)
+        self.assertFalse(tarea['atrasada'])
+        self.assertIn(tarea['horas'], (23, 24))
+        self.assertContains(self.client.get('/citas/llamadas/'), 'Llamar a quienes no asistieron')
+
+    def test_el_aviso_dice_que_hay_que_llamar(self):
+        c = self.cita(dias=0)
+        respuesta = self.client.post(f'/citas/{c.pk}/no-asistio/', follow=True)
+        self.assertTrue(any('dentro de las próximas 24 horas' in str(m) for m in respuesta.context['messages']))
+
+    def test_pasadas_las_24_horas_queda_atrasada(self):
+        self.faltar(horas_atras=30)
+        [tarea] = self.tareas()
+        self.assertTrue(tarea['atrasada'])
+        self.assertEqual(tarea['horas'], 6)
+
+    def test_despues_de_una_semana_sale_de_la_lista(self):
+        self.faltar(horas_atras=8 * 24)
+        self.assertEqual(self.tareas(), [])
+
+    def test_las_inasistencias_importadas_no_generan_tarea(self):
+        self.cita(dias=-2, estado='no_asistio')            # sin fecha en que se marcó
+        self.assertEqual(self.tareas(), [])
+
+    def test_se_cierra_con_su_resultado(self):
+        c = self.faltar()
+        respuesta = self.client.post(f'/citas/{c.pk}/seguimiento/', {'resultado': 'no_contesta'})
+        self.assertRedirects(respuesta, '/citas/llamadas/', fetch_redirect_response=False)
+        c.refresh_from_db()
+        self.assertEqual((c.seguimiento, c.seguimiento_por), ('no_contesta', self.recepcion))
+        self.assertEqual(self.tareas(), [])
+        self.assertEqual(c.cambios.first().accion, 'Seguimiento')        # queda en el historial (PV-ADM-05)
+
+    def test_si_reagendo_sigue_a_agendar_con_su_mascota(self):
+        c = self.faltar()
+        respuesta = self.client.post(f'/citas/{c.pk}/seguimiento/', {'resultado': 'reagendo'})
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertIn('/citas/nueva/?rut=15234871-1', respuesta['Location'])
+        formulario = self.client.get(respuesta['Location'])
+        self.assertEqual(str(formulario.context['form'].initial['mascota']), str(self.bruno.pk))
+
+    def test_sin_resultado_no_cierra_nada(self):
+        c = self.faltar()
+        self.client.post(f'/citas/{c.pk}/seguimiento/', {'resultado': 'cualquiera'})
+        c.refresh_from_db()
+        self.assertEqual(c.seguimiento, '')
+
+    def test_el_whatsapp_usa_el_mensaje_de_inasistencia(self):
+        self.faltar()
+        [tarea] = self.tareas()
+        self.assertTrue(tarea['whatsapp'].startswith('whatsapp://send?phone=56912345678'))
+        self.assertIn('no%20alcanzaron%20a%20venir', tarea['whatsapp'])

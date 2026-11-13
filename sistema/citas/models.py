@@ -144,6 +144,20 @@ class Cita(models.Model):
                                          related_name='citas_confirmadas',
                                          verbose_name='registrada por')
 
+    # Seguimiento tras una inasistencia (PV-REC-07): hay que llamar al tutor
+    # dentro de las 24 horas siguientes para recuperar la atención. Vacío
+    # mientras nadie lo haya llamado.
+    SEGUIMIENTOS = (
+        ('reagendo', 'Reagendó'),
+        ('no_contesta', 'No contesta'),
+        ('no_quiere', 'No quiere reagendar por ahora'),
+    )
+    seguimiento = models.CharField('seguimiento tras la inasistencia', max_length=15, choices=SEGUIMIENTOS,
+                                   blank=True, default='', db_default='')
+    seguimiento_fecha = models.DateTimeField('fecha del seguimiento', null=True, blank=True)
+    seguimiento_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name='+', verbose_name='seguimiento registrado por')
+
     @property
     def dias_anticipacion(self):
         """Cuántos días antes se reservó esta hora."""
@@ -306,6 +320,7 @@ class PlantillaMensaje(models.Model):
         ('riesgo_bajo', 'Recordatorio para riesgo bajo'),
         ('recordatorio', 'Recordatorio general'),
         ('vacuna', 'Aviso de vacuna por vencer'),
+        ('inasistencia', 'Después de una inasistencia'),
     )
 
     clave = models.CharField(max_length=20, choices=CLAVES, unique=True)
@@ -319,3 +334,97 @@ class PlantillaMensaje(models.Model):
         verbose_name = "plantilla de mensaje"
         verbose_name_plural = "plantillas de mensajes"
         ordering = ['clave']
+
+
+class PesosModelo(models.Model):
+    """Cuánto pesa cada factor en el puntaje de riesgo (PV-RIE-04).
+
+    Hay una sola fila. Mientras administración no ajuste los pesos, el modelo
+    usa los originales de riesgo.py (40, 20, 20 y 20). Deben sumar 100.
+    """
+
+    peso_tutor = models.PositiveSmallIntegerField('historial de faltas del tutor')
+    peso_anticipacion = models.PositiveSmallIntegerField('días de anticipación de la reserva')
+    peso_dia = models.PositiveSmallIntegerField('día de la semana')
+    peso_tipo = models.PositiveSmallIntegerField('tipo de atención')
+
+    modificado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    fecha_modificacion = models.DateTimeField('última modificación', auto_now=True)
+
+    def como_dict(self):
+        return {'tutor': self.peso_tutor, 'anticipacion': self.peso_anticipacion,
+                'dia': self.peso_dia, 'tipo': self.peso_tipo}
+
+    def __str__(self):
+        return 'Pesos del modelo de riesgo'
+
+    class Meta:
+        verbose_name = "pesos del modelo de riesgo"
+        verbose_name_plural = "pesos del modelo de riesgo"
+
+
+class CambioCita(models.Model):
+    """Una línea del historial de una cita: quién la cambió, qué cambió y cuándo (PV-ADM-05).
+
+    Se registra solo, cada vez que se guarda una cita (ver auditoria.py), así
+    que cubre todas las pantallas: agendar, reagendar, cancelar, llegó,
+    atendida, confirmación, importar y el panel /admin/.
+    """
+
+    cita = models.ForeignKey(Cita, on_delete=models.CASCADE, related_name='cambios')
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                help_text='Vacío si el cambio no lo hizo una persona (por ejemplo, los datos de prueba).')
+    fecha = models.DateTimeField(auto_now_add=True)
+    accion = models.CharField('acción', max_length=40)
+    detalle = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.accion} · {self.cita}"
+
+    class Meta:
+        verbose_name = "cambio de una cita"
+        verbose_name_plural = "historial de cambios de las citas"
+        ordering = ['-fecha', '-pk']
+
+
+class EsperaHora(models.Model):
+    """Un tutor que quiere una hora que hoy no está disponible (PV-REC-01).
+
+    Queda anotado por día y, si lo pidió, por profesional. Cuando se cancela
+    una cita de ese día, recepción ve a quién ofrecerle la hora liberada.
+    """
+
+    ESTADOS = (
+        ('esperando', 'Esperando'),
+        ('agendada', 'Agendada'),
+        ('descartada', 'Descartada'),
+    )
+
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='esperas')
+    mascota = models.ForeignKey(Mascota, on_delete=models.CASCADE, related_name='esperas')
+    fecha = models.DateField('día que quiere')
+    veterinario = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='esperas',
+                                    limit_choices_to={'perfil__rol': 'veterinario'}, verbose_name='profesional',
+                                    help_text='Vacío si le da lo mismo con quién.')
+    tipo_atencion = models.ForeignKey(TipoAtencion, on_delete=models.SET_NULL, null=True, blank=True,
+                                      verbose_name='tipo de atención')
+    notas = models.CharField('comentarios', max_length=200, blank=True,
+                             help_text='Por ejemplo: "solo en la tarde" o "es urgente".')
+    estado = models.CharField(max_length=12, choices=ESTADOS, default='esperando')
+    cita = models.ForeignKey(Cita, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                             help_text='La cita que se le agendó.')
+    creada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        super().clean()
+        if self.mascota_id and self.cliente_id and not self.mascota.tutores.filter(pk=self.cliente_id).exists():
+            raise ValidationError({'mascota': 'Esta mascota no es de este cliente.'})
+
+    def __str__(self):
+        return f"{self.mascota.nombre} · espera el {self.fecha:%d/%m/%Y}"
+
+    class Meta:
+        verbose_name = "persona en lista de espera"
+        verbose_name_plural = "lista de espera"
+        ordering = ['fecha', 'fecha_creacion']

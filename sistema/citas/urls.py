@@ -1,12 +1,16 @@
 from django.urls import path
 
-from . import atencion, calendario, configuracion, confirmacion, disponibilidad, documentos, pagos, panel, views
+from . import (atencion, calendario, configuracion, confirmacion, disponibilidad, documentos, espera, pagos,
+               panel, seguimiento, views)
 
 urlpatterns = [
     path('', views.listado, name='citas'),
     path('nueva/', views.agendar, name='agendar'),
     path('sin-hora/', views.sin_hora, name='cita_sin_hora'),
     path('disponibles/', disponibilidad.disponibles, name='horas_disponibles'),
+    path('espera/', espera.listado, name='lista_espera'),
+    path('espera/anotar/', espera.anotar, name='espera_anotar'),
+    path('espera/<int:pk>/quitar/', espera.descartar, name='espera_descartar'),
     path('hoy/', panel.panel_dia, name='panel_dia'),
     path('llamadas/', confirmacion.llamadas, name='llamadas'),
     path('exportar/', views.exportar, name='citas_exportar'),
@@ -26,6 +30,7 @@ urlpatterns = [
     path('documentos/<int:pk>/', documentos.descargar, name='documento_descargar'),
     path('documentos/<int:pk>/quitar/', documentos.quitar, name='documento_quitar'),
     path('<int:pk>/confirmacion/', confirmacion.registrar, name='cita_confirmacion'),
+    path('<int:pk>/seguimiento/', seguimiento.registrar, name='cita_seguimiento'),
     path('<int:pk>/cancelar/', calendario.cancelar, name='cita_cancelar'),
     path('<int:pk>/reagendar/', calendario.reagendar, name='cita_reagendar'),
     path('<int:pk>/editar/', views.editar, name='cita_editar'),
@@ -39,5 +44,6 @@ urlpatterns = [
     path('horarios/<int:pk>/', configuracion.horario_formulario, name='horario_editar'),
     path('horarios/<int:pk>/eliminar/', configuracion.horario_eliminar, name='horario_eliminar'),
     path('mensajes/', configuracion.mensajes_listado, name='mensajes'),
+    path('modelo/pesos/', configuracion.pesos_modelo, name='pesos_modelo'),
     path('mensajes/<str:clave>/', configuracion.mensaje_editar, name='mensaje_editar'),
 ]

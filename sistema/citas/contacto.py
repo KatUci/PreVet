@@ -67,6 +67,9 @@ TEXTOS_ORIGINALES = {
                      'el {fecha} a las {hora}. ¿Nos confirmas tu asistencia?'),
     'vacuna': ('Hola {tutor}, te escribimos de la clínica veterinaria. A {mascota} le corresponde '
                'la vacuna {vacuna} el {fecha}. ¿Te agendamos una hora?'),
+    'inasistencia': ('Hola {tutor}, te escribimos de la clínica veterinaria. {mascota} tenía hora el {dia} '
+                     '{fecha} a las {hora} y no alcanzaron a venir. ¿Está todo bien? Si quieres, te '
+                     'ayudamos a buscar una nueva hora.'),
 }
 
 # Variables que se pueden usar en cada plantilla.

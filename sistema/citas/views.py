@@ -212,6 +212,9 @@ def marcar_no_asistio(request, pk):
         f'{cita.mascota.nombre} quedó registrada como inasistencia. '
         f'Se perdieron ${cita.tipo_atencion.precio:,}'.replace(',', '.')
     )
+    # Seguimiento (PV-REC-07): hay 24 horas para llamar y tratar de recuperarla.
+    messages.info(request, f'Llama a {cita.cliente.nombre_completo} dentro de las próximas 24 horas para '
+                           f'reagendar a {cita.mascota.nombre}: la tarea quedó en la Lista de llamadas.')
     return redirect(volver)
 
 def _buscar_cliente(request):
@@ -236,16 +239,31 @@ def agendar(request):
 
     rut_escrito, cliente, error_rut = _buscar_cliente(request)
 
-    form = None
+    form = espera = None
     if cliente:
-        form = AgendarCitaForm(request.POST or None, cliente=cliente)
+        # Desde la lista de espera (PV-REC-01) llega con la mascota, el día,
+        # el profesional y la hora libre ya elegidos.
+        from .models import EsperaHora
+        id_espera = request.GET.get('espera', '')
+        if id_espera.isdigit():
+            espera = EsperaHora.objects.filter(pk=id_espera, cliente=cliente,
+                                               estado='esperando').select_related('mascota').first()
+        inicial = {clave: request.GET[clave] for clave in ('mascota', 'veterinario', 'fecha', 'hora')
+                   if request.GET.get(clave)}
+        if espera:
+            inicial.update(mascota=espera.mascota_id, tipo_atencion=espera.tipo_atencion_id)
+        form = AgendarCitaForm(request.POST or None, cliente=cliente, initial=inicial)
         if request.method == 'POST' and form.is_valid():
             cita = form.save()
+            if espera:
+                espera.estado, espera.cita = 'agendada', cita
+                espera.save(update_fields=['estado', 'cita'])
             messages.success(
                 request,
                 f'Hora agendada: {cita.mascota.nombre} el {cita.fecha:%d/%m/%Y} a las '
-                f'{cita.hora:%H:%M} con {cita.veterinario.get_full_name()}.')
-            return redirect('citas')
+                f'{cita.hora:%H:%M} con {cita.veterinario.get_full_name()}.'
+                + (' Salió de la lista de espera.' if espera else ''))
+            return redirect('lista_espera' if espera else 'citas')
 
     return render(request, 'citas/agendar.html', {
         'seccion': 'citas',
@@ -254,6 +272,7 @@ def agendar(request):
         'error_rut': error_rut,
         'cliente': cliente,
         'form': form,
+        'espera': espera,
         'horarios': resumen_horarios() if cliente else None,
     })
 

@@ -69,6 +69,7 @@ def llamadas(request):
 
     from .calendario import _enlace_whatsapp
     from .contacto import guion_llamada
+    from .seguimiento import pendientes
     from .riesgo import estadisticas, puntuar
 
     hoy = timezone.localdate()
@@ -115,4 +116,7 @@ def llamadas(request):
         'avance': avance,
         'solo_pendientes': solo_pendientes,
         'resultados': Cita.CONFIRMACIONES,
+        # Llamar a quienes no asistieron (PV-REC-07).
+        'seguimientos': pendientes(),
+        'resultados_seguimiento': Cita.SEGUIMIENTOS,
     })

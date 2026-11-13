@@ -119,9 +119,15 @@ def detalle(request, pk):
         puntaje, nivel, accion, detalle_riesgo = riesgo.puntuar(cita, stats)
         guion = guion_llamada(cita, nivel, stats)
 
+    # Historial de cambios (PV-ADM-05): solo para quien tiene el permiso.
+    cambios = None
+    if request.user.has_perm('citas.view_cambiocita'):
+        cambios = cita.cambios.select_related('usuario')
+
     return render(request, 'citas/_detalle.html', {
         'cita': cita,
         'hoy': hoy,
+        'cambios': cambios,
         'pendiente': cita.estado == 'pendiente',
         'ya_ocurrio': cita.fecha <= hoy,
         'es_hoy': cita.fecha == hoy,
@@ -189,6 +195,15 @@ def cancelar(request, pk):
     cita.motivo_cancelacion = form.texto()
     cita.save(update_fields=['estado', 'cancelada_por', 'fecha_cancelacion', 'motivo_cancelacion'])
     messages.success(request, f'La cita de {cita.mascota.nombre} quedó cancelada y la hora está libre.')
+
+    # ¿Alguien esperaba una hora ese día? Se sugiere a quién llamar (PV-REC-01).
+    from .espera import esperando
+    candidatos = list(esperando(cita.fecha, cita.veterinario_id)[:3])
+    if candidatos:
+        nombres = ', '.join(f'{e.cliente.nombre_completo} ({e.mascota.nombre})' for e in candidatos)
+        messages.info(request, f'Se liberó una hora del {cita.fecha:%d/%m} a las {cita.hora:%H:%M}. '
+                               f'En la lista de espera para ese día están: {nombres}. '
+                               f'Llámalos desde Lista de espera para ofrecérsela.')
     return _volver(request, cita)
 
 

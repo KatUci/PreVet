@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Anotar en la lista de espera{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'lista_espera' %}">Lista de espera</a><span class="sep">›</span><span>Anotar</span>{% endblock %}
+{% block encabezado %}Anotar en la lista de espera{% endblock %}
+{% block subtitulo %}Para quien quiere una hora en un día que está lleno{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'lista_espera' %}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<div class="card" style="margin-bottom:1.2rem">
+    <div class="card-titulo"><h2><span class="paso-num">1</span> Cliente</h2></div>
+    {% if cliente %}
+    <div class="cliente-resumen">
+        <div class="sb-avatar">{{ cliente.nombres|slice:":1" }}{{ cliente.apellidos|slice:":1" }}</div>
+        <div style="flex:1; min-width:0">
+            <div class="cliente-nombre">{{ cliente.nombre_completo }}</div>
+            <div class="cliente-datos">RUT {{ cliente.rut_formateado }}{% if cliente.telefono %} · {{ cliente.telefono }}{% endif %}</div>
+        </div>
+        <a href="{% url 'espera_anotar' %}" class="btn btn-suave">Cambiar cliente</a>
+    </div>
+    {% else %}
+    <form method="get" class="buscador-linea" style="margin-bottom:0">
+        <input type="text" name="rut" value="{{ rut_escrito }}" placeholder="RUT del cliente, ej: 12.345.678-5" autofocus autocomplete="off">
+        <button type="submit" class="btn btn-primario"><svg class="icono-sm"><use href="#i-lupa"/></svg> Buscar</button>
+    </form>
+    {% if error_rut %}
+    <div class="alerta alerta-error" style="margin-top:1rem"><svg class="icono"><use href="#i-alerta"/></svg><div>{{ error_rut }}</div></div>
+    {% elif rut_escrito %}
+    <div class="alerta alerta-info" style="margin-top:1rem"><svg class="icono"><use href="#i-alerta"/></svg>
+        <div>No hay ningún cliente con el RUT <strong>{{ rut_escrito }}</strong>. Regístralo primero en Clientes.</div></div>
+    {% endif %}
+    {% endif %}
+</div>
+
+{% if form %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-titulo"><h2><span class="paso-num">2</span> ¿Qué hora espera?</h2></div>
+        {% for error in form.non_field_errors %}
+        <div class="alerta alerta-error"><svg class="icono"><use href="#i-alerta"/></svg><div>{{ error }}</div></div>
+        {% endfor %}
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.mascota %}
+            {% include 'usuarios/_campo.html' with campo=form.fecha %}
+            {% include 'usuarios/_campo.html' with campo=form.veterinario %}
+            {% include 'usuarios/_campo.html' with campo=form.tipo_atencion %}
+            {% include 'usuarios/_campo.html' with campo=form.notas ancho=True %}
+        </div>
+        <div class="form-acciones">
+            <a href="{% url 'lista_espera' %}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Anotar en la lista</button>
+        </div>
+    </div>
+</form>
+{% endif %}
+{% endblock %}

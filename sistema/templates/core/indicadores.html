@@ -1,11 +1,85 @@
 {% extends 'base.html' %}
+{% load pesos %}
 
 {% block titulo %}Indicadores{% endblock %}
 {% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Análisis</span><span class="sep">›</span><span>Indicadores</span>{% endblock %}
 {% block encabezado %}Indicadores{% endblock %}
-{% block subtitulo %}Qué explica las inasistencias, factor por factor{% endblock %}
+{% block subtitulo %}Lo que entra, lo que se pierde y qué explica las inasistencias{% endblock %}
 
 {% block contenido %}
+
+{# ---------- Filtro de fechas (PV-IND-02): todo lo de abajo se recalcula en este rango ---------- #}
+<form method="get" class="card filtros-citas">
+    <div class="filtros-fila filtros-campos">
+        <label>Desde <input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}"></label>
+        <label>Hasta <input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}"></label>
+        <button type="submit" class="btn btn-primario">Aplicar</button>
+        {% if desde or hasta %}<a href="{% url 'indicadores' %}" class="btn btn-suave">Todas las fechas</a>{% endif %}
+    </div>
+    <div class="filtros-fila atajos">
+        {% for nombre, a_desde, a_hasta in atajos %}
+        <a class="badge {% if desde == a_desde and hasta == a_hasta %}badge-azul{% else %}badge-neutro{% endif %}"
+           href="?desde={{ a_desde|date:'Y-m-d' }}&hasta={{ a_hasta|date:'Y-m-d' }}">{{ nombre }}</a>
+        {% endfor %}
+    </div>
+</form>
+
+{# ---------- Ingresos y pérdidas ---------- #}
+<div class="kpis-dia">
+    <div class="kpi kpi-ok"><span class="kpi-num">{{ general.atendido|pesos }}</span><span class="kpi-txt">atendido · valor de las atenciones realizadas</span></div>
+    <div class="kpi kpi-info"><span class="kpi-num">{{ general.cobrado|pesos }}</span><span class="kpi-txt">cobrado · lo que se pagó en caja</span></div>
+    <div class="kpi kpi-mal"><span class="kpi-num">{{ general.perdido|pesos }}</span><span class="kpi-txt">no percibido · horas en que el tutor no llegó</span></div>
+    <div class="kpi kpi-warn"><span class="kpi-num">{{ general.pct_perdido }}%</span><span class="kpi-txt">de lo agendado se perdió por inasistencias</span></div>
+</div>
+
+{% for titulo, filas, primera in cortes %}
+<div class="card" style="margin-bottom:1.6rem">
+    <div class="card-titulo"><h2>{{ titulo }}</h2></div>
+    <div class="tabla-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ primera }}</th>
+                    <th style="text-align:right">Citas</th>
+                    <th style="text-align:right">Faltas</th>
+                    <th style="text-align:right">Tasa</th>
+                    <th style="text-align:right">Atendido</th>
+                    <th style="text-align:right">Cobrado</th>
+                    <th style="text-align:right">No percibido</th>
+                    <th style="min-width:140px">Atendido / perdido</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in filas %}
+                <tr>
+                    <td style="font-weight:600">{{ f.nombre }}</td>
+                    <td style="text-align:right; color:var(--gris)">{{ f.total }}</td>
+                    <td style="text-align:right">{{ f.faltas }}</td>
+                    <td style="text-align:right; font-weight:600">{{ f.tasa }}%</td>
+                    <td style="text-align:right; color:var(--ok-txt)">{{ f.atendido|pesos }}</td>
+                    <td style="text-align:right">{{ f.cobrado|pesos }}</td>
+                    <td style="text-align:right; color:var(--error-txt)">{{ f.perdido|pesos }}</td>
+                    <td>
+                        <div style="display:flex; height:14px; background:var(--tinte)" title="{{ f.pct_perdido }}% de lo agendado se perdió">
+                            <span class="tramo-bajo" style="width:{{ f.ancho_atendido }}%"></span>
+                            <span class="tramo-alto" style="width:{{ f.ancho_perdido }}%"></span>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="vacio">No hay citas en esas fechas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+
+<div style="font-size:.8rem; color:var(--gris); margin:-.8rem 0 1.6rem">
+    <b>Atendido</b> usa el precio de cada tipo de atención; <b>cobrado</b> es lo registrado en Pagos, que puede ser más
+    si se cobraron extras (vacunas, remedios) o menos si quedó algo sin cobrar. Son ingresos, no ganancias: PreVet no
+    registra los costos de la clínica.
+</div>
 
 {# ---------- Resumen general ---------- #}
 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr));
@@ -41,7 +115,7 @@
 <div class="card" style="margin-bottom:1.6rem">
     <div class="card-titulo">
         <h2>¿Qué atenciones se faltan más?</h2>
-        <span class="badge badge-neutro">peso 20 en el modelo</span>
+        <span class="badge badge-neutro">peso {{ pesos.tipo }} en el modelo</span>
     </div>
 
     {% for f in por_tipo %}
@@ -71,7 +145,7 @@
 <div class="card" style="margin-bottom:1.6rem">
     <div class="card-titulo">
         <h2>¿Influye cuánto antes se pidió la hora?</h2>
-        <span class="badge badge-neutro">peso 20 en el modelo</span>
+        <span class="badge badge-neutro">peso {{ pesos.anticipacion }} en el modelo</span>
     </div>
 
     {% for f in por_anticipacion %}
@@ -102,7 +176,7 @@
 <div class="card">
     <div class="card-titulo">
         <h2>¿Quiénes faltan más de una vez?</h2>
-        <span class="badge badge-azul">peso 40, el más alto</span>
+        <span class="badge badge-azul">peso {{ pesos.tutor }} en el modelo</span>
     </div>
 
     <div class="tabla-wrap">
@@ -141,7 +215,7 @@
     <div style="font-size:.8rem; color:var(--gris); margin-top:.9rem;
                 padding-top:.8rem; border-top:1px solid var(--borde)">
         El historial del tutor es el factor que más predice: quien faltó antes tiende
-        a faltar de nuevo. Por eso vale el doble que los demás en el puntaje.
+        a faltar de nuevo. Con los pesos originales vale el doble que cada uno de los demás factores.
     </div>
 </div>
 

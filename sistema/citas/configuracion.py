@@ -1,5 +1,5 @@
-"""Configuración de la agenda: tipos de atención, horarios de cada veterinario
-y los textos de los mensajes de WhatsApp."""
+"""Configuración de la agenda: tipos de atención, horarios de cada veterinario,
+los textos de los mensajes de WhatsApp y los pesos del modelo de riesgo."""
 import re
 
 from django import forms
@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 from core import crud
 
 from .contacto import TEXTOS_ORIGINALES, VARIABLES
-from .models import DIAS_SEMANA, HorarioAtencion, PlantillaMensaje, TipoAtencion
+from .models import DIAS_SEMANA, HorarioAtencion, PesosModelo, PlantillaMensaje, TipoAtencion
 
 MIGAS = [('Configuración', None)]
 
@@ -229,3 +229,83 @@ def mensaje_editar(request, clave):
         ayuda=f'Puedes usar estas variables y se reemplazan por los datos de cada cita: {variables}. '
               f'Texto original: «{TEXTOS_ORIGINALES[clave]}»',
         migas=MIGAS + [('Mensajes de WhatsApp', volver), ('Editar', None)])
+
+
+# ---------------- Pesos del modelo de riesgo (PV-RIE-04) ----------------
+
+CAMPOS_PESOS = ['peso_tutor', 'peso_anticipacion', 'peso_dia', 'peso_tipo']
+
+
+class PesosForm(forms.ModelForm):
+    class Meta:
+        model = PesosModelo
+        fields = CAMPOS_PESOS
+        widgets = {campo: forms.NumberInput(attrs={'min': 0, 'max': 100, 'class': 'peso'}) for campo in CAMPOS_PESOS}
+
+    def clean(self):
+        datos = super().clean()
+        pesos = [datos.get(campo) for campo in CAMPOS_PESOS]
+        if None not in pesos:
+            total = sum(pesos)
+            if total != 100:
+                raise forms.ValidationError(
+                    f'Los pesos suman {total} y deben sumar 100. No se aplicaron: el modelo sigue con los anteriores.')
+        return datos
+
+    def como_dict(self):
+        return {campo.removeprefix('peso_'): self.cleaned_data[campo] for campo in CAMPOS_PESOS}
+
+
+@login_required
+@permission_required('citas.change_pesosmodelo', raise_exception=True)
+def pesos_modelo(request):
+    """Ajustar cuánto pesa cada factor, probando antes si el modelo acierta más."""
+    from django.contrib import messages
+    from django.shortcuts import redirect, render
+
+    from . import riesgo
+
+    guardados = PesosModelo.objects.first()
+    originales = PesosModelo(**{f'peso_{k}': v for k, v in riesgo.PESOS_ORIGINALES.items()})
+    accion = request.POST.get('accion')
+    prueba = None
+
+    if request.method == 'POST' and accion == 'originales':
+        # Solo llena el formulario: hay que probar o guardar para aplicarlos.
+        form = PesosForm(instance=originales)
+    elif request.method == 'POST':
+        form = PesosForm(request.POST, instance=guardados or PesosModelo())
+        if form.is_valid():
+            if accion == 'guardar':
+                pesos = form.save(commit=False)
+                pesos.modificado_por = request.user
+                pesos.save()
+                messages.success(request, 'Se guardaron los pesos: desde ahora el modelo de riesgo los usa.')
+                return redirect('pesos_modelo')
+            prueba = riesgo.resumen_evaluacion(riesgo.evaluar(pesos=form.como_dict()))
+    else:
+        form = PesosForm(instance=guardados or originales)
+
+    actual = riesgo.resumen_evaluacion(riesgo.evaluar())
+    comparacion = None
+    if prueba:
+        filas = [('Faltó en riesgo alto (debe ser lo más alto posible)', lambda r: r['niveles'][0]['tasa'], '%', True),
+                 ('Faltó en riesgo medio', lambda r: r['niveles'][1]['tasa'], '%', None),
+                 ('Faltó en riesgo bajo (debe ser lo más bajo posible)', lambda r: r['niveles'][2]['tasa'], '%', False),
+                 ('Faltas que se marcaron con riesgo alto o medio', lambda r: r['anticipadas'], '%', True),
+                 ('Aciertos', lambda r: r['aciertos'], '%', True)]
+        comparacion = []
+        for nombre, valor, unidad, mejor_si_sube in filas:
+            antes, despues = valor(actual), valor(prueba)
+            mejora = None if mejor_si_sube is None or antes == despues else (despues > antes) == mejor_si_sube
+            comparacion.append({'nombre': nombre, 'antes': antes, 'despues': despues, 'unidad': unidad,
+                                'mejora': mejora})
+
+    return render(request, 'citas/pesos_modelo.html', {
+        'seccion': 'pesos',
+        'form': form,
+        'guardados': guardados,
+        'actual': actual,
+        'comparacion': comparacion,
+        'originales': riesgo.PESOS_ORIGINALES,
+    })

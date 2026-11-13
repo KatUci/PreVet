@@ -85,17 +85,15 @@ distribuidas en noventa días, el tablero reporta una tasa de inasistencia del 1
 equivalente a $1.061.000 en ingresos no percibidos, y muestra la distribución de faltas
 por día de la semana.
 
-Para levantarlo:
+Para levantarlo con Docker, dentro de la carpeta `sistema`:
 
 ```bash
-cd sistema
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py cargar_demo
-python manage.py runserver
+docker compose up --build
+docker compose run --rm web python manage.py cargar_demo
 ```
+
+y abrir <http://localhost:8000>. El paso a paso para Windows y macOS, sin Docker o con la
+base compartida de Supabase, está en el [manual de instalación](INSTALACION.md).
 
 ## Tecnologías
 

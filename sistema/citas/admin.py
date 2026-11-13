@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import Atencion, Cita, DocumentoAtencion, HorarioAtencion, Pago, PlantillaMensaje, TipoAtencion
+from .models import (Atencion, CambioCita, Cita, DocumentoAtencion, EsperaHora, HorarioAtencion, Pago,
+                     PesosModelo, PlantillaMensaje, TipoAtencion)
 
 
 @admin.register(TipoAtencion)
@@ -43,8 +44,12 @@ class CitaAdmin(admin.ModelAdmin):
     @admin.action(description="Marcar como NO ASISTIÓ (solo pendientes de hoy o antes)")
     def marcar_no_asistio(self, request, queryset):
         # Misma regla que en PreVet: no se marca la inasistencia de una cita futura.
-        actualizadas = (queryset.filter(estado='pendiente', fecha__lte=timezone.localdate())
-                        .update(estado='no_asistio', fecha_marcada_no_asistio=timezone.now()))
+        # Se guarda una por una (y no con update) para que quede en su historial.
+        actualizadas = 0
+        for cita in queryset.filter(estado='pendiente', fecha__lte=timezone.localdate()):
+            cita.estado, cita.fecha_marcada_no_asistio = 'no_asistio', timezone.now()
+            cita.save(update_fields=['estado', 'fecha_marcada_no_asistio'])
+            actualizadas += 1
         self.message_user(request, f"{actualizadas} cita(s) marcadas como no asistidas.")
 
 
@@ -75,3 +80,37 @@ class PagoAdmin(admin.ModelAdmin):
     search_fields = ('cita__mascota__nombre', 'cita__cliente__rut', 'cita__cliente__apellidos')
     raw_id_fields = ('cita',)
     readonly_fields = ('cobrado_por', 'fecha')
+
+
+@admin.register(PesosModelo)
+class PesosModeloAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'peso_tutor', 'peso_anticipacion', 'peso_dia', 'peso_tipo', 'modificado_por',
+                    'fecha_modificacion')
+    readonly_fields = ('modificado_por', 'fecha_modificacion')
+
+
+@admin.register(CambioCita)
+class CambioCitaAdmin(admin.ModelAdmin):
+    """El historial se escribe solo: aquí se puede revisar, pero no editar ni borrar."""
+    list_display = ('fecha', 'cita', 'accion', 'usuario')
+    list_filter = ('accion', 'usuario')
+    search_fields = ('cita__mascota__nombre', 'cita__cliente__rut', 'detalle')
+    date_hierarchy = 'fecha'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(EsperaHora)
+class EsperaHoraAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'mascota', 'cliente', 'veterinario', 'estado', 'creada_por')
+    list_filter = ('estado', 'fecha', 'veterinario')
+    search_fields = ('mascota__nombre', 'cliente__rut', 'cliente__apellidos')
+    raw_id_fields = ('cliente', 'mascota', 'cita')
+    readonly_fields = ('creada_por', 'fecha_creacion')

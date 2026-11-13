@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from usuarios.models import Perfil
 from mascotas.models import Cliente, Especie, Raza, Mascota, Tenencia
-from citas.models import Atencion, TipoAtencion, HorarioAtencion, Cita
+from citas.models import Atencion, TipoAtencion, HorarioAtencion, Cita, Pago
 from mascotas.models import Etiqueta
 
 BLOQUES = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
@@ -61,6 +61,8 @@ class Command(BaseCommand):
         random.seed(42)
 
         self.stdout.write("Borrando citas anteriores...")
+        # Primero los pagos: protegen su cita y no dejarían borrarla.
+        Pago.objects.all().delete()
         Cita.objects.all().delete()
 
         # --- personas ---
@@ -213,11 +215,12 @@ class Command(BaseCommand):
             creadas += 1
 
         atenciones = self._ficha_clinica_y_etiquetas(vets, mascotas, clientes)
+        pagos = self._pagos()
 
         self.stdout.write(self.style.SUCCESS(
             f"Listo: {creadas} citas, {len(mascotas)} mascotas, {len(clientes)} clientes, "
             f"{len(vets) + len(vets_nuevos)} veterinarios "
-            f"({len(vets)} con histórico), {len(tipos)} tipos de atención."))
+            f"({len(vets)} con histórico), {len(tipos)} tipos de atención, {pagos} pagos."))
 
     def _ficha_clinica_y_etiquetas(self, vets, mascotas, clientes):
         """Datos del Sprint 4: atenciones de las citas completadas y algunas etiquetas.
@@ -264,3 +267,26 @@ class Command(BaseCommand):
                 cliente.etiquetas.add(rnd.choice(etiquetas_cliente))
         return completadas.count()
 
+
+    def _pagos(self):
+        """Un pago por cada atención ya realizada, para que se vean los ingresos.
+
+        Usa su propio generador aleatorio, igual que la ficha clínica, para no
+        mover la secuencia de las citas ni los indicadores del informe.
+        """
+        rnd = random.Random(2027)
+        extras = [(0, ''), (0, ''), (0, ''), (6000, 'Antiparasitario'), (12000, 'Medicamentos'),
+                  (15000, 'Vacuna')]
+        creados = 0
+        for cita in (Cita.objects.filter(estado='completada', fecha__lt=timezone.localdate())
+                     .select_related('tipo_atencion')):
+            extra, detalle = rnd.choice(extras)
+            pago = Pago.objects.create(
+                cita=cita, monto=cita.tipo_atencion.precio + extra, detalle=detalle,
+                medio=rnd.choices(['efectivo', 'debito', 'credito', 'transferencia'], weights=[25, 40, 15, 20])[0])
+            # Se cobra al terminar la atención, no el día en que se carga la demo.
+            al_salir = timezone.make_aware(
+                timezone.datetime.combine(cita.fecha, cita.hora_termino))
+            Pago.objects.filter(pk=pago.pk).update(fecha=al_salir)
+            creados += 1
+        return creados
