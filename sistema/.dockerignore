@@ -1,0 +1,8 @@
+# Lo que no entra en la imagen de Docker.
+.venv/
+venv/
+__pycache__/
+*.pyc
+# La base local y la contraseña de Supabase se quedan en el computador.
+*.sqlite3
+.env

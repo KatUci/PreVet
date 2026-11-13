@@ -1,0 +1,43 @@
+# PreVet con su propia base de datos PostgreSQL, sin instalar Python ni nada más (PV-TEC-02).
+#
+#   docker compose up --build        levanta PreVet en http://localhost:8000
+#   docker compose run --rm web python manage.py cargar_demo        carga los datos de prueba
+#   docker compose run --rm web python manage.py createsuperuser    crea tu usuario
+#   docker compose down              lo detiene (los datos se conservan)
+#
+# Esta base es local y solo para probar: no es la de Supabase. Para usar
+# Supabase, ver "Opción C" en INSTALACION.md.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: prevet
+      POSTGRES_USER: prevet
+      POSTGRES_PASSWORD: prevet-local
+    volumes:
+      - datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prevet -d prevet"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: prevet
+      DB_USER: prevet
+      DB_PASSWORD: prevet-local
+      # La base local no usa SSL; Supabase sí (por eso en settings el valor por defecto es "require").
+      DB_SSLMODE: disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  datos:
