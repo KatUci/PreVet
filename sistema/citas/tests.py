@@ -1559,3 +1559,61 @@ class PesosDelModeloTest(BaseCitas):
         recepcion.groups.add(Group.objects.get(name='Recepción'))
         self.client.force_login(recepcion)
         self.assertEqual(self.client.get(self.URL).status_code, 403)
+
+
+class HistorialDeCambiosTest(CalendarioTest):
+    """Quién cambió cada cita, qué cambió y cuándo (PV-ADM-05)."""
+
+    def ultimo(self, cita):
+        return cita.cambios.first()
+
+    def test_al_crearla_queda_agendada_sin_usuario_si_no_hay_peticion(self):
+        c = self.cita()
+        cambio = self.ultimo(c)
+        self.assertEqual((cambio.accion, cambio.usuario), ('Agendada', None))
+        self.assertIn('10:00', cambio.detalle)
+
+    def test_reagendar_anota_quien_y_que_cambio(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/reagendar/', {
+            'veterinario': self.otro_vet.pk, 'fecha': self.manana.isoformat(), 'hora': '11:00'})
+        cambio = self.ultimo(c)
+        self.assertEqual((cambio.accion, cambio.usuario), ('Reagendada', self.recepcion))
+        self.assertIn('Hora: 10:00 → 11:00', cambio.detalle)
+        self.assertIn('Profesional: Paz Herrera → Luis Contreras', cambio.detalle)
+
+    def test_cancelar_queda_en_el_historial(self):
+        c = self.cita()
+        self.client.post(f'/citas/{c.pk}/cancelar/', {'motivo': 'Otro', 'detalle': 'Viaje'})
+        cambio = self.ultimo(c)
+        self.assertEqual((cambio.accion, cambio.usuario), ('Cancelada', self.recepcion))
+        self.assertIn('Estado: Pendiente → Cancelada', cambio.detalle)
+        self.assertIn('Otro: Viaje', cambio.detalle)
+
+    def test_guardar_sin_cambios_no_anota_nada(self):
+        c = self.cita()
+        c.save()
+        self.assertEqual(c.cambios.count(), 1)
+
+    def test_la_accion_del_admin_tambien_queda_registrada(self):
+        from django.contrib.admin.sites import site
+        from django.test import RequestFactory
+        c = self.cita(dias=-1)
+        admin_citas = site._registry[Cita]
+        peticion = RequestFactory().post('/admin/')
+        peticion.user = self.recepcion
+        admin_citas.message_user = lambda *a, **k: None
+        admin_citas.marcar_no_asistio(peticion, Cita.objects.filter(pk=c.pk))
+        self.assertEqual(self.ultimo(c).accion, 'Marcada como no asistió')
+
+    def test_administracion_ve_el_historial_en_el_detalle(self):
+        from django.contrib.auth.models import Group
+        admin = User.objects.create_user('admin')
+        admin.groups.add(Group.objects.get(name='Administración'))
+        c = self.cita()
+        self.client.force_login(admin)
+        self.assertContains(self.client.get(f'/citas/{c.pk}/detalle/'), 'Historial de cambios (1)')
+
+    def test_recepcion_no_ve_el_historial(self):
+        c = self.cita()
+        self.assertNotContains(self.client.get(f'/citas/{c.pk}/detalle/'), 'Historial de cambios')

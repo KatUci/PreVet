@@ -346,3 +346,27 @@ class PesosModelo(models.Model):
     class Meta:
         verbose_name = "pesos del modelo de riesgo"
         verbose_name_plural = "pesos del modelo de riesgo"
+
+
+class CambioCita(models.Model):
+    """Una línea del historial de una cita: quién la cambió, qué cambió y cuándo (PV-ADM-05).
+
+    Se registra solo, cada vez que se guarda una cita (ver auditoria.py), así
+    que cubre todas las pantallas: agendar, reagendar, cancelar, llegó,
+    atendida, confirmación, importar y el panel /admin/.
+    """
+
+    cita = models.ForeignKey(Cita, on_delete=models.CASCADE, related_name='cambios')
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                                help_text='Vacío si el cambio no lo hizo una persona (por ejemplo, los datos de prueba).')
+    fecha = models.DateTimeField(auto_now_add=True)
+    accion = models.CharField('acción', max_length=40)
+    detalle = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.accion} · {self.cita}"
+
+    class Meta:
+        verbose_name = "cambio de una cita"
+        verbose_name_plural = "historial de cambios de las citas"
+        ordering = ['-fecha', '-pk']

@@ -119,9 +119,15 @@ def detalle(request, pk):
         puntaje, nivel, accion, detalle_riesgo = riesgo.puntuar(cita, stats)
         guion = guion_llamada(cita, nivel, stats)
 
+    # Historial de cambios (PV-ADM-05): solo para quien tiene el permiso.
+    cambios = None
+    if request.user.has_perm('citas.view_cambiocita'):
+        cambios = cita.cambios.select_related('usuario')
+
     return render(request, 'citas/_detalle.html', {
         'cita': cita,
         'hoy': hoy,
+        'cambios': cambios,
         'pendiente': cita.estado == 'pendiente',
         'ya_ocurrio': cita.fecha <= hoy,
         'es_hoy': cita.fecha == hoy,

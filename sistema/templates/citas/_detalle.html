@@ -145,6 +145,26 @@
 </section>
 {% endif %}
 
+{# ---------- Historial de cambios (PV-ADM-05) ---------- #}
+{% if cambios is not None %}
+<section class="det-sec">
+    <details class="det-historial">
+        <summary class="det-sec-titulo">Historial de cambios ({{ cambios|length }})</summary>
+        <ol class="historial-cambios">
+            {% for c in cambios %}
+            <li>
+                <b>{{ c.accion }}</b>
+                <span class="det-nota">{{ c.fecha|date:"d/m/Y H:i" }} · {% if c.usuario %}{{ c.usuario.get_full_name|default:c.usuario.username }}{% else %}Sistema{% endif %}</span>
+                {% if c.detalle %}<div class="det-nota">{{ c.detalle }}</div>{% endif %}
+            </li>
+            {% empty %}
+            <li class="det-nota">Sin cambios registrados.</li>
+            {% endfor %}
+        </ol>
+    </details>
+</section>
+{% endif %}
+
 {# ---------- Acciones ---------- #}
 {% if pendiente and perms.citas.change_cita %}
 <footer class="det-acciones">
