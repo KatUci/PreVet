@@ -16,7 +16,7 @@ from mascotas.models import Cliente
 from mascotas.rut import limpiar_rut, validar_rut
 
 from .disponibilidad import resumen_horarios
-from .forms import AgendarCitaForm
+from .forms import AgendarCitaForm, SinHoraForm
 from .models import Cita, TipoAtencion
 
 
@@ -214,15 +214,10 @@ def marcar_no_asistio(request, pk):
     )
     return redirect(volver)
 
-@login_required
-@permission_required('citas.add_cita', raise_exception=True)
-def agendar(request):
-    """Agendar una hora: primero se busca al cliente por RUT, después se
-    elige una de sus mascotas y el resto de los datos de la cita."""
-
+def _buscar_cliente(request):
+    """Busca al cliente activo por el RUT escrito en la dirección (?rut=...)."""
     rut_escrito = request.GET.get('rut', '').strip()
     cliente, error_rut = None, None
-
     if rut_escrito:
         try:
             validar_rut(rut_escrito)
@@ -230,6 +225,16 @@ def agendar(request):
             error_rut = error.messages[0]
         else:
             cliente = Cliente.objects.filter(rut=limpiar_rut(rut_escrito), activo=True).first()
+    return rut_escrito, cliente, error_rut
+
+
+@login_required
+@permission_required('citas.add_cita', raise_exception=True)
+def agendar(request):
+    """Agendar una hora: primero se busca al cliente por RUT, después se
+    elige una de sus mascotas y el resto de los datos de la cita."""
+
+    rut_escrito, cliente, error_rut = _buscar_cliente(request)
 
     form = None
     if cliente:
@@ -250,6 +255,46 @@ def agendar(request):
         'cliente': cliente,
         'form': form,
         'horarios': resumen_horarios() if cliente else None,
+    })
+
+
+@login_required
+@permission_required('citas.add_cita', raise_exception=True)
+def sin_hora(request):
+    """Atención sin hora (PV-CIT-07): una urgencia o sobrecupo que ya está
+    en la clínica. Se registra con la hora actual y queda en la sala de espera."""
+
+    rut_escrito, cliente, error_rut = _buscar_cliente(request)
+
+    form = None
+    if cliente:
+        form = SinHoraForm(request.POST or None, cliente=cliente)
+        if request.method == 'POST' and form.is_valid():
+            ahora = timezone.localtime()
+            cita = form.save(commit=False)
+            # Se guarda con los segundos para que no choque con una hora agendada.
+            # Si dos urgencias llegan en el mismo segundo, la segunda se corre uno.
+            momento = ahora.replace(microsecond=0)
+            while (Cita.objects.filter(veterinario=cita.veterinario, fecha=momento.date(),
+                                       hora=momento.time()).exclude(estado='cancelada').exists()):
+                momento += datetime.timedelta(seconds=1)
+            cita.fecha = momento.date()
+            cita.hora = momento.time()
+            cita.hora_llegada = ahora
+            cita.sin_hora = True
+            cita.save()
+            messages.success(request, f'{cita.mascota.nombre} quedó en la sala de espera '
+                                      f'para {cita.veterinario.get_full_name()}.')
+            return redirect('panel_dia')
+
+    return render(request, 'citas/agendar.html', {
+        'seccion': 'hoy',
+        'sin_hora': True,
+        'rut_escrito': rut_escrito,
+        'rut_limpio': limpiar_rut(rut_escrito),
+        'error_rut': error_rut,
+        'cliente': cliente,
+        'form': form,
     })
 
 

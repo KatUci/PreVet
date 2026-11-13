@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% load pesos %}
+
+{% block titulo %}Cobrar{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'panel_dia' %}">Hoy en la clínica</a><span class="sep">›</span><span>Cobrar</span>{% endblock %}
+{% block encabezado %}Cobrar la atención de {{ cita.mascota.nombre }}{% endblock %}
+{% block subtitulo %}{{ cita.cliente.nombre_completo }} · {{ cita.tipo_atencion.nombre }} con {{ cita.veterinario.get_full_name }}{% endblock %}
+
+{% block acciones %}
+<a href="{{ volver }}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ volver }}">
+    <div class="card">
+        <div class="por-pagar">
+            <span>Valor a pagar</span>
+            <b>{{ cita.tipo_atencion.precio|pesos }}</b>
+            <small>Precio de «{{ cita.tipo_atencion.nombre }}». Si se cobró algo más, cambia el monto y anótalo en el detalle.</small>
+        </div>
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.monto %}
+            {% include 'usuarios/_campo.html' with campo=form.medio %}
+            {% include 'usuarios/_campo.html' with campo=form.detalle ancho=True %}
+        </div>
+        <div class="form-acciones">
+            <a href="{{ volver }}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Registrar pago</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

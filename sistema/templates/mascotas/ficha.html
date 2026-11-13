@@ -77,6 +77,30 @@
                         <div><span class="det-etiqueta">Diagnóstico</span> {{ a.diagnostico|linebreaksbr }}</div>
                         {% if a.tratamiento %}<div><span class="det-etiqueta">Tratamiento</span> {{ a.tratamiento|linebreaksbr }}</div>{% endif %}
                         <div class="celda-sub">{% if a.peso_kg %}{{ a.peso_kg|floatformat:1 }} kg · {% endif %}{{ a.cita.veterinario.get_full_name }}</div>
+                        {# Documentos adjuntos (PV-FIC-03) #}
+                        {% for d in a.documentos.all %}
+                        <div class="hc-documento">
+                            📎 <a href="{% url 'documento_descargar' d.pk %}">{{ d.nombre }}</a>
+                            <span class="celda-sub">{{ d.tamano_txt }}</span>
+                            {% if perms.citas.add_atencion %}
+                            <form method="post" action="{% url 'documento_quitar' d.pk %}" style="display:inline"
+                                  onsubmit="return confirm('¿Quitar «{{ d.nombre|escapejs }}»?')">
+                                {% csrf_token %}<button type="submit" class="btn btn-suave btn-chico">Quitar</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        {% if perms.citas.add_atencion %}
+                        <details class="hc-adjuntar">
+                            <summary>+ Adjuntar documento</summary>
+                            <form method="post" action="{% url 'atencion_adjuntar' a.pk %}" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="file" name="documento" accept=".pdf,.doc,.docx" required aria-label="Documento para adjuntar">
+                                <button type="submit" class="btn btn-suave btn-chico">Adjuntar</button>
+                                <span class="celda-sub">PDF o Word de hasta 5 MB</span>
+                            </form>
+                        </details>
+                        {% endif %}
                     </div>
                 </li>
                 {% empty %}
@@ -85,6 +109,31 @@
             </ol>
         </section>
         {% endif %}
+
+        {# ---------- Carnet de vacunas ---------- #}
+        <section class="card">
+            <div class="card-titulo">
+                <h2>💉 Carnet de vacunas</h2>
+                {% if perms.mascotas.add_vacuna %}<a href="{% url 'vacuna_nueva' mascota.pk %}">+ Registrar vacuna</a>{% endif %}
+            </div>
+            <div class="tabla-wrap">
+                <table>
+                    <thead><tr><th>Vacuna</th><th>Aplicada</th><th>Próxima dosis</th><th>Lote</th></tr></thead>
+                    <tbody>
+                        {% for v in vacunas %}
+                        <tr>
+                            <td><b>{{ v.nombre }}</b></td>
+                            <td class="sin-corte">{{ v.fecha_aplicacion|date:"d/m/Y" }}</td>
+                            <td class="sin-corte">{{ v.proxima_dosis|date:"d/m/Y"|default:"—" }}</td>
+                            <td>{{ v.lote|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="flujo-vacio">Todavía no tiene vacunas registradas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
         {# ---------- Citas ---------- #}
         <section class="card">

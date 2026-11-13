@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Vacunas por vencer{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Vacunas por vencer</span>{% endblock %}
+{% block encabezado %}💉 Vacunas por vencer{% endblock %}
+{% block subtitulo %}Próximas dosis de los siguientes {{ dias }} días y las atrasadas, para recordarle al tutor{% endblock %}
+
+{% block contenido %}
+<section class="card">
+    <div class="tabla-wrap">
+        <table>
+            <thead><tr><th>Próxima dosis</th><th>Mascota</th><th>Vacuna</th><th>Tutor</th><th>Contactar</th></tr></thead>
+            <tbody>
+                {% for f in filas %}
+                <tr>
+                    <td class="sin-corte">
+                        {{ f.vacuna.proxima_dosis|date:"d/m/Y" }}
+                        {% if f.atrasada %}<span class="badge badge-cancelada">Atrasada</span>{% endif %}
+                    </td>
+                    <td><a href="{% url 'mascota_ficha' f.vacuna.mascota.pk %}">{{ f.vacuna.mascota.especie.emoji }} {{ f.vacuna.mascota.nombre }}</a></td>
+                    <td>{{ f.vacuna.nombre }}<div class="celda-sub">aplicada el {{ f.vacuna.fecha_aplicacion|date:"d/m/Y" }}</div></td>
+                    <td>{% if f.tutor %}{{ f.tutor.nombre_completo }}<div class="celda-sub">{{ f.tutor.telefono|default:"sin teléfono" }}</div>{% else %}<span style="color:var(--gris)">Sin tutor principal</span>{% endif %}</td>
+                    <td class="sin-corte">
+                        {% if f.tutor.telefono %}{% include 'citas/_llamar.html' with telefono=f.tutor.telefono chico=True %}{% endif %}
+                        {% if f.whatsapp %}<a class="btn btn-suave btn-chico" href="{{ f.whatsapp }}" title="WhatsApp con el recordatorio de la vacuna">💬</a>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="flujo-vacio">No hay vacunas por vencer en los próximos {{ dias }} días. 🎉</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

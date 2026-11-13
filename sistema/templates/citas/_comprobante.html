@@ -1,0 +1,30 @@
+{# Comprobante de pago tipo boleta. Lo usan recepción y el portal del cliente. #}
+<article class="card comprobante">
+    <header class="comprobante-cab">
+        <div>
+            <b>PreVet · Clínica veterinaria</b>
+            <span>Comprobante de pago</span>
+        </div>
+        <div class="comprobante-num">N° {{ pago.numero }}</div>
+    </header>
+    <dl class="comprobante-datos">
+        <dt>Fecha</dt><dd>{{ pago.fecha|date:"d/m/Y H:i" }}</dd>
+        <dt>Cliente</dt><dd>{{ pago.cita.cliente.nombre_completo }} · RUT {{ pago.cita.cliente.rut_formateado }}</dd>
+        <dt>Mascota</dt><dd>{{ pago.cita.mascota.especie.emoji }} {{ pago.cita.mascota.nombre }}</dd>
+        <dt>Profesional</dt><dd>{{ pago.cita.veterinario.get_full_name }}</dd>
+    </dl>
+    <table class="comprobante-detalle">
+        <thead><tr><th>Detalle</th><th>Valor</th></tr></thead>
+        <tbody>
+            <tr>
+                <td>{{ pago.cita.tipo_atencion.nombre }} del {{ pago.cita.fecha|date:"d/m/Y" }}{% if pago.detalle %}<div class="celda-sub">{{ pago.detalle }}</div>{% endif %}</td>
+                <td>{{ pago.monto_txt }}</td>
+            </tr>
+        </tbody>
+        <tfoot><tr><th>Total pagado</th><th>{{ pago.monto_txt }}</th></tr></tfoot>
+    </table>
+    <p class="comprobante-pie">
+        Pagado con {{ pago.get_medio_display|lower }}.
+        Comprobante interno de la clínica: no reemplaza la boleta electrónica.
+    </p>
+</article>

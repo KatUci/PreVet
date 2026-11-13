@@ -12,7 +12,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from . import riesgo
-from .contacto import enlace_whatsapp, guion_llamada, mensaje_segun_riesgo
+from .contacto import armar_mensaje, datos_de_cita, enlace_whatsapp, guion_llamada, mensaje_segun_riesgo
 from .disponibilidad import resumen_horarios
 from .forms import CancelarForm, ReagendarForm
 from .models import Cita
@@ -146,9 +146,7 @@ def _enlace_whatsapp(cita, nivel=None):
     if nivel:
         mensaje = mensaje_segun_riesgo(cita, nivel)
     else:
-        mensaje = (f'Hola {cita.cliente.nombres}, te escribimos de la clínica para recordarte '
-                   f'la hora de {cita.mascota.nombre} el {cita.fecha:%d/%m} a las {cita.hora:%H:%M}. '
-                   f'¿Nos confirmas tu asistencia?')
+        mensaje = armar_mensaje('recordatorio', datos_de_cita(cita))
     return enlace_whatsapp(cita.cliente.telefono, mensaje)
 
 

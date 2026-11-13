@@ -1,10 +1,11 @@
 from django.urls import path
 
-from . import atencion, calendario, configuracion, confirmacion, disponibilidad, panel, views
+from . import atencion, calendario, configuracion, confirmacion, disponibilidad, documentos, pagos, panel, views
 
 urlpatterns = [
     path('', views.listado, name='citas'),
     path('nueva/', views.agendar, name='agendar'),
+    path('sin-hora/', views.sin_hora, name='cita_sin_hora'),
     path('disponibles/', disponibilidad.disponibles, name='horas_disponibles'),
     path('hoy/', panel.panel_dia, name='panel_dia'),
     path('llamadas/', confirmacion.llamadas, name='llamadas'),
@@ -18,6 +19,12 @@ urlpatterns = [
     path('<int:pk>/pasar/', calendario.pasar_a_atencion, name='cita_pasar'),
     path('<int:pk>/salio/', calendario.marcar_salida, name='cita_salio'),
     path('<int:pk>/atender/', atencion.atender, name='cita_atender'),
+    path('atenciones/<int:pk>/adjuntar/', documentos.adjuntar, name='atencion_adjuntar'),
+    path('<int:pk>/cobrar/', pagos.cobrar, name='cita_cobrar'),
+    path('pagos/', pagos.listado, name='pagos'),
+    path('pagos/<int:pk>/', pagos.comprobante, name='comprobante'),
+    path('documentos/<int:pk>/', documentos.descargar, name='documento_descargar'),
+    path('documentos/<int:pk>/quitar/', documentos.quitar, name='documento_quitar'),
     path('<int:pk>/confirmacion/', confirmacion.registrar, name='cita_confirmacion'),
     path('<int:pk>/cancelar/', calendario.cancelar, name='cita_cancelar'),
     path('<int:pk>/reagendar/', calendario.reagendar, name='cita_reagendar'),
@@ -31,4 +38,6 @@ urlpatterns = [
     path('horarios/nuevo/', configuracion.horario_formulario, name='horario_nuevo'),
     path('horarios/<int:pk>/', configuracion.horario_formulario, name='horario_editar'),
     path('horarios/<int:pk>/eliminar/', configuracion.horario_eliminar, name='horario_eliminar'),
+    path('mensajes/', configuracion.mensajes_listado, name='mensajes'),
+    path('mensajes/<str:clave>/', configuracion.mensaje_editar, name='mensaje_editar'),
 ]

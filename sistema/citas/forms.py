@@ -93,7 +93,9 @@ class AgendarCitaForm(forms.ModelForm):
         self.fields['veterinario'].queryset = veterinarios_con_horario()
         self.fields['veterinario'].empty_label = 'Elige al profesional'
         self.fields['veterinario'].label_from_instance = lambda u: u.get_full_name() or u.username
-        self.fields['fecha'].widget.attrs['min'] = timezone.localdate().isoformat()
+        # La atención sin hora no tiene fecha (SinHoraForm, más abajo).
+        if 'fecha' in self.fields:
+            self.fields['fecha'].widget.attrs['min'] = timezone.localdate().isoformat()
 
     def mascotas_por_tipo(self):
         """Las opciones de mascota agrupadas por tipo, para mostrar primero el tipo."""
@@ -120,6 +122,17 @@ class AgendarCitaForm(forms.ModelForm):
     def validate_unique(self):
         # La revisión de hora tomada ya se hizo arriba, con un mensaje claro.
         pass
+
+
+class SinHoraForm(AgendarCitaForm):
+    """Atención sin hora: igual que agendar, pero sin elegir fecha ni hora,
+    porque el paciente ya está en la clínica."""
+
+    hora = None
+
+    class Meta(AgendarCitaForm.Meta):
+        fields = ['mascota', 'tipo_atencion', 'veterinario', 'notas']
+        labels = dict(AgendarCitaForm.Meta.labels, notas='Motivo de la urgencia')
 
 
 class ReagendarForm(forms.ModelForm):
@@ -183,6 +196,11 @@ class CancelarForm(forms.Form):
 class AtencionForm(forms.ModelForm):
     """Lo que el veterinario registra al cerrar la atención."""
 
+    documento = forms.FileField(
+        label='Adjuntar receta o indicaciones (opcional)', required=False,
+        help_text='PDF o Word de hasta 5 MB.',
+        widget=forms.ClearableFileInput(attrs={'accept': '.pdf,.doc,.docx'}))
+
     class Meta:
         model = Atencion
         fields = ['motivo', 'diagnostico', 'tratamiento', 'peso_kg']
@@ -192,6 +210,11 @@ class AtencionForm(forms.ModelForm):
             'tratamiento': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Medicamentos, dosis, cuidados en casa, próximo control…'}),
             'peso_kg': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
         }
+
+    def clean_documento(self):
+        from .documentos import validar_documento
+        archivo = self.cleaned_data.get('documento')
+        return validar_documento(archivo) if archivo else None
 
     def clean_peso_kg(self):
         peso = self.cleaned_data.get('peso_kg')

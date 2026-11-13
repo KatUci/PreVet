@@ -11,7 +11,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from mascotas.models import Cliente, Especie, Mascota, Tenencia
-from .models import Cita, TipoAtencion
+from .models import Cita, Pago, PlantillaMensaje, TipoAtencion
 from . import riesgo
 
 
@@ -1262,3 +1262,241 @@ class ArreglosDeRevisionTest(RecepcionLogueada):
         self.client.post(f'/citas/{c.pk}/llego/')
         filas = self.client.get('/citas/llamadas/', {'fecha': timezone.localdate().isoformat()}).context['filas']
         self.assertEqual(filas, [])
+
+
+class AtencionSinHoraTest(RecepcionLogueada):
+    """PV-CIT-07: una urgencia o sobrecupo entra directo a la sala de espera."""
+
+    def setUp(self):
+        super().setUp()
+        from usuarios.models import Perfil
+        from .models import HorarioAtencion
+        Perfil.objects.create(usuario=self.vet, rol='veterinario')
+        HorarioAtencion.objects.create(veterinario=self.vet, dia_semana=0,
+                                       hora_inicio='09:00', hora_fin='13:00')
+
+    def registrar(self, **datos):
+        datos = {'mascota': self.mascota.pk, 'tipo_atencion': self.control.pk,
+                 'veterinario': self.vet.pk, 'notas': 'Atropellado', **datos}
+        return self.client.post('/citas/sin-hora/?rut=15.234.871-1', datos)
+
+    def test_queda_en_la_sala_de_espera_con_la_hora_actual(self):
+        respuesta = self.registrar()
+        self.assertRedirects(respuesta, '/citas/hoy/')
+        cita = Cita.objects.get()
+        self.assertTrue(cita.sin_hora)
+        self.assertEqual(cita.fecha, timezone.localdate())
+        self.assertIsNotNone(cita.hora_llegada)
+        contexto = self.client.get('/citas/hoy/').context
+        self.assertEqual([t['cita'] for t in contexto['en_sala']], [cita])
+
+    def test_no_choca_con_una_hora_agendada(self):
+        self.crear_cita(dias=0)
+        self.registrar()
+        self.registrar()
+        self.assertEqual(Cita.objects.filter(sin_hora=True).count(), 2)
+
+    def test_la_mascota_debe_ser_del_cliente(self):
+        otra = Mascota.objects.create(nombre='Kira', especie=self.especie, sexo='hembra')
+        respuesta = self.registrar(mascota=otra.pk)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(Cita.objects.exists())
+
+    def test_sin_permiso_no_puede_registrar(self):
+        self.client.force_login(self.vet)
+        respuesta = self.registrar()
+        self.assertEqual(respuesta.status_code, 403)
+
+    def test_no_cuenta_para_el_modelo_de_riesgo(self):
+        cita = self.crear_cita(dias=-1, estado='completada')
+        Cita.objects.filter(pk=cita.pk).update(sin_hora=True)
+        self.assertEqual(riesgo.estadisticas()['tutor'], {})
+
+
+class PlantillasDeMensajesTest(BaseCitas):
+    """PV-REC-06: administración edita los textos de WhatsApp."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth.models import Group
+        self.admin = User.objects.create_user('jefa')
+        self.admin.groups.add(Group.objects.get(name='Administración'))
+        self.client.force_login(self.admin)
+
+    def test_sin_editar_usa_el_texto_original(self):
+        from .contacto import mensaje_segun_riesgo
+        cita = self.crear_cita()
+        self.assertIn('¡Te esperamos!', mensaje_segun_riesgo(cita, 'bajo'))
+
+    def test_al_guardar_los_mensajes_siguientes_usan_el_nuevo_texto(self):
+        from .contacto import mensaje_segun_riesgo
+        respuesta = self.client.post('/citas/mensajes/riesgo_bajo/',
+                                     {'texto': 'Hola {tutor}, {mascota} te espera el {fecha} a las {hora} 🐾'})
+        self.assertRedirects(respuesta, '/citas/mensajes/')
+        cita = self.crear_cita()
+        mensaje = mensaje_segun_riesgo(cita, 'bajo')
+        self.assertTrue(mensaje.startswith('Hola Ana, Bruno te espera el'))
+        self.assertNotIn('{', mensaje)
+
+    def test_no_acepta_variables_que_no_existen(self):
+        respuesta = self.client.post('/citas/mensajes/riesgo_bajo/', {'texto': 'Hola {perro}'})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertContains(respuesta, 'La variable {perro} no existe')
+        self.assertFalse(PlantillaMensaje.objects.exists())
+
+    def test_recepcion_no_puede_editarlos(self):
+        from django.contrib.auth.models import Group
+        self.tutor.groups.add(Group.objects.get(name='Recepción'))
+        self.client.force_login(self.tutor)
+        self.assertEqual(self.client.get('/citas/mensajes/').status_code, 403)
+
+    def test_el_listado_muestra_las_cinco_plantillas(self):
+        respuesta = self.client.get('/citas/mensajes/')
+        self.assertEqual(len(respuesta.context['filas']), 5)
+
+
+class DocumentosAdjuntosTest(TestCase):
+    """PV-FIC-03: el veterinario adjunta un PDF o Word a la atención."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from .models import Atencion
+        self.vet = User.objects.create_user('vet', first_name='Paz', last_name='Herrera')
+        self.vet.groups.add(Group.objects.get(name='Veterinarios'))
+        self.recepcion = User.objects.create_user('recepcion')
+        self.recepcion.groups.add(Group.objects.get(name='Recepción'))
+        especie = Especie.objects.create(nombre='Perro')
+        self.mascota = Mascota.objects.create(nombre='Bruno', especie=especie, sexo='macho')
+        cliente = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto')
+        Tenencia.objects.create(cliente=cliente, mascota=self.mascota, es_principal=True)
+        tipo = TipoAtencion.objects.create(nombre='Control', duracion_minutos=30, precio=20000)
+        self.cita = Cita.objects.create(veterinario=self.vet, mascota=self.mascota, cliente=cliente,
+                                        tipo_atencion=tipo, fecha=timezone.localdate(), hora='10:00',
+                                        estado='completada')
+        self.atencion = Atencion.objects.create(cita=self.cita, motivo='Control', diagnostico='Sano')
+        self.client.force_login(self.vet)
+
+    def archivo(self, nombre='receta.pdf', contenido=b'%PDF-1.4 receta'):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        return SimpleUploadedFile(nombre, contenido)
+
+    def adjuntar(self, archivo):
+        return self.client.post(f'/citas/atenciones/{self.atencion.pk}/adjuntar/', {'documento': archivo})
+
+    def test_adjunta_un_pdf_y_se_descarga(self):
+        self.adjuntar(self.archivo())
+        documento = self.atencion.documentos.get()
+        self.assertEqual(documento.nombre, 'receta.pdf')
+        respuesta = self.client.get(f'/citas/documentos/{documento.pk}/')
+        self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+        self.assertEqual(respuesta.content, b'%PDF-1.4 receta')
+
+    def test_acepta_word(self):
+        self.adjuntar(self.archivo('indicaciones.docx', b'PK\x03\x04contenido'))
+        self.assertEqual(self.atencion.documentos.count(), 1)
+
+    def test_rechaza_otros_tipos_y_archivos_renombrados(self):
+        self.adjuntar(self.archivo('foto.jpg', b'\xff\xd8\xff'))
+        self.adjuntar(self.archivo('falso.pdf', b'MZ programa'))
+        self.assertFalse(self.atencion.documentos.exists())
+
+    def test_rechaza_archivos_de_mas_de_5_mb(self):
+        self.adjuntar(self.archivo(contenido=b'%PDF' + b'0' * (5 * 1024 * 1024)))
+        self.assertFalse(self.atencion.documentos.exists())
+
+    def test_recepcion_no_puede_subir_ni_descargar(self):
+        self.adjuntar(self.archivo())
+        documento = self.atencion.documentos.get()
+        self.client.force_login(self.recepcion)
+        self.assertEqual(self.adjuntar(self.archivo()).status_code, 403)
+        self.assertEqual(self.client.get(f'/citas/documentos/{documento.pk}/').status_code, 403)
+
+    def test_se_puede_adjuntar_al_registrar_la_atencion(self):
+        self.cita.estado = 'pendiente'
+        self.cita.save()
+        self.atencion.delete()
+        self.client.post(f'/citas/{self.cita.pk}/atender/', {
+            'motivo': 'Vómitos', 'diagnostico': 'Gastritis', 'documento': self.archivo()})
+        self.cita.refresh_from_db()
+        self.assertEqual(self.cita.estado, 'completada')
+        self.assertEqual(self.cita.atencion.documentos.count(), 1)
+
+    def test_la_ficha_muestra_el_documento(self):
+        self.adjuntar(self.archivo())
+        respuesta = self.client.get(f'/mascotas/{self.mascota.pk}/')
+        self.assertContains(respuesta, 'receta.pdf')
+
+
+class PagosTest(RecepcionLogueada):
+    """PV-PAG-01 y PV-PAG-02: cobrar la atención, comprobante y lo que entra."""
+
+    def cobrar(self, cita, **datos):
+        datos = {'monto': 20000, 'medio': 'debito', 'detalle': '', **datos}
+        return self.client.post(f'/citas/{cita.pk}/cobrar/', datos)
+
+    def test_el_panel_muestra_lo_que_debe_pagar(self):
+        self.crear_cita(dias=0, estado='completada')
+        respuesta = self.client.get('/citas/hoy/')
+        self.assertContains(respuesta, 'Por pagar $20.000')
+        self.assertContains(respuesta, 'Cobrar')
+
+    def test_cobrar_registra_el_pago_y_la_salida(self):
+        cita = self.crear_cita(dias=0, estado='completada')
+        respuesta = self.cobrar(cita, monto=25000, detalle='Vacuna antirrábica')
+        pago = Pago.objects.get()
+        self.assertRedirects(respuesta, f'/citas/pagos/{pago.pk}/')
+        self.assertEqual((pago.monto, pago.medio, pago.cobrado_por), (25000, 'debito', self.tutor))
+        cita.refresh_from_db()
+        self.assertIsNotNone(cita.hora_salida)
+        comprobante = self.client.get(f'/citas/pagos/{pago.pk}/')
+        self.assertContains(comprobante, '$25.000')
+        self.assertContains(comprobante, 'Vacuna antirrábica')
+
+    def test_no_se_cobra_dos_veces_ni_una_cita_sin_atender(self):
+        cita = self.crear_cita(dias=0, estado='completada')
+        self.cobrar(cita)
+        self.cobrar(cita)
+        pendiente = self.crear_cita(dias=0)
+        self.cobrar(pendiente)
+        self.assertEqual(Pago.objects.count(), 1)
+
+    def test_el_monto_debe_ser_mayor_que_cero(self):
+        cita = self.crear_cita(dias=0, estado='completada')
+        respuesta = self.cobrar(cita, monto=0)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(Pago.objects.exists())
+
+    def test_el_listado_suma_lo_que_entra(self):
+        self.cobrar(self.crear_cita(dias=0, estado='completada'), monto=20000, medio='efectivo')
+        self.cobrar(self.crear_cita(dias=0, estado='completada'), monto=15000, medio='debito')
+        respuesta = self.client.get('/citas/pagos/')
+        self.assertEqual(respuesta.context['total'], 35000)
+        self.assertEqual(respuesta.context['hoy_total'], 35000)
+        self.assertEqual(self.client.get('/citas/hoy/').context['cobrado_hoy'], 35000)
+
+    def test_el_veterinario_no_cobra(self):
+        from django.contrib.auth.models import Group
+        self.vet.groups.add(Group.objects.get(name='Veterinarios'))
+        self.client.force_login(self.vet)
+        cita = self.crear_cita(dias=0, estado='completada')
+        self.assertEqual(self.cobrar(cita).status_code, 403)
+
+    def test_el_cliente_ve_sus_pagos_y_no_los_de_otros(self):
+        cita = self.crear_cita(dias=0, estado='completada')
+        self.cobrar(cita)
+        pago = Pago.objects.get()
+        # Ana entra a Mi PreVet.
+        from usuarios.models import Perfil
+        ana = User.objects.create_user('15234871-1')
+        Perfil.objects.create(usuario=ana, rol='dueno')
+        self.cliente.usuario = ana
+        self.cliente.save()
+        self.client.force_login(ana)
+        self.assertContains(self.client.get('/mi-prevet/'), 'Ver comprobante')
+        self.assertContains(self.client.get(f'/mi-prevet/pagos/{pago.pk}/'), f'N° {pago.numero}')
+        # Otro cliente no puede ver el comprobante de Ana.
+        otro = User.objects.create_user('16890342-1')
+        Perfil.objects.create(usuario=otro, rol='dueno')
+        Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva', usuario=otro)
+        self.client.force_login(otro)
+        self.assertEqual(self.client.get(f'/mi-prevet/pagos/{pago.pk}/').status_code, 404)

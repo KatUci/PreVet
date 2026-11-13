@@ -7,14 +7,14 @@ Python, porque la base está en la nube y cada consulta suma tiempo.
 import datetime
 
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db.models import Count
+from django.db.models import Count, Sum
 from django.shortcuts import render
 from django.utils import timezone
 
 from .calendario import _enlace_whatsapp, _veterinarios
 from .contacto import guion_llamada
 from .forms import BLOQUES
-from .models import Cita, HorarioAtencion
+from .models import Cita, HorarioAtencion, Pago
 
 # Minutos de espera desde los que la tarjeta se marca en ámbar.
 ESPERA_LARGA = 15
@@ -66,7 +66,7 @@ def panel_dia(request):
     perfil = getattr(request.user, 'perfil', None)
     es_vet = bool(perfil and perfil.rol == 'veterinario')
 
-    base = (Cita.objects.select_related('mascota__especie', 'cliente', 'veterinario', 'tipo_atencion')
+    base = (Cita.objects.select_related('mascota__especie', 'cliente', 'veterinario', 'tipo_atencion', 'pago')
             .prefetch_related('mascota__etiquetas', 'cliente__etiquetas'))
     del_dia = base.filter(fecha=hoy).order_by('hora')
     if es_vet:
@@ -168,5 +168,7 @@ def panel_dia(request):
         'huecos_manana': _huecos(manana, None, vets, horarios, ocupadas),
         'cancelaciones': cancelaciones,
         'espera_larga': ESPERA_LARGA,
+        # Lo que entró hoy por las atenciones cobradas (PV-PAG-02).
+        'cobrado_hoy': Pago.objects.filter(fecha__date=hoy).aggregate(t=Sum('monto'))['t'] or 0,
     })
 

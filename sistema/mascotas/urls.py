@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import clientes, configuracion, fotos, views
+from . import clientes, configuracion, fotos, vacunas, views
 
 urlpatterns = [
     path('', views.listado, name='mascotas'),
@@ -23,4 +23,6 @@ urlpatterns = [
     path('razas/<int:pk>/eliminar/', configuracion.raza_eliminar, name='raza_eliminar'),
     path('<int:pk>/foto/subir/', fotos.subir_foto, name='mascota_foto_subir'),
     path('<int:pk>/foto/quitar/', fotos.quitar_foto, name='mascota_foto_quitar'),
+    path('<int:pk>/vacunas/nueva/', vacunas.registrar, name='vacuna_nueva'),
+    path('vacunas/', vacunas.por_vencer, name='vacunas_por_vencer'),
 ]

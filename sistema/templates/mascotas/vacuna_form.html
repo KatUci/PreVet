@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Registrar vacuna · {{ mascota.nombre }}{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{% url 'mascotas' %}">Mascotas</a><span class="sep">›</span><a href="{% url 'mascota_ficha' mascota.pk %}">{{ mascota.nombre }}</a><span class="sep">›</span><span>Registrar vacuna</span>{% endblock %}
+{% block encabezado %}💉 Vacuna para {{ mascota.nombre }}{% endblock %}
+{% block subtitulo %}{{ mascota.especie.nombre }}{% if mascota.raza %} · {{ mascota.raza.nombre }}{% endif %}{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'mascota_ficha' mascota.pk %}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+{% endblock %}
+
+{% block contenido %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card">
+        <div class="form-grid">
+            {% include 'usuarios/_campo.html' with campo=form.nombre %}
+            {% include 'usuarios/_campo.html' with campo=form.lote %}
+            {% include 'usuarios/_campo.html' with campo=form.fecha_aplicacion %}
+            {% include 'usuarios/_campo.html' with campo=form.proxima_dosis %}
+        </div>
+        <div class="form-acciones">
+            <a href="{% url 'mascota_ficha' mascota.pk %}" class="btn btn-suave">Cancelar</a>
+            <button type="submit" class="btn btn-primario">Guardar vacuna</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

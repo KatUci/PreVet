@@ -538,3 +538,87 @@ class ArreglosAsociarYEtiquetasTest(TestCase):
                          {'nombre': muerde.nombre, 'para': 'cliente', 'tono': 'mal', 'activo': 'on'})
         muerde.refresh_from_db()
         self.assertEqual(muerde.para, 'mascota')
+
+
+class VacunasTest(TestCase):
+    """PV-FIC-04: carnet de vacunas y vacunas por vencer."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from django.utils import timezone
+
+        self.hoy = timezone.localdate()
+        self.vet = User.objects.create_user('vet')
+        self.vet.groups.add(Group.objects.get(name='Veterinarios'))
+        self.recepcion = User.objects.create_user('recepcion')
+        self.recepcion.groups.add(Group.objects.get(name='Recepción'))
+
+        perro = Especie.objects.create(nombre='Perro')
+        self.ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto',
+                                          telefono='+56 9 1234 5678')
+        self.bruno = Mascota.objects.create(nombre='Bruno', especie=perro, sexo='macho')
+        Tenencia.objects.create(cliente=self.ana, mascota=self.bruno, es_principal=True)
+
+    def vacuna(self, nombre, aplicada_hace, proxima_en=None):
+        from .models import Vacuna
+        return Vacuna.objects.create(
+            mascota=self.bruno, nombre=nombre,
+            fecha_aplicacion=self.hoy - timedelta(days=aplicada_hace),
+            proxima_dosis=self.hoy + timedelta(days=proxima_en) if proxima_en is not None else None)
+
+    def test_veterinario_registra_una_vacuna(self):
+        self.client.force_login(self.vet)
+        respuesta = self.client.post(f'/mascotas/{self.bruno.pk}/vacunas/nueva/', {
+            'nombre': 'Antirrábica',
+            'fecha_aplicacion': self.hoy.isoformat(),
+            'proxima_dosis': (self.hoy + timedelta(days=365)).isoformat(),
+        })
+        self.assertRedirects(respuesta, f'/mascotas/{self.bruno.pk}/')
+        vacuna = self.bruno.vacunas.get()
+        self.assertEqual(vacuna.nombre, 'Antirrábica')
+        self.assertEqual(vacuna.registrada_por, self.vet)
+
+    def test_la_proxima_dosis_debe_ser_despues_de_la_aplicacion(self):
+        self.client.force_login(self.vet)
+        respuesta = self.client.post(f'/mascotas/{self.bruno.pk}/vacunas/nueva/', {
+            'nombre': 'Óctuple',
+            'fecha_aplicacion': self.hoy.isoformat(),
+            'proxima_dosis': (self.hoy - timedelta(days=1)).isoformat(),
+        })
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertFalse(self.bruno.vacunas.exists())
+
+    def test_no_se_registra_una_vacuna_con_fecha_futura(self):
+        self.client.force_login(self.vet)
+        self.client.post(f'/mascotas/{self.bruno.pk}/vacunas/nueva/', {
+            'nombre': 'Óctuple',
+            'fecha_aplicacion': (self.hoy + timedelta(days=3)).isoformat(),
+        })
+        self.assertFalse(self.bruno.vacunas.exists())
+
+    def test_recepcion_no_registra_vacunas_pero_ve_el_carnet(self):
+        self.vacuna('Antirrábica', 10, 355)
+        self.client.force_login(self.recepcion)
+        self.assertEqual(self.client.get(f'/mascotas/{self.bruno.pk}/vacunas/nueva/').status_code, 403)
+        respuesta = self.client.get(f'/mascotas/{self.bruno.pk}/')
+        self.assertContains(respuesta, 'Carnet de vacunas')
+        self.assertContains(respuesta, 'Antirrábica')
+        self.assertNotContains(respuesta, 'Registrar vacuna')
+
+    def test_por_vencer_muestra_las_proximas_y_las_atrasadas(self):
+        self.vacuna('Antirrábica', 350, 15)
+        self.vacuna('Óctuple', 380, -5)
+        self.vacuna('Triple', 10, 200)      # todavía falta mucho
+        self.client.force_login(self.recepcion)
+        respuesta = self.client.get('/mascotas/vacunas/')
+        nombres = [f['vacuna'].nombre for f in respuesta.context['filas']]
+        self.assertEqual(nombres, ['Óctuple', 'Antirrábica'])
+        self.assertTrue(respuesta.context['filas'][0]['atrasada'])
+        self.assertIn('whatsapp://send?phone=56912345678', respuesta.context['filas'][1]['whatsapp'])
+
+    def test_si_ya_se_puso_la_dosis_siguiente_no_aparece(self):
+        self.vacuna('Antirrábica', 370, -5)
+        self.vacuna('Antirrábica', 3, 362)
+        self.client.force_login(self.recepcion)
+        respuesta = self.client.get('/mascotas/vacunas/')
+        self.assertEqual(respuesta.context['filas'], [])

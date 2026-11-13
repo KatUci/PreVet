@@ -81,6 +81,21 @@
                 {% endfor %}
             </ul>
         </section>
+
+        {# ---------- Mis pagos ---------- #}
+        <section class="card">
+            <div class="card-titulo"><h2><span class="icono" style="text-align:center">💵</span> Mis pagos</h2></div>
+            <ul class="lista-simple">
+                {% for p in pagos %}
+                <li>
+                    <b>{{ p.fecha|date:"d/m/Y" }} · {{ p.cita.mascota.nombre }} · {{ p.cita.tipo_atencion.nombre }}</b>
+                    <span>{{ p.monto_txt }} <a href="{% url 'portal_comprobante' p.pk %}" class="btn btn-suave btn-chico">Ver comprobante</a></span>
+                </li>
+                {% empty %}
+                <li class="flujo-vacio">Todavía no tienes pagos registrados.</li>
+                {% endfor %}
+            </ul>
+        </section>
     </div>
 
     <div class="panel-lateral">

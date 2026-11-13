@@ -129,6 +129,16 @@
                 <svg class="icono"><use href="#i-paw"/></svg> Mascotas
             </a>
             {% endif %}
+            {% if perms.citas.view_pago %}
+            <a href="{% url 'pagos' %}" class="sb-link {% if seccion == 'pagos' %}activo{% endif %}">
+                <span class="icono" style="text-align:center">💵</span> Pagos
+            </a>
+            {% endif %}
+            {% if perms.mascotas.view_vacuna %}
+            <a href="{% url 'vacunas_por_vencer' %}" class="sb-link {% if seccion == 'vacunas' %}activo{% endif %}">
+                <span class="icono" style="text-align:center">💉</span> Vacunas por vencer
+            </a>
+            {% endif %}
 
             {% if perms.citas.ver_riesgo or perms.citas.ver_indicadores %}
             <div class="sb-seccion">Análisis</div>
@@ -159,7 +169,7 @@
             {% endif %}
             {% endif %}
 
-            {% if perms.citas.change_tipoatencion or perms.citas.change_horarioatencion or perms.mascotas.change_especie or perms.mascotas.change_etiqueta %}
+            {% if perms.citas.change_tipoatencion or perms.citas.change_horarioatencion or perms.mascotas.change_especie or perms.mascotas.change_etiqueta or perms.citas.change_plantillamensaje or perms.mascotas.importar_datos %}
             <div class="sb-seccion">Configuración</div>
             {% if perms.citas.change_tipoatencion %}
             <a href="{% url 'tipos_atencion' %}" class="sb-link {% if seccion == 'tipos' %}activo{% endif %}">
@@ -169,6 +179,16 @@
             {% if perms.citas.change_horarioatencion %}
             <a href="{% url 'horarios' %}" class="sb-link {% if seccion == 'horarios' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-reloj"/></svg> Horarios
+            </a>
+            {% endif %}
+            {% if perms.mascotas.importar_datos %}
+            <a href="{% url 'importar' %}" class="sb-link {% if seccion == 'importar' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-lista"/></svg> Importar datos
+            </a>
+            {% endif %}
+            {% if perms.citas.change_plantillamensaje %}
+            <a href="{% url 'mensajes' %}" class="sb-link {% if seccion == 'mensajes' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-lista"/></svg> Mensajes de WhatsApp
             </a>
             {% endif %}
             {% if perms.mascotas.change_especie %}

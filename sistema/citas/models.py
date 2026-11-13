@@ -125,6 +125,10 @@ class Cita(models.Model):
     inicio_atencion = models.DateTimeField('inicio de la atención', null=True, blank=True)
     hora_salida = models.DateTimeField('hora de salida', null=True, blank=True)
 
+    # Atención sin hora (PV-CIT-07): una urgencia o un sobrecupo que llega
+    # sin reserva y entra directo a la sala de espera.
+    sin_hora = models.BooleanField('sin hora (urgencia o sobrecupo)', default=False, db_default=False)
+
     # Resultado del contacto previo con el tutor (PV-CIT-05). Vacío mientras
     # nadie lo haya contactado. Se guarda quién y cuándo, para medir después
     # si confirmar reduce las inasistencias.
@@ -215,3 +219,103 @@ class Atencion(models.Model):
         verbose_name = "atención"
         verbose_name_plural = "atenciones"
         ordering = ['-cita__fecha', '-cita__hora']
+
+
+class DocumentoAtencion(models.Model):
+    """Un PDF o Word adjunto a la atención: recetas, exámenes, indicaciones (PV-FIC-03).
+
+    Se guarda dentro de la base de datos, igual que las fotos, para que todo
+    el equipo lo vea aunque cada una corra el sistema en su computador. No
+    queda en una carpeta pública: solo se descarga desde PreVet y con permiso.
+    """
+
+    atencion = models.ForeignKey(Atencion, on_delete=models.CASCADE, related_name='documentos')
+    nombre = models.CharField('nombre del archivo', max_length=150)
+    archivo = models.BinaryField()
+    tamano = models.IntegerField('tamaño (bytes)')
+    subido_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def tamano_txt(self):
+        """1234567 -> '1,2 MB'; 45000 -> '44 KB'."""
+        if self.tamano >= 1024 * 1024:
+            return f'{self.tamano / 1024 / 1024:.1f} MB'.replace('.', ',')
+        return f'{max(self.tamano // 1024, 1)} KB'
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "documento de la atención"
+        verbose_name_plural = "documentos de las atenciones"
+        ordering = ['fecha_subida']
+
+
+class Pago(models.Model):
+    """Lo que el cliente pagó por una atención (PV-PAG-01).
+
+    Recepción lo registra al cobrar, antes de que la mascota se vaya. Es un
+    comprobante interno de la clínica, no una boleta electrónica del SII.
+    """
+
+    MEDIOS = (
+        ('efectivo', 'Efectivo'),
+        ('debito', 'Débito'),
+        ('credito', 'Crédito'),
+        ('transferencia', 'Transferencia'),
+    )
+
+    cita = models.OneToOneField(Cita, on_delete=models.PROTECT, related_name='pago')
+    monto = models.IntegerField('monto ($)')
+    medio = models.CharField('medio de pago', max_length=15, choices=MEDIOS)
+    detalle = models.CharField('detalle', max_length=200, blank=True,
+                               help_text='Opcional: lo que se cobró además de la atención (vacuna, remedios…).')
+    cobrado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    fecha = models.DateTimeField('fecha del pago', auto_now_add=True)
+
+    @property
+    def numero(self):
+        """Número del comprobante: 000123."""
+        return f'{self.pk:06d}'
+
+    @property
+    def monto_txt(self):
+        return f'${self.monto:,}'.replace(',', '.')
+
+    def __str__(self):
+        return f"Comprobante N° {self.numero} · {self.monto_txt}"
+
+    class Meta:
+        verbose_name = "pago"
+        verbose_name_plural = "pagos"
+        ordering = ['-fecha']
+
+
+class PlantillaMensaje(models.Model):
+    """Texto editable de un mensaje de WhatsApp (PV-REC-06).
+
+    Mientras administración no edite una plantilla, se usa el texto original
+    que está en contacto.py. El texto lleva variables entre llaves, como
+    {tutor} o {mascota}, que se reemplazan por los datos de cada cita.
+    """
+
+    CLAVES = (
+        ('riesgo_alto', 'Recordatorio para riesgo alto'),
+        ('riesgo_medio', 'Recordatorio para riesgo medio'),
+        ('riesgo_bajo', 'Recordatorio para riesgo bajo'),
+        ('recordatorio', 'Recordatorio general'),
+        ('vacuna', 'Aviso de vacuna por vencer'),
+    )
+
+    clave = models.CharField(max_length=20, choices=CLAVES, unique=True)
+    texto = models.TextField()
+    fecha_modificacion = models.DateTimeField('última modificación', auto_now=True)
+
+    def __str__(self):
+        return self.get_clave_display()
+
+    class Meta:
+        verbose_name = "plantilla de mensaje"
+        verbose_name_plural = "plantillas de mensajes"
+        ordering = ['clave']

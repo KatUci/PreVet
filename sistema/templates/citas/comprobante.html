@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Comprobante N° {{ pago.numero }}{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><a href="{{ volver }}">{% if seccion == 'portal' %}Mi PreVet{% else %}Pagos{% endif %}</a><span class="sep">›</span><span>Comprobante</span>{% endblock %}
+{% block encabezado %}Comprobante N° {{ pago.numero }}{% endblock %}
+
+{% block acciones %}
+<a href="{{ volver }}" class="btn btn-suave"><svg class="icono-sm"><use href="#i-atras"/></svg> Volver</a>
+<button type="button" class="btn btn-primario" id="imprimir"><svg class="icono-sm"><use href="#i-imprimir"/></svg> Imprimir</button>
+{% endblock %}
+
+{% block contenido %}
+{% include 'citas/_comprobante.html' %}
+<script>document.getElementById('imprimir').addEventListener('click', function () { window.print(); });</script>
+{% endblock %}
