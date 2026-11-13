@@ -201,3 +201,56 @@ class EvaluacionModeloTest(BaseTablero):
         recepcion.groups.add(Group.objects.get(name='Recepción'))
         self.client.force_login(recepcion)
         self.assertEqual(self.client.get('/riesgo/evaluacion/').status_code, 403)
+
+
+class IngresosYPeriodosTest(BaseTablero):
+    """Indicadores por profesional y por mes, con filtro de fechas e ingresos (PV-IND-02)."""
+
+    def test_ingresos_y_perdidas(self):
+        from citas.models import Pago
+        atendida = self.crear_cita('completada')                         # Control, $20.000
+        Pago.objects.create(cita=atendida, monto=25000, medio='debito')  # se cobró un extra
+        self.crear_cita('no_asistio', tipo=self.urgencia)                 # Urgencia, $35.000
+        self.crear_cita('cancelada')                                      # no suma ni resta
+        general = self.client.get('/indicadores/').context['general']
+        self.assertEqual((general['atendido'], general['cobrado'], general['perdido']), (20000, 25000, 35000))
+        self.assertEqual(general['pct_perdido'], 63.6)                   # 35.000 de 55.000 agendados
+
+    def test_el_filtro_de_fechas_recalcula_todo(self):
+        self.crear_cita('no_asistio', dias=-40)
+        self.crear_cita('completada', dias=-5)
+        desde = (timezone.localdate() - timedelta(days=10)).isoformat()
+        contexto = self.client.get('/indicadores/', {'desde': desde}).context
+        self.assertEqual((contexto['general']['total'], contexto['general']['faltas']), (1, 0))
+        self.assertEqual(sum(f['total'] for f in contexto['por_tipo']), 1)
+
+    def test_por_profesional_y_por_mes(self):
+        otra = User.objects.create_user('vet2', first_name='Luis', last_name='Contreras')
+        self.crear_cita('completada')
+        cita = self.crear_cita('no_asistio')
+        Cita.objects.filter(pk=cita.pk).update(veterinario=otra)
+        cortes = dict((titulo, filas) for titulo, filas, _ in self.client.get('/indicadores/').context['cortes'])
+        profesionales = {f['nombre']: (f['total'], f['faltas']) for f in cortes['Por profesional']}
+        self.assertEqual(profesionales, {'Paz Herrera': (1, 0), 'Luis Contreras': (1, 1)})
+        self.assertEqual(sum(f['total'] for f in cortes['Por mes']), 2)
+
+    def test_fechas_mal_escritas_se_ignoran(self):
+        self.crear_cita('completada')
+        respuesta = self.client.get('/indicadores/', {'desde': 'ayer', 'hasta': '2026-13-40'})
+        self.assertEqual(respuesta.context['general']['total'], 1)
+
+
+class CargarDemoTest(TestCase):
+    """cargar_demo deja pagos de ejemplo y se puede volver a correr aunque haya pagos."""
+
+    def test_crea_pagos_y_se_puede_repetir(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        from citas.models import Pago
+        call_command('cargar_demo', stdout=StringIO())
+        pagos = Pago.objects.count()
+        self.assertEqual(pagos, Cita.objects.filter(estado='completada', fecha__lt=timezone.localdate()).count())
+        call_command('cargar_demo', stdout=StringIO())      # antes fallaba: los pagos protegen su cita
+        self.assertEqual(Pago.objects.count(), pagos)

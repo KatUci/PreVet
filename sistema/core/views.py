@@ -314,22 +314,36 @@ def evaluacion_modelo(request):
 @login_required
 @permission_required('citas.ver_indicadores', raise_exception=True)
 def indicadores(request):
-    """Análisis de las inasistencias, factor por factor del modelo de riesgo."""
+    """Lo que entra, lo que se pierde y qué explica las inasistencias.
+
+    Todo se recalcula en el rango de fechas elegido (PV-IND-02).
+    """
+    import datetime
+
+    from citas.models import Pago
 
     hoy = timezone.localdate()
+    desde, hasta = _rango_fechas(request.GET)
 
     # Se traen todas de una vez y el resto del cálculo se hace en Python.
-    # Son poco más de 200 citas: cabe de sobra en memoria y evita decenas
+    # Son unos cientos de citas: cabe de sobra en memoria y evita decenas
     # de consultas separadas contra la base de datos.
-    ocurridas = list(Cita.objects
-                     .filter(fecha__lt=hoy)
-                     .exclude(estado='pendiente')
-                     .select_related('tipo_atencion', 'cliente'))
+    citas = (Cita.objects.filter(fecha__lt=hoy).exclude(estado='pendiente')
+             .select_related('tipo_atencion', 'cliente', 'veterinario'))
+    if desde:
+        citas = citas.filter(fecha__gte=desde)
+    if hasta:
+        citas = citas.filter(fecha__lte=hasta)
+    ocurridas = list(citas)
+    cobrado_por_cita = dict(Pago.objects.filter(cita__in=[c.pk for c in ocurridas])
+                            .values_list('cita_id', 'monto'))
 
     def resumen(grupo):
-        """Cuenta total, faltas, tasa y plata perdida de un grupo de citas."""
+        """Cuenta total, faltas, tasa, lo atendido, lo cobrado y lo perdido de un grupo de citas."""
         faltas = [c for c in grupo if c.estado == 'no_asistio']
         perdido = sum(c.tipo_atencion.precio for c in faltas)
+        atendido = sum(c.tipo_atencion.precio for c in grupo if c.estado == 'completada')
+        agendado = atendido + perdido
         return {
             'total': len(grupo),
             'faltas': len(faltas),
@@ -339,7 +353,35 @@ def indicadores(request):
             # como se escriben los pesos en Chile. El filtro intcomma de Django
             # depende del idioma configurado y deja espacios en vez de puntos.
             'perdido_txt': f"{perdido:,}".replace(",", "."),
+            'atendido': atendido,
+            'cobrado': sum(cobrado_por_cita.get(c.pk, 0) for c in grupo),
+            # Qué parte de lo que se esperaba recibir se perdió porque el tutor no llegó.
+            'pct_perdido': round(perdido / agendado * 100, 1) if agendado else 0,
+            'ancho_atendido': round(atendido / agendado * 100) if agendado else 0,
+            'ancho_perdido': round(perdido / agendado * 100) if agendado else 0,
         }
+
+    # ---------- Por mes y por profesional (PV-IND-02) ----------
+    nombres_mes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+                   'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    meses = {}
+    for c in ocurridas:
+        meses.setdefault((c.fecha.year, c.fecha.month), []).append(c)
+    por_mes = [dict(nombre=f'{nombres_mes[mes - 1]} {anio}', **resumen(meses[(anio, mes)]))
+               for anio, mes in sorted(meses, reverse=True)]
+
+    profesionales = {}
+    for c in ocurridas:
+        profesionales.setdefault(c.veterinario, []).append(c)
+    por_veterinario = sorted(
+        [dict(nombre=v.get_full_name() or v.username, **resumen(g)) for v, g in profesionales.items()],
+        key=lambda f: -f['atendido'])
+
+    primero_del_mes = hoy.replace(day=1)
+    fin_mes_pasado = primero_del_mes - datetime.timedelta(days=1)
+    atajos = [('Este mes', primero_del_mes, hoy),
+              ('Mes pasado', fin_mes_pasado.replace(day=1), fin_mes_pasado),
+              ('Últimos 90 días', hoy - datetime.timedelta(days=90), hoy)]
 
     def escalar(filas):
         """Agrega el ancho de la barra, en porcentaje de la mayor."""
@@ -379,6 +421,10 @@ def indicadores(request):
 
     return render(request, 'core/indicadores.html', {
         'seccion': 'indicadores',
+        'desde': desde,
+        'hasta': hasta,
+        'atajos': atajos,
+        'cortes': [('Por mes', por_mes, 'Mes'), ('Por profesional', por_veterinario, 'Profesional')],
         'por_tipo': por_tipo,
         'por_anticipacion': por_anticipacion,
         'reincidentes': reincidentes,
