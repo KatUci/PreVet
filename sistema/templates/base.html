@@ -118,6 +118,11 @@
                 <svg class="icono"><use href="#i-alerta"/></svg> Lista de llamadas
             </a>
             {% endif %}
+            {% if perms.citas.view_esperahora %}
+            <a href="{% url 'lista_espera' %}" class="sb-link {% if seccion == 'espera' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-reloj"/></svg> Lista de espera
+            </a>
+            {% endif %}
             {% endif %}
             {% if perms.mascotas.view_cliente %}
             <a href="{% url 'clientes' %}" class="sb-link {% if seccion == 'clientes' %}activo{% endif %}">

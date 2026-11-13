@@ -195,6 +195,15 @@ def cancelar(request, pk):
     cita.motivo_cancelacion = form.texto()
     cita.save(update_fields=['estado', 'cancelada_por', 'fecha_cancelacion', 'motivo_cancelacion'])
     messages.success(request, f'La cita de {cita.mascota.nombre} quedó cancelada y la hora está libre.')
+
+    # ¿Alguien esperaba una hora ese día? Se sugiere a quién llamar (PV-REC-01).
+    from .espera import esperando
+    candidatos = list(esperando(cita.fecha, cita.veterinario_id)[:3])
+    if candidatos:
+        nombres = ', '.join(f'{e.cliente.nombre_completo} ({e.mascota.nombre})' for e in candidatos)
+        messages.info(request, f'Se liberó una hora del {cita.fecha:%d/%m} a las {cita.hora:%H:%M}. '
+                               f'En la lista de espera para ese día están: {nombres}. '
+                               f'Llámalos desde Lista de espera para ofrecérsela.')
     return _volver(request, cita)
 
 

@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Lista de espera{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Lista de espera</span>{% endblock %}
+{% block encabezado %}Lista de espera{% endblock %}
+{% block subtitulo %}Tutores que quieren una hora que no estaba disponible. Si se libera una, ofrécesela{% endblock %}
+
+{% block acciones %}
+{% if perms.citas.add_esperahora %}
+<a href="{% url 'espera_anotar' %}" class="btn btn-primario">
+    <svg class="icono-sm"><use href="#i-mas"/></svg> Anotar en la lista
+</a>
+{% endif %}
+{% endblock %}
+
+{% block contenido %}
+
+<div class="kpis-dia">
+    <div class="kpi"><span class="kpi-num">{{ filas|length }}</span><span class="kpi-txt">esperando una hora</span></div>
+    <div class="kpi kpi-ok"><span class="kpi-num">{{ con_horas }}</span><span class="kpi-txt">ya tienen una hora libre para ofrecerles</span></div>
+</div>
+
+<section class="card">
+    <ul class="lista-llamadas">
+        {% for f in filas %}
+        {% with e=f.espera %}
+        <li>
+            <span class="nivel {% if f.opciones %}nivel-bajo{% else %}nivel-medio{% endif %}">{{ e.mascota.especie.emoji }}</span>
+            <div class="llamada-txt">
+                <b>{{ e.fecha|date:"l j \d\e F"|capfirst }} · {{ e.mascota.nombre }}{% if e.tipo_atencion %} · {{ e.tipo_atencion.nombre }}{% endif %}</b>
+                <span>
+                    {{ e.cliente.nombre_completo }} · {{ e.cliente.telefono|default:"sin teléfono" }}
+                    · {% if e.veterinario %}con {{ e.veterinario.get_full_name }}{% else %}con cualquier profesional{% endif %}
+                </span>
+                {% if e.notas %}<span class="celda-sub">“{{ e.notas }}”</span>{% endif %}
+                {% if f.opciones %}
+                <span class="celda-sub">
+                    <span class="etiqueta etiqueta-ok">Hay horas libres</span>
+                    {% for o in f.opciones %}
+                    {{ o.veterinario.get_full_name }}: {% for h in o.libres|slice:":4" %}{{ h|time:"H:i" }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if o.libres|length > 4 %}…{% endif %}{% if not forloop.last %} · {% endif %}
+                    {% endfor %}
+                </span>
+                {% else %}
+                <span class="celda-sub">Todavía no hay horas libres ese día.</span>
+                {% endif %}
+            </div>
+            <div class="llamada-acciones">
+                {% if f.opciones and perms.citas.add_cita %}
+                <a class="btn btn-primario btn-chico" href="{{ f.opciones.0.agendar }}">Agendar</a>
+                {% endif %}
+                {% if e.cliente.telefono %}{% include 'citas/_llamar.html' with telefono=e.cliente.telefono chico=True %}{% endif %}
+                {% if perms.citas.change_esperahora %}
+                <form method="post" action="{% url 'espera_descartar' e.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-suave btn-chico" title="Ya no necesita la hora">Quitar</button>
+                </form>
+                {% endif %}
+            </div>
+        </li>
+        {% endwith %}
+        {% empty %}
+        <li class="flujo-vacio">Nadie está esperando una hora. 🎉</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endblock %}

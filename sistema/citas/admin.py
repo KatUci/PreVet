@@ -1,8 +1,8 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import (Atencion, CambioCita, Cita, DocumentoAtencion, HorarioAtencion, Pago, PesosModelo,
-                     PlantillaMensaje, TipoAtencion)
+from .models import (Atencion, CambioCita, Cita, DocumentoAtencion, EsperaHora, HorarioAtencion, Pago,
+                     PesosModelo, PlantillaMensaje, TipoAtencion)
 
 
 @admin.register(TipoAtencion)
@@ -105,3 +105,12 @@ class CambioCitaAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(EsperaHora)
+class EsperaHoraAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'mascota', 'cliente', 'veterinario', 'estado', 'creada_por')
+    list_filter = ('estado', 'fecha', 'veterinario')
+    search_fields = ('mascota__nombre', 'cliente__rut', 'cliente__apellidos')
+    raw_id_fields = ('cliente', 'mascota', 'cita')
+    readonly_fields = ('creada_por', 'fecha_creacion')

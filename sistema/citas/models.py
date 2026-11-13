@@ -370,3 +370,46 @@ class CambioCita(models.Model):
         verbose_name = "cambio de una cita"
         verbose_name_plural = "historial de cambios de las citas"
         ordering = ['-fecha', '-pk']
+
+
+class EsperaHora(models.Model):
+    """Un tutor que quiere una hora que hoy no está disponible (PV-REC-01).
+
+    Queda anotado por día y, si lo pidió, por profesional. Cuando se cancela
+    una cita de ese día, recepción ve a quién ofrecerle la hora liberada.
+    """
+
+    ESTADOS = (
+        ('esperando', 'Esperando'),
+        ('agendada', 'Agendada'),
+        ('descartada', 'Descartada'),
+    )
+
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='esperas')
+    mascota = models.ForeignKey(Mascota, on_delete=models.CASCADE, related_name='esperas')
+    fecha = models.DateField('día que quiere')
+    veterinario = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='esperas',
+                                    limit_choices_to={'perfil__rol': 'veterinario'}, verbose_name='profesional',
+                                    help_text='Vacío si le da lo mismo con quién.')
+    tipo_atencion = models.ForeignKey(TipoAtencion, on_delete=models.SET_NULL, null=True, blank=True,
+                                      verbose_name='tipo de atención')
+    notas = models.CharField('comentarios', max_length=200, blank=True,
+                             help_text='Por ejemplo: "solo en la tarde" o "es urgente".')
+    estado = models.CharField(max_length=12, choices=ESTADOS, default='esperando')
+    cita = models.ForeignKey(Cita, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                             help_text='La cita que se le agendó.')
+    creada_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        super().clean()
+        if self.mascota_id and self.cliente_id and not self.mascota.tutores.filter(pk=self.cliente_id).exists():
+            raise ValidationError({'mascota': 'Esta mascota no es de este cliente.'})
+
+    def __str__(self):
+        return f"{self.mascota.nombre} · espera el {self.fecha:%d/%m/%Y}"
+
+    class Meta:
+        verbose_name = "persona en lista de espera"
+        verbose_name_plural = "lista de espera"
+        ordering = ['fecha', 'fecha_creacion']

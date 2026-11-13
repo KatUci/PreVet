@@ -64,6 +64,13 @@
     {% endif %}
 </div>
 
+{% if espera %}
+<div class="alerta alerta-info">
+    <svg class="icono"><use href="#i-reloj"/></svg>
+    <div>Agendando desde la <b>lista de espera</b>: {{ espera.mascota.nombre }} quería una hora el {{ espera.fecha|date:"d/m/Y" }}{% if espera.notas %} («{{ espera.notas }}»){% endif %}. Al agendar, sale de la lista.</div>
+</div>
+{% endif %}
+
 {% if cliente %}
 <form method="post" novalidate data-disponibles="{% url 'horas_disponibles' %}">
     {% csrf_token %}

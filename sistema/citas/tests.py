@@ -1617,3 +1617,83 @@ class HistorialDeCambiosTest(CalendarioTest):
     def test_recepcion_no_ve_el_historial(self):
         c = self.cita()
         self.assertNotContains(self.client.get(f'/citas/{c.pk}/detalle/'), 'Historial de cambios')
+
+
+class ListaDeEsperaTest(CalendarioTest):
+    """Lista de espera por profesional y día (PV-REC-01)."""
+
+    def esperar(self, dias=1, vet=None, **datos):
+        from .models import EsperaHora
+        return EsperaHora.objects.create(cliente=self.ana, mascota=self.bruno, veterinario=vet,
+                                         fecha=self.hoy + timedelta(days=dias), **datos)
+
+    def test_anotar_a_un_cliente(self):
+        from .models import EsperaHora
+        url = '/citas/espera/anotar/?rut=15.234.871-1'
+        self.assertContains(self.client.get(url), 'Bruno')
+        respuesta = self.client.post(url, {'mascota': self.bruno.pk, 'fecha': self.manana.isoformat(),
+                                           'veterinario': self.vet.pk, 'notas': 'Solo en la mañana'})
+        self.assertRedirects(respuesta, '/citas/espera/')
+        espera = EsperaHora.objects.get()
+        self.assertEqual((espera.cliente, espera.estado, espera.creada_por), (self.ana, 'esperando', self.recepcion))
+
+    def test_no_acepta_la_mascota_de_otro_cliente(self):
+        from .models import EsperaHora
+        otro = Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva')
+        ajena = Mascota.objects.create(nombre='Kira', especie=self.bruno.especie, sexo='hembra')
+        Tenencia.objects.create(cliente=otro, mascota=ajena, es_principal=True)
+        self.client.post('/citas/espera/anotar/?rut=15.234.871-1',
+                         {'mascota': ajena.pk, 'fecha': self.manana.isoformat()})
+        self.assertFalse(EsperaHora.objects.exists())
+
+    def test_la_lista_muestra_las_horas_libres_de_ese_dia(self):
+        self.esperar(vet=self.vet)
+        respuesta = self.client.get('/citas/espera/')
+        self.assertContains(respuesta, 'Hay horas libres')
+        self.assertEqual(respuesta.context['con_horas'], 1)
+
+    def test_si_el_dia_esta_lleno_lo_dice(self):
+        for hora in ('09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30'):
+            self.cita(hora=hora)
+        self.esperar(vet=self.vet)
+        self.assertContains(self.client.get('/citas/espera/'), 'Todavía no hay horas libres ese día')
+
+    def test_al_cancelar_sugiere_a_quien_llamar(self):
+        self.esperar()                                           # le da lo mismo el profesional
+        c = self.cita()
+        respuesta = self.client.post(f'/citas/{c.pk}/cancelar/', {'motivo': 'Otro'}, follow=True)
+        avisos = [str(m) for m in respuesta.context['messages']]
+        self.assertTrue(any('En la lista de espera para ese día están: Ana Soto (Bruno)' in a for a in avisos))
+
+    def test_no_sugiere_a_quien_espera_a_otro_profesional(self):
+        self.esperar(vet=self.otro_vet)
+        c = self.cita()
+        respuesta = self.client.post(f'/citas/{c.pk}/cancelar/', {'motivo': 'Otro'}, follow=True)
+        self.assertFalse(any('lista de espera' in str(m) for m in respuesta.context['messages']))
+
+    def test_agendar_desde_la_lista_la_saca_de_la_espera(self):
+        espera = self.esperar(vet=self.vet, tipo_atencion=self.control)
+        url = self.client.get('/citas/espera/').context['filas'][0]['opciones'][0]['agendar']
+        formulario = self.client.get(url)
+        self.assertContains(formulario, 'Agendando desde la <b>lista de espera</b>')
+        self.assertEqual(formulario.context['form'].initial['mascota'], self.bruno.pk)
+        respuesta = self.client.post(url, {'mascota': self.bruno.pk, 'tipo_atencion': self.control.pk,
+                                           'veterinario': self.vet.pk, 'fecha': self.manana.isoformat(),
+                                           'hora': '09:00', 'notas': ''})
+        self.assertRedirects(respuesta, '/citas/espera/')
+        espera.refresh_from_db()
+        self.assertEqual(espera.estado, 'agendada')
+        self.assertEqual(espera.cita.hora.strftime('%H:%M'), '09:00')
+
+    def test_quitar_de_la_lista(self):
+        espera = self.esperar()
+        self.client.post(f'/citas/espera/{espera.pk}/quitar/')
+        espera.refresh_from_db()
+        self.assertEqual(espera.estado, 'descartada')
+        self.assertEqual(self.client.get('/citas/espera/').context['filas'], [])
+
+    def test_los_veterinarios_no_la_ven(self):
+        from django.contrib.auth.models import Group
+        self.vet.groups.add(Group.objects.get(name='Veterinarios'))
+        self.client.force_login(self.vet)
+        self.assertEqual(self.client.get('/citas/espera/').status_code, 403)
