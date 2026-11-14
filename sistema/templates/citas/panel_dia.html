@@ -30,6 +30,18 @@
     <button type="submit" class="btn btn-suave">Buscar</button>
 </form>
 
+{# ---------- Quién atiende hoy ---------- #}
+<div class="atienden-hoy">
+    <svg class="icono-sm"><use href="#i-reloj"/></svg>
+    {% if atienden_hoy %}
+    <b>Hoy atienden:</b>
+    {% for a in atienden_hoy %}<span>{{ a.nombre }} <small>({{ a.horario }})</small></span>{% if not forloop.last %} · {% endif %}{% endfor %}
+    {% else %}
+    <b>Hoy no atiende ningún profesional.</b>
+    {% endif %}
+    <a href="{% url 'horarios_semana' %}">Ver horarios de la semana</a>
+</div>
+
 {# ---------- Indicadores del día ---------- #}
 <div class="kpis-dia">
     <div class="kpi"><span class="kpi-num">{{ total_hoy }}</span><span class="kpi-txt">citas hoy</span></div>

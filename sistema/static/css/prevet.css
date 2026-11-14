@@ -2253,3 +2253,16 @@ a.kpi { text-decoration: none; color: inherit; }
 .historial-cambios { list-style: none; margin: .6rem 0 0; padding: 0 0 0 .9rem; border-left: 2px solid var(--borde); }
 .historial-cambios li { padding: .35rem 0; font-size: .86rem; }
 .historial-cambios li b { color: var(--titulo); margin-right: .35rem; }
+
+/* Horarios del equipo */
+.atienden-hoy { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; font-size: .9rem; }
+.atienden-hoy small { color: var(--gris); }
+.atienden-hoy a { margin-left: auto; font-weight: 600; }
+.tabla-horarios td, .tabla-horarios th { text-align: center; }
+.tabla-horarios td:first-child, .tabla-horarios th:first-child { text-align: left; }
+.tabla-horarios .col-hoy { background: var(--borde-suave); font-weight: 700; }
+.tabla-horarios .no-atiende { color: var(--gris); }
+.lista-profesionales { list-style: none; margin: 0 0 1rem; padding: 0; }
+.lista-profesionales li { padding: .6rem 0; border-bottom: 1px solid var(--borde-suave); }
+.lista-profesionales li:last-child { border-bottom: 0; }
+.lista-profesionales small { display: block; color: var(--gris); margin-top: .2rem; }

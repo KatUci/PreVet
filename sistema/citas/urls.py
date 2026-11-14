@@ -8,6 +8,7 @@ urlpatterns = [
     path('nueva/', views.agendar, name='agendar'),
     path('sin-hora/', views.sin_hora, name='cita_sin_hora'),
     path('disponibles/', disponibilidad.disponibles, name='horas_disponibles'),
+    path('horarios-equipo/', disponibilidad.horarios_semana, name='horarios_semana'),
     path('espera/', espera.listado, name='lista_espera'),
     path('espera/anotar/', espera.anotar, name='espera_anotar'),
     path('espera/<int:pk>/quitar/', espera.descartar, name='espera_descartar'),

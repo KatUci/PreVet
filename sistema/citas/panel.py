@@ -165,6 +165,15 @@ def panel_dia(request):
         # puede recibir a un paciente extra (urgencia o lista de espera).
         'sobrecupo': [c for c in confirmar if c['nivel'] == 'alto'],
         'huecos_hoy': _huecos(hoy, ahora.time(), vets, horarios, ocupadas),
+        # Quién atiende hoy y en qué horario.
+        'atienden_hoy': [
+            {'nombre': v.get_full_name() or v.username,
+             'horario': ' y '.join(f'{h.hora_inicio:%H:%M} a {h.hora_fin:%H:%M}' for h in sorted(
+                 (h for h in horarios if h.veterinario_id == v.pk and h.dia_semana == hoy.weekday()),
+                 key=lambda h: h.hora_inicio))}
+            for v in vets
+            if any(h.veterinario_id == v.pk and h.dia_semana == hoy.weekday() for h in horarios)
+        ],
         'huecos_manana': _huecos(manana, None, vets, horarios, ocupadas),
         'cancelaciones': cancelaciones,
         'espera_larga': ESPERA_LARGA,

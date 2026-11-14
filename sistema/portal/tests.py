@@ -186,3 +186,26 @@ class PedirHoraTest(PortalTest):
                                                             'fecha': self.lunes.isoformat()})
         self.assertEqual(respuesta.status_code, 200)
         self.assertIn('09:00', respuesta.json()['libres'])
+
+
+class ProfesionalesEnElPortalTest(TestCase):
+    """El cliente ve el horario de cada profesional y quién atiende urgencias."""
+
+    def test_ve_horarios_y_urgencias(self):
+        from django.utils import timezone
+        from citas.models import HorarioAtencion
+        from usuarios.models import Perfil
+        vet = User.objects.create_user('vet', first_name='Paz', last_name='Herrera')
+        Perfil.objects.create(usuario=vet, rol='veterinario')
+        HorarioAtencion.objects.create(veterinario=vet, dia_semana=timezone.localdate().weekday(),
+                                       hora_inicio='09:00', hora_fin='13:00')
+        vet.groups.add(Group.objects.get_or_create(name='Urgencias')[0])
+        ana = User.objects.create_user('15234871-1')
+        Perfil.objects.create(usuario=ana, rol='dueno')
+        Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto', usuario=ana)
+        self.client.force_login(ana)
+        respuesta = self.client.get('/mi-prevet/')
+        self.assertContains(respuesta, 'Nuestros profesionales')
+        self.assertContains(respuesta, 'Paz Herrera')
+        self.assertContains(respuesta, 'Urgencias')
+        self.assertContains(respuesta, 'Atiende hoy')

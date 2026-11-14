@@ -71,6 +71,8 @@ def inicio(request):
         'proximas': citas.filter(estado='pendiente', fecha__gte=hoy).order_by('fecha', 'hora'),
         'historial': citas.exclude(estado='pendiente', fecha__gte=hoy).order_by('-fecha', '-hora')[:10],
         # Lo que ha pagado en la clínica, con su comprobante (PV-PAG-01).
+        # Horario de cada profesional y quién atiende urgencias.
+        'profesionales': resumen_horarios(),
         'pagos': (Pago.objects.filter(cita__cliente=cliente)
                   .select_related('cita__mascota', 'cita__tipo_atencion')[:10]),
     })

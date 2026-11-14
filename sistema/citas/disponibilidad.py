@@ -19,6 +19,15 @@ from .models import Cita, HorarioAtencion
 
 DIAS_CORTOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
+# Los profesionales que atienden urgencias se marcan con este grupo, en
+# Administración > Personal (el grupo se crea en Grupos de permisos, sin permisos).
+GRUPO_URGENCIAS = 'Urgencias'
+
+
+def urgencias_ids():
+    """Los profesionales que atienden urgencias."""
+    return set(User.objects.filter(groups__name=GRUPO_URGENCIAS).values_list('pk', flat=True))
+
 
 def _texto_tramos(tramos):
     return ' y '.join(f'{t.hora_inicio:%H:%M} a {t.hora_fin:%H:%M}' for t in tramos)
@@ -44,6 +53,8 @@ def resumen_horarios(veterinario=None):
         tramos = tramos.filter(veterinario=veterinario)
 
     resumen = []
+    de_urgencias = urgencias_ids()
+    hoy = timezone.localdate().weekday()
     for vet, del_vet in groupby(tramos, key=lambda t: t.veterinario):
         por_dia = {}
         for tramo in del_vet:
@@ -62,6 +73,8 @@ def resumen_horarios(veterinario=None):
             'nombre': vet.get_full_name() or vet.username,
             'lineas': [f'{_rango_dias(desde, hasta)} {texto}' for desde, hasta, texto in grupos],
             'sabado': 5 in por_dia,
+            'urgencias': vet.pk in de_urgencias,
+            'atiende_hoy': hoy in por_dia,
         })
     return resumen
 
@@ -126,3 +139,33 @@ def disponibles(request):
 
     return JsonResponse({'atiende': bool(tramos), 'libres': [h.strftime('%H:%M') for h in libres],
                          'mensaje': mensaje})
+
+
+@login_required
+def horarios_semana(request):
+    """Horarios del equipo: qué días y a qué horas atiende cada profesional."""
+    from django.core.exceptions import PermissionDenied
+    from django.shortcuts import render
+    if not request.user.has_perm('citas.view_cita'):
+        raise PermissionDenied
+
+    tramos = list(HorarioAtencion.objects.filter(activo=True, veterinario__in=veterinarios_con_horario())
+                  .select_related('veterinario').order_by('hora_inicio'))
+    # El domingo solo aparece si alguien atiende ese día.
+    dias = list(range(6)) + ([6] if any(t.dia_semana == 6 for t in tramos) else [])
+
+    filas = []
+    de_urgencias = urgencias_ids()
+    for vet in veterinarios_con_horario():
+        celdas = []
+        for dia in dias:
+            del_dia = [t for t in tramos if t.veterinario_id == vet.pk and t.dia_semana == dia]
+            celdas.append(_texto_tramos(del_dia) if del_dia else '')
+        filas.append({'nombre': vet.get_full_name() or vet.username, 'celdas': celdas, 'urgencias': vet.pk in de_urgencias})
+
+    return render(request, 'citas/horarios_semana.html', {
+        'seccion': 'horarios_semana',
+        'dias': [DIAS_CORTOS[d] for d in dias],
+        'hoy': timezone.localdate().weekday(),
+        'filas': filas,
+    })

@@ -99,6 +99,26 @@
     </div>
 
     <div class="panel-lateral">
+        {# ---------- Nuestros profesionales ---------- #}
+        <section class="card">
+            <div class="card-titulo"><h2><svg class="icono"><use href="#i-reloj"/></svg> Nuestros profesionales</h2></div>
+            <ul class="lista-profesionales">
+                {% for p in profesionales %}
+                <li>
+                    <b>{{ p.nombre }}</b>
+                    <div class="etiquetas">
+                        {% if p.atiende_hoy %}<span class="etiqueta etiqueta-ok">Atiende hoy</span>{% endif %}
+                        {% if p.urgencias %}<span class="etiqueta etiqueta-mal">Urgencias</span>{% endif %}
+                    </div>
+                    <small>{{ p.lineas|join:" · " }}</small>
+                </li>
+                {% empty %}
+                <li class="flujo-vacio">Pronto publicaremos los horarios.</li>
+                {% endfor %}
+            </ul>
+            <a href="{% url 'portal_pedir_hora' %}" class="btn btn-primario">Pedir hora</a>
+        </section>
+
         <section class="card ficha-contacto">
             <div class="ficha-avatar">{{ cliente.nombres|first }}{{ cliente.apellidos|first }}</div>
             <h2>{{ cliente.nombre_completo }}</h2>

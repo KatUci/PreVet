@@ -5,7 +5,7 @@
     <ul>
         {% for h in horarios %}
         <li>
-            <b>{{ h.nombre }}{% if h.sabado %} <span class="etiqueta etiqueta-ok">Sábados</span>{% endif %}</b>
+            <b>{{ h.nombre }}{% if h.sabado %} <span class="etiqueta etiqueta-ok">Sábados</span>{% endif %}{% if h.urgencias %} <span class="etiqueta etiqueta-mal">Urgencias</span>{% endif %}</b>
             <span>{{ h.lineas|join:" · " }}</span>
         </li>
         {% endfor %}

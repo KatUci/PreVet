@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Horarios del equipo{% endblock %}
+{% block migas %}<a href="/">Inicio</a><span class="sep">›</span><span>Horarios del equipo</span>{% endblock %}
+{% block encabezado %}Horarios del equipo{% endblock %}
+{% block subtitulo %}Qué días y a qué horas atiende cada profesional{% endblock %}
+
+{% block acciones %}
+{% if perms.citas.change_horarioatencion %}
+<a href="{% url 'horarios' %}" class="btn btn-suave">Editar horarios</a>
+{% endif %}
+{% endblock %}
+
+{% block contenido %}
+<section class="card">
+    <div class="tabla-wrap">
+        <table class="tabla-horarios">
+            <thead>
+                <tr>
+                    <th>Profesional</th>
+                    {% for d in dias %}<th class="{% if forloop.counter0 == hoy %}col-hoy{% endif %}">{{ d }}{% if forloop.counter0 == hoy %} (hoy){% endif %}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in filas %}
+                <tr>
+                    <td><b>{{ f.nombre }}</b>{% if f.urgencias %} <span class="etiqueta etiqueta-mal">Urgencias</span>{% endif %}</td>
+                    {% for c in f.celdas %}
+                    <td class="{% if forloop.counter0 == hoy %}col-hoy{% endif %}{% if not c %} no-atiende{% endif %}">{{ c|default:"No atiende" }}</td>
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="{{ dias|length|add:1 }}" class="flujo-vacio">Todavía no hay horarios registrados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

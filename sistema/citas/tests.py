@@ -1772,3 +1772,25 @@ class SeguimientoTrasInasistenciaTest(CalendarioTest):
         [tarea] = self.tareas()
         self.assertTrue(tarea['whatsapp'].startswith('whatsapp://send?phone=56912345678'))
         self.assertIn('no%20alcanzaron%20a%20venir', tarea['whatsapp'])
+
+
+class HorariosDelEquipoTest(RecepcionLogueada):
+    """Horarios del equipo: los días y horas de cada profesional, a la vista de todos."""
+
+    def setUp(self):
+        super().setUp()
+        from usuarios.models import Perfil
+        from .models import HorarioAtencion
+        Perfil.objects.create(usuario=self.vet, rol='veterinario')
+        hoy = timezone.localdate().weekday()
+        HorarioAtencion.objects.create(veterinario=self.vet, dia_semana=hoy, hora_inicio='09:00', hora_fin='13:00')
+
+    def test_la_pagina_muestra_el_horario_de_cada_profesional(self):
+        respuesta = self.client.get('/citas/horarios-equipo/')
+        self.assertContains(respuesta, 'Paz Herrera')
+        self.assertContains(respuesta, '09:00 a 13:00')
+
+    def test_el_panel_dice_quien_atiende_hoy(self):
+        respuesta = self.client.get('/citas/hoy/')
+        self.assertEqual(respuesta.context['atienden_hoy'][0]['horario'], '09:00 a 13:00')
+        self.assertContains(respuesta, 'Hoy atienden')

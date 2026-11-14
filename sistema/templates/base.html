@@ -113,6 +113,9 @@
             <a href="/citas/" class="sb-link {% if seccion == 'citas' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-lista"/></svg> Citas
             </a>
+            <a href="{% url 'horarios_semana' %}" class="sb-link {% if seccion == 'horarios_semana' %}activo{% endif %}">
+                <svg class="icono"><use href="#i-reloj"/></svg> Horarios del equipo
+            </a>
             {% if perms.citas.ver_riesgo %}
             <a href="{% url 'llamadas' %}" class="sb-link {% if seccion == 'llamadas' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-alerta"/></svg> Lista de llamadas
