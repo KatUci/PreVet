@@ -2056,7 +2056,7 @@ select option { background: var(--solido); color: var(--texto); }
 .migas a { color: var(--gris); text-decoration: none; }
 .migas a:hover { color: var(--acento); }
 .migas .sep { color: var(--gris-claro); }
-.topbar-centro { flex: 1; display: flex; justify-content: center; padding: 0 1.2rem; min-width: 0; }
+.topbar-centro { flex: 1; display: flex; justify-content: center; padding: 0 1.2rem; min-width: 0; container-type: inline-size; }
 .buscador-global {
     display: flex; align-items: center; gap: .5rem; width: 100%; max-width: 420px;
     background: var(--panel); border: 1px solid var(--borde); border-radius: 999px; padding: .1rem .3rem .1rem .9rem;
@@ -2066,6 +2066,9 @@ select option { background: var(--solido); color: var(--texto); }
 .buscador-global input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--texto); font: inherit; font-size: .86rem; padding: .5rem 0; outline: none; }
 .buscador-global kbd { font: inherit; font-size: .7rem; color: var(--gris); border: 1px solid var(--borde); border-radius: 6px; padding: .05rem .4rem; }
 .fecha-hoy { font-size: .78rem; color: var(--gris); white-space: nowrap; }
+/* Si los botones de la página dejan poco espacio, el buscador se esconde entero
+   en vez de quedar aplastado (solo se veía la lupa encima de la fecha). */
+@container (max-width: 230px) { .buscador-global { display: none; } }
 
 /* ============ RESULTADOS DE BÚSQUEDA ============ */
 .resultados-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.2rem; align-items: start; }
