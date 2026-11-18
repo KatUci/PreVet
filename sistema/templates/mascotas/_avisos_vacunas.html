@@ -1,0 +1,9 @@
+{# Qué significa cada aviso de vacuna. Los textos están en ESTADOS (mascotas/vacunas.py). #}
+<section class="card avisos-vacunas">
+    <div class="card-titulo"><h2>¿Qué significa cada aviso?</h2></div>
+    <ul>
+        {% for nombre, color, aviso in estados %}
+        <li><span class="etiqueta etiqueta-{{ color }}">{{ nombre }}</span> {{ aviso }}</li>
+        {% endfor %}
+    </ul>
+</section>

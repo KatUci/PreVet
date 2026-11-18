@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Mis recetas{% endblock %}
+{% block migas %}<a href="{% url 'portal' %}">Mi PreVet</a><span class="sep">›</span><span>Mis recetas</span>{% endblock %}
+{% block encabezado %}Mis recetas{% endblock %}
+{% block subtitulo %}Las indicaciones y recetas que te dejó tu veterinario{% endblock %}
+
+{% block contenido %}
+{# ---------- Encabezado ---------- #}
+<section class="recetas-portada">
+    <span class="recetas-portada-icono">📋</span>
+    <div>
+        <h2>Mis recetas</h2>
+        <p>Aquí puedes ver las recetas e indicaciones que te ha dejado tu veterinario.</p>
+    </div>
+    <span class="recetas-portada-adorno" aria-hidden="true">🐾 🐶 🐱</span>
+</section>
+
+{# ---------- Una tarjeta por atención; la primera parte abierta ---------- #}
+{% for a in recetas %}
+<details class="receta" {% if forloop.first %}open{% endif %}>
+    <summary class="receta-cabeza">
+        <span class="receta-icono">💊</span>
+        <span class="receta-titulo">
+            <b>{{ a.cita.fecha|date:"d/m/Y" }} · {{ a.cita.mascota.nombre }} – {{ a.cita.tipo_atencion.nombre }}</b>
+            <small>Con {{ a.cita.veterinario.get_full_name }}</small>
+        </span>
+        <span class="receta-fecha">{{ a.cita.fecha|date:"d/m/Y" }}</span>
+        <span class="receta-ver-menos">Ver menos ▲</span>
+        <span class="receta-flecha" aria-hidden="true">▾</span>
+    </summary>
+
+    <div class="receta-cuerpo">
+        <div class="receta-info">
+            {% if a.tratamiento %}
+            <div class="receta-indicaciones-caja">
+                <span class="receta-caja-icono">🐾</span>
+                <div>
+                    <b>Indicaciones generales</b>
+                    <p>{{ a.tratamiento|linebreaksbr }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <h3 class="receta-subtitulo"><span>📄</span> Detalles de la atención</h3>
+            <dl class="receta-detalles">
+                <dt>🩺 Motivo:</dt><dd>{{ a.motivo }}</dd>
+                <dt>🔎 Diagnóstico:</dt><dd>{{ a.diagnostico|linebreaksbr }}</dd>
+                {% if a.vacuna %}<dt>💉 Próxima dosis:</dt><dd>{{ a.vacuna.nombre }}, el {{ a.vacuna.proxima_dosis|date:"d/m/Y" }}</dd>{% endif %}
+                {% if a.peso_kg %}<dt>⚖️ Peso:</dt><dd>{{ a.peso_kg|floatformat:1 }} kg</dd>{% endif %}
+            </dl>
+
+            {% for d in a.documentos.all %}
+            <a href="{% url 'portal_receta' d.pk %}" class="btn btn-primario receta-descargar">📎 Descargar receta</a>
+            {% endfor %}
+        </div>
+
+        <div class="receta-mascota">
+            {% if a.cita.mascota.foto_version %}
+            <img src="{% url 'portal_mascota_foto' a.cita.mascota.pk %}?v={{ a.cita.mascota.foto_version }}" alt="Foto de {{ a.cita.mascota.nombre }}">
+            {% else %}
+            <span class="receta-mascota-emoji">{{ a.cita.mascota.especie.emoji }}</span>
+            {% endif %}
+            <span class="receta-mascota-corazon" aria-hidden="true">💜</span>
+        </div>
+    </div>
+
+    <div class="receta-importante">
+        <span>💡</span>
+        <div><b>Importante:</b> si notas algún cambio en su salud, contáctanos o pide una hora desde Mi PreVet.</div>
+    </div>
+</details>
+{% empty %}
+<section class="card"><p class="flujo-vacio">Cuando el veterinario te deje indicaciones o una receta, las verás aquí.</p></section>
+{% endfor %}
+{% endblock %}

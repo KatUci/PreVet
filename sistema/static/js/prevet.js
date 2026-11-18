@@ -98,6 +98,7 @@ document.addEventListener('keydown', function (e) {
 var PESO_MAXIMO_FOTO = 10 * 1024 * 1024;
 
 document.querySelectorAll('input[type="file"][accept^="image"]').forEach(function (input) {
+    if (input.dataset.recortar) return;     // esa foto tiene su propio editor (recortar_foto.js)
     input.addEventListener('change', function () {
         var campo = input.closest('.campo') || input.parentNode;
         var aviso = campo.querySelector('.aviso-foto');

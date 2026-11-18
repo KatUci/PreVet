@@ -1,0 +1,16 @@
+{# Editor de la foto: aparece al elegir una foto (ver static/js/recortar_foto.js). #}
+<div class="recorte" id="recorte" hidden>
+    <div class="recorte-marco">
+        <canvas id="recorteCanvas" width="320" height="320" aria-label="Arrastra la foto para moverla"></canvas>
+    </div>
+    <label class="recorte-zoom">
+        <span>Zoom</span>
+        <input type="range" id="recorteZoom" min="1" max="3" step="0.01" value="1">
+    </label>
+    <p class="ayuda">Arrastra la foto para moverla y usa el zoom para acercarla. Se guarda lo que queda dentro del marco.</p>
+    <div class="recorte-previa">
+        <canvas id="recortePrevia" width="96" height="96" aria-label="Vista previa"></canvas>
+        <span>Así se verá</span>
+    </div>
+    <p class="ayuda" id="recorteAviso" hidden style="color:var(--error-txt)">Esta foto pesa más de 10 MB: elige una más liviana.</p>
+</div>

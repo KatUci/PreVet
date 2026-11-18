@@ -14,7 +14,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 
 from .contacto import DIAS
-from .forms import BLOQUES, ESTADOS_QUE_LIBERAN, veterinarios_con_horario
+from .forms import BLOQUES, ESTADOS_QUE_LIBERAN, atiende_a, veterinarios_con_horario
 from .models import Cita, HorarioAtencion
 
 DIAS_CORTOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -72,6 +72,10 @@ def resumen_horarios(veterinario=None):
             'veterinario': vet,
             'nombre': vet.get_full_name() or vet.username,
             'lineas': [f'{_rango_dias(desde, hasta)} {texto}' for desde, hasta, texto in grupos],
+            # Lo mismo, separado en días y horas para dibujarlo en "chips".
+            # El fin de semana (sábado y domingo) lleva un sol; la semana, un reloj.
+            'grupos': [{'dias': _rango_dias(desde, hasta), 'horas': texto, 'finde': desde >= 5}
+                       for desde, hasta, texto in grupos],
             'sabado': 5 in por_dia,
             'urgencias': vet.pk in de_urgencias,
             'atiende_hoy': hoy in por_dia,
@@ -94,7 +98,7 @@ def horas_libres(vet, fecha, excepto=None, desde=None):
     tomadas = set(tomadas.values_list('hora', flat=True))
 
     libres = [b for b in BLOQUES
-              if any(t.hora_inicio <= b < t.hora_fin for t in tramos)
+              if atiende_a(tramos, b)
               and b not in tomadas
               and (desde is None or b > desde)]
     return tramos, libres

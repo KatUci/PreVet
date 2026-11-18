@@ -2216,11 +2216,26 @@ select option { background: var(--solido); color: var(--texto); }
     padding: .9rem 1.1rem;
     margin-bottom: 1.2rem;
 }
-.horarios-titulo { display: flex; align-items: center; gap: .45rem; font-weight: 700; color: var(--titulo); margin-bottom: .55rem; font-size: .92rem; }
-.horarios-resumen ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
-.horarios-resumen li { display: flex; flex-wrap: wrap; gap: .2rem .8rem; font-size: .87rem; }
-.horarios-resumen li b { min-width: 11rem; color: var(--titulo); }
-.horarios-resumen li span { color: var(--gris); }
+.horarios-titulo { display: flex; align-items: center; gap: .6rem; font-weight: 700; color: var(--titulo); margin-bottom: .8rem; font-size: 1.02rem; }
+.horarios-icono { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 9px; background: var(--acento-bg); color: var(--acento); }
+.horarios-icono svg, .horario-avatar svg, .horario-chip svg { fill: currentColor; }
+.horarios-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.horario-fila { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem 1rem; padding: .55rem .8rem; border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--borde-suave); }
+.horario-persona { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; min-width: 20rem; padding-right: 1rem; border-right: 1px solid var(--borde); }
+.horario-persona b { color: var(--titulo); font-size: .95rem; margin-right: .2rem; }
+.horario-avatar { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--acento-bg); color: var(--acento); flex-shrink: 0; }
+.horario-sabado { background: var(--acento-bg); color: var(--acento); }
+.horario-urgencias { background: var(--error-bg); color: var(--error-txt); }
+.horario-tramos { display: flex; flex-wrap: wrap; gap: .5rem; }
+.horario-chip { display: inline-flex; align-items: center; gap: .45rem; padding: .3rem .4rem .3rem .65rem; border-radius: 999px; background: var(--fondo-1); border: 1px solid var(--borde-suave); font-size: .84rem; }
+.horario-chip svg { color: var(--acento); }
+.horario-chip b { color: var(--titulo); }
+.horario-horas { padding: .1rem .6rem; border-radius: 999px; background: var(--panel); color: var(--texto); }
+.paso-sub { margin: .25rem 0 0; color: var(--gris); font-size: .88rem; font-weight: 400; }
+@media (max-width: 700px) {
+    .horario-persona { min-width: 0; width: 100%; border-right: 0; padding-right: 0; }
+}
 #avisoHorario { margin: 1rem 0 0; }
 
 /* Importar datos desde Excel */
@@ -2265,7 +2280,151 @@ a.kpi { text-decoration: none; color: inherit; }
 .tabla-horarios td:first-child, .tabla-horarios th:first-child { text-align: left; }
 .tabla-horarios .col-hoy { background: var(--borde-suave); font-weight: 700; }
 .tabla-horarios .no-atiende { color: var(--gris); }
-.lista-profesionales { list-style: none; margin: 0 0 1rem; padding: 0; }
+.lista-profesionales { list-style: none; margin: 0 0 1rem; padding: 0 .4rem 0 0;
+    /* Con muchos profesionales, la lista baja con su propio scroll y el botón "Pedir hora" queda a la vista. */
+    max-height: 26rem; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--acento) transparent; }
+.lista-profesionales::-webkit-scrollbar { width: 6px; }
+.lista-profesionales::-webkit-scrollbar-thumb { background: var(--acento); border-radius: 999px; }
 .lista-profesionales li { padding: .6rem 0; border-bottom: 1px solid var(--borde-suave); }
 .lista-profesionales li:last-child { border-bottom: 0; }
 .lista-profesionales small { display: block; color: var(--gris); margin-top: .2rem; }
+.horarios-nota { display: flex; align-items: center; gap: .45rem; margin: .7rem 0 0; font-size: .84rem; color: var(--gris); }
+.horarios-nota svg { fill: var(--acento); flex-shrink: 0; }
+.ficha-mascota-acciones { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .45rem; }
+
+/* Editor de la foto de la mascota */
+.recorte { display: grid; gap: .7rem; justify-items: center; }
+.recorte-marco { width: 320px; max-width: 100%; aspect-ratio: 1; border-radius: 18px; overflow: hidden; border: 2px solid var(--acento); background: var(--fondo-1); }
+.recorte-marco canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+.recorte-marco canvas:active { cursor: grabbing; }
+.recorte-zoom { display: flex; align-items: center; gap: .6rem; width: 320px; max-width: 100%; font-size: .85rem; color: var(--gris); }
+.recorte-zoom input { flex: 1; accent-color: var(--acento); }
+.recorte .ayuda { text-align: center; max-width: 320px; }
+.recorte-previa { display: flex; align-items: center; gap: .7rem; font-size: .85rem; color: var(--gris); }
+.recorte-previa canvas { width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--borde); }
+.recorte[hidden], .foto-grande[hidden] { display: none; }
+
+/* Mis recetas (Mi PreVet) */
+.lista-recetas { list-style: none; margin: 0; padding: 0 .4rem 0 0; max-height: 24rem; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--acento) transparent; }
+.lista-recetas::-webkit-scrollbar { width: 6px; }
+.lista-recetas::-webkit-scrollbar-thumb { background: var(--acento); border-radius: 999px; }
+.lista-recetas li { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: .75rem 0; border-bottom: 1px solid var(--borde-suave); }
+.lista-recetas li:last-child { border-bottom: 0; }
+.receta-indicaciones { margin-top: .35rem; font-size: .88rem; }
+.receta-indicaciones span { font-weight: 700; color: var(--acento); }
+.receta-archivos { display: flex; flex-direction: column; gap: .35rem; flex-shrink: 0; }
+
+/* ============ MIS RECETAS (portal del cliente) ============ */
+.recetas-portada { display: flex; align-items: center; gap: 1.1rem; padding: 1.3rem 1.6rem; margin-bottom: 1.2rem; border-radius: 18px;
+    background: var(--acento-bg); border: 1px solid var(--borde); position: relative; overflow: hidden; }
+.recetas-portada h2 { margin: 0; font-size: 1.6rem; color: var(--titulo); }
+.recetas-portada p { margin: .25rem 0 0; color: var(--gris); }
+.recetas-portada-icono { display: inline-flex; align-items: center; justify-content: center; width: 3.6rem; height: 3.6rem; border-radius: 14px;
+    background: var(--panel); border: 2px solid var(--acento); font-size: 1.8rem; flex-shrink: 0; }
+.recetas-portada-adorno { margin-left: auto; font-size: 2.6rem; opacity: .35; letter-spacing: .3rem; white-space: nowrap; }
+
+.receta { margin-bottom: .8rem; border-radius: 16px; background: var(--panel); border: 1px solid var(--borde-suave); }
+.receta[open] { border: 2px solid var(--acento); }
+.receta-cabeza { display: flex; align-items: center; gap: 1rem; padding: .9rem 1.2rem; cursor: pointer; list-style: none; }
+.receta-cabeza::-webkit-details-marker { display: none; }
+.receta-icono { display: inline-flex; align-items: center; justify-content: center; width: 2.8rem; height: 2.8rem; border-radius: 50%;
+    background: var(--acento-bg); font-size: 1.3rem; flex-shrink: 0; }
+.receta-titulo { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.receta-titulo b { color: var(--titulo); font-size: 1.02rem; }
+.receta-titulo small { color: var(--gris); }
+.receta-fecha { color: var(--gris); font-size: .9rem; }
+.receta-flecha { color: var(--acento); font-size: 1.4rem; line-height: 1; }
+.receta-ver-menos { display: none; padding: .45rem .9rem; border-radius: 10px; background: var(--acento); color: #fff; font-weight: 600; font-size: .85rem; }
+.receta[open] .receta-ver-menos { display: inline-block; }
+.receta[open] .receta-fecha, .receta[open] .receta-flecha { display: none; }
+
+.receta-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 1.2rem; padding: 0 1.2rem; border-top: 1px solid var(--borde-suave); padding-top: 1rem; }
+.receta-indicaciones-caja { display: flex; gap: .9rem; align-items: flex-start; padding: .9rem 1rem; border-radius: 14px; background: var(--acento-bg); }
+.receta-indicaciones-caja b { color: var(--titulo); }
+.receta-indicaciones-caja p { margin: .2rem 0 0; }
+.receta-caja-icono { display: inline-flex; align-items: center; justify-content: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--panel); flex-shrink: 0; }
+.receta-subtitulo { display: flex; align-items: center; gap: .5rem; margin: 1.1rem 0 .5rem; font-size: 1rem; color: var(--titulo); }
+.receta-detalles { display: grid; grid-template-columns: 9.5rem 1fr; gap: .45rem .8rem; margin: 0 0 .9rem; font-size: .92rem; }
+.receta-detalles dt { font-weight: 700; color: var(--titulo); }
+.receta-detalles dd { margin: 0; }
+.receta-descargar { margin: .2rem .4rem .4rem 0; }
+.receta-mascota { position: relative; display: flex; align-items: center; justify-content: center; }
+.receta-mascota img, .receta-mascota-emoji { width: 200px; height: 200px; border-radius: 50% 50% 46% 54% / 55% 48% 52% 45%; object-fit: cover;
+    background: var(--acento-bg); border: 3px solid var(--acento); }
+.receta-mascota-emoji { display: inline-flex; align-items: center; justify-content: center; font-size: 5.5rem; }
+.receta-mascota-corazon { position: absolute; top: .6rem; left: .4rem; font-size: 1.6rem; }
+.receta-importante { display: flex; align-items: center; gap: .8rem; margin: 1rem 1.2rem 1.2rem; padding: .8rem 1rem; border-radius: 12px;
+    background: var(--acento-bg); font-size: .9rem; }
+.receta-importante b { color: var(--titulo); }
+@media (max-width: 800px) {
+    .receta-cuerpo { grid-template-columns: 1fr; }
+    .receta-fecha, .recetas-portada-adorno { display: none; }
+    .receta-detalles { grid-template-columns: 1fr; }
+}
+
+/* Aviso: sábado y domingo solo urgencias */
+.modal-fondo.modal-aviso { display: flex; }
+.modal-aviso .modal { border-radius: 18px; }
+.modal-aviso-icono { font-size: 2.6rem; margin-bottom: .6rem; }
+
+/* ============ CALENDARIO DE VACUNAS ============ */
+.cal-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .6rem; }
+.cal-cabeza h2 { margin: 0; font-size: 1.25rem; color: var(--titulo); }
+.cal-leyenda { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .82rem; color: var(--gris); margin-bottom: .8rem; }
+.cal-leyenda span { display: inline-flex; align-items: center; gap: .35rem; }
+.cal-punto { width: .7rem; height: .7rem; border-radius: 50%; display: inline-block; }
+.cal-punto-ok { background: var(--ok-txt); }
+.cal-punto-warn { background: var(--warn-txt); }
+.cal-punto-mal { background: var(--error-txt); }
+.cal-punto-cita { background: var(--acento); }
+.cal-punto-finde { background: var(--error-bg); border: 1px solid var(--error-txt); }
+.cal-grilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .35rem; }
+.cal-dia-nombre { text-align: center; font-size: .78rem; font-weight: 700; color: var(--gris); padding: .2rem 0; }
+.cal-finde-nombre { color: var(--error-txt); }
+.cal-dia { min-height: 5.2rem; padding: .35rem; border-radius: 10px; background: var(--panel); border: 1px solid var(--borde-suave);
+    display: flex; flex-direction: column; gap: .2rem; overflow: hidden; }
+.cal-finde { background: var(--error-bg); }
+.cal-otro-mes { opacity: .4; }
+.cal-hoy { border: 2px solid var(--acento); }
+.cal-numero { font-weight: 700; font-size: .85rem; color: var(--titulo); }
+.cal-hoy .cal-numero::after { content: ' · hoy'; font-weight: 400; color: var(--acento); font-size: .72rem; }
+.cal-item { font-size: .72rem; padding: .15rem .35rem; border-radius: 6px; line-height: 1.25; overflow-wrap: anywhere; }
+.cal-item-ok   { background: var(--ok-bg); color: var(--ok-txt); }
+.cal-item-warn { background: var(--warn-bg); color: var(--warn-txt); }
+.cal-item-mal  { background: var(--error-bg); color: var(--error-txt); border: 1px solid var(--error-txt); }
+.cal-item-cita { background: var(--acento); color: #fff; }
+@media (max-width: 700px) {
+    .cal-dia { min-height: 3.2rem; }
+    .cal-item { font-size: 0; padding: .2rem; }          /* en el celular, solo el punto de color */
+    .cal-item::before { content: ''; }
+}
+
+/* Avisos de vacunas: al día, próxima, atrasada */
+.avisos-vacunas ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+.avisos-vacunas li { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.lista-dosis { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+.dosis { display: flex; align-items: center; gap: .9rem; padding: .75rem .9rem; border-radius: 12px;
+    border: 1px solid var(--borde-suave); border-left: 5px solid var(--ok-txt); background: var(--panel); }
+.dosis-warn { border-left-color: var(--warn-txt); }
+.dosis-mal { border-left-color: var(--error-txt); }
+.dosis-emoji { font-size: 1.6rem; }
+.dosis-info { flex: 1; display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.dosis-info span { font-size: .85rem; color: var(--gris); }
+.dosis-info .dosis-aviso { color: var(--titulo); }
+
+/* Calendario de vacunación canina (referencial) */
+.esquema-canino summary { display: flex; align-items: center; gap: .8rem; cursor: pointer; list-style: none; }
+.esquema-canino summary::-webkit-details-marker { display: none; }
+.esquema-canino summary small { display: block; color: var(--gris); font-weight: 400; }
+.esquema-icono { font-size: 2rem; background: var(--acento-bg); border-radius: 50%; width: 3rem; height: 3rem;
+    display: grid; place-items: center; }
+.esquema-pasos { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .5rem; }
+.esquema-pasos li { display: flex; align-items: center; gap: .8rem; padding: .5rem 0; border-bottom: 1px solid var(--borde-suave); }
+.esquema-pasos li div { display: flex; flex-direction: column; }
+.esquema-num { width: 2rem; height: 2rem; border-radius: 50%; background: var(--acento); color: #fff; font-weight: 700;
+    display: grid; place-items: center; flex-shrink: 0; }
+.esquema-emoji { font-size: 1.4rem; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: var(--acento-bg);
+    display: grid; place-items: center; flex-shrink: 0; }
+.esquema-importante { margin-top: 1rem; padding: .9rem 1rem; border: 2px solid var(--acento); border-radius: 14px; }
+.esquema-importante p { margin: .4rem 0 0; }
+.esquema-casa { background: var(--acento-bg); padding: .6rem .8rem; border-radius: 10px; }

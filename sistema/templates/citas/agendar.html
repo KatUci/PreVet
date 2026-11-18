@@ -156,7 +156,12 @@
             </button>
         </div>
         {% else %}
-        <div class="card-titulo"><h2><span class="paso-num">3</span> Detalles de la hora</h2></div>
+        <div class="card-titulo">
+            <div>
+                <h2><span class="paso-num">3</span> Detalles de la hora</h2>
+                <p class="paso-sub">Revisa los horarios disponibles y selecciona el que más te acomode</p>
+            </div>
+        </div>
         {% include 'citas/_horarios.html' %}
         <div class="form-grid">
             {% include 'usuarios/_campo.html' with campo=form.tipo_atencion %}
@@ -178,6 +183,7 @@
 </form>
 
 <script src="{% static_v 'js/agendar.js' %}"></script>
+{{ dosis|json_script:"dosisMascotas" }}
 <script src="{% static_v 'js/horario.js' %}"></script>
 {% endif %}
 

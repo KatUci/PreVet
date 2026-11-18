@@ -29,6 +29,20 @@ def veterinarios_con_horario():
             .distinct().order_by('first_name'))
 
 
+def atiende_a(tramos, hora):
+    """Si con estos tramos del día el profesional atiende a esa hora.
+
+    La hora en que termina su último tramo del día también se puede agendar:
+    es la última hora para tomar hora (con 15:00 a 19:00, la última es 19:00).
+    Las horas de colación siguen cerradas (con 09:00 a 13:00 y 15:00 a 19:00,
+    a las 13:00 no se agenda).
+    """
+    if not tramos:
+        return False
+    ultima = max(t.hora_fin for t in tramos)
+    return hora == ultima or any(t.hora_inicio <= hora < t.hora_fin for t in tramos)
+
+
 def validar_bloque(vet, fecha, hora, excepto=None):
     """Revisa que el profesional atienda a esa hora y que esté libre.
 
@@ -40,7 +54,7 @@ def validar_bloque(vet, fecha, hora, excepto=None):
 
     tramos = HorarioAtencion.objects.filter(veterinario=vet, dia_semana=fecha.weekday(),
                                             activo=True).order_by('hora_inicio')
-    if not any(t.hora_inicio <= hora < t.hora_fin for t in tramos):
+    if not atiende_a(tramos, hora):
         nombre = vet.get_full_name() or vet.username
         if tramos:
             horario = ', '.join(f'{t.hora_inicio:%H:%M} a {t.hora_fin:%H:%M}' for t in tramos)
@@ -54,6 +68,25 @@ def validar_bloque(vet, fecha, hora, excepto=None):
     if ocupada.exists():
         return 'Esa hora ya está tomada con este profesional. Elige otra.'
     return None
+
+
+# Sábado y domingo la clínica atiende solo urgencias: las consultas, controles
+# y exámenes se agendan de lunes a viernes. La excepción es la vacuna, si justo
+# ese día le toca a la mascota su próxima dosis (según su carnet de vacunas).
+DIAS_SOLO_URGENCIAS = (5, 6)
+
+
+def solo_urgencias(tipo, fecha, mascota=None):
+    """Devuelve el mensaje de error si se agenda algo que no corresponde en fin de semana."""
+    if not (tipo and fecha) or fecha.weekday() not in DIAS_SOLO_URGENCIAS:
+        return None
+    nombre = tipo.nombre.lower()
+    if 'urgencia' in nombre:
+        return None
+    if 'vacuna' in nombre and mascota and mascota.vacunas.filter(proxima_dosis=fecha).exists():
+        return None
+    return ('Los sábados y domingos solo se atienden urgencias, y vacunas cuando ese día le toca '
+            'la próxima dosis a la mascota. Las consultas, controles y exámenes se agendan de lunes a viernes.')
 
 
 class AgendarCitaForm(forms.ModelForm):
@@ -117,11 +150,25 @@ class AgendarCitaForm(forms.ModelForm):
         error = validar_bloque(datos.get('veterinario'), datos.get('fecha'), datos.get('hora'))
         if error:
             self.add_error('hora', error)
+        # La atención sin hora no tiene fecha en el formulario: es hoy.
+        fecha = datos.get('fecha') if 'fecha' in self.fields else timezone.localdate()
+        error = solo_urgencias(datos.get('tipo_atencion'), fecha, datos.get('mascota'))
+        if error:
+            self.add_error('tipo_atencion', error)
         return datos
 
     def validate_unique(self):
         # La revisión de hora tomada ya se hizo arriba, con un mensaje claro.
         pass
+
+
+def proximas_dosis(cliente):
+    """{id de mascota: [fechas de su próxima dosis]}, para avisar en pantalla."""
+    from mascotas.models import Vacuna
+    dosis = {}
+    for v in Vacuna.objects.filter(mascota__tenencias__cliente=cliente, proxima_dosis__gte=timezone.localdate()):
+        dosis.setdefault(str(v.mascota_id), []).append(v.proxima_dosis.isoformat())
+    return dosis
 
 
 class SinHoraForm(AgendarCitaForm):
@@ -168,6 +215,10 @@ class ReagendarForm(forms.ModelForm):
                                excepto=self.instance)
         if error:
             self.add_error('hora', error)
+        # Un control o examen no se puede mover a un sábado o domingo.
+        error = solo_urgencias(self.instance.tipo_atencion, datos.get('fecha'), self.instance.mascota)
+        if error:
+            self.add_error('fecha', error)
         return datos
 
     def validate_unique(self):

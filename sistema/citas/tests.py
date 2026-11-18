@@ -350,7 +350,9 @@ class HorariosAlAgendarTest(AgendarTest):
     def test_la_pantalla_de_agendar_muestra_los_horarios(self):
         respuesta = self.client.get(self.url())
         self.assertContains(respuesta, 'Horarios de atención')
-        self.assertContains(respuesta, 'Lun a Vie 09:00 a 13:00')
+        # Los días y las horas van en partes separadas del chip.
+        self.assertContains(respuesta, '<b>Lun a Vie</b>', html=False)
+        self.assertContains(respuesta, '09:00 a 13:00')
 
     def test_un_profesional_sin_horario_no_se_ofrece(self):
         from usuarios.models import Perfil
@@ -370,7 +372,8 @@ class HorariosAlAgendarTest(AgendarTest):
         self.client.post(self.url(), self.datos(hora='10:00'))
         datos = self.disponibles()
         self.assertTrue(datos['atiende'])
-        self.assertEqual(datos['libres'], ['09:00', '09:30', '10:30', '11:00', '11:30', '12:00', '12:30'])
+        # Atiende de 09:00 a 13:00: la última hora para tomar es 13:00.
+        self.assertEqual(datos['libres'], ['09:00', '09:30', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00'])
 
     def test_al_reagendar_su_propia_hora_cuenta_como_libre(self):
         self.client.post(self.url(), self.datos(hora='10:00'))
@@ -1654,7 +1657,7 @@ class ListaDeEsperaTest(CalendarioTest):
         self.assertEqual(respuesta.context['con_horas'], 1)
 
     def test_si_el_dia_esta_lleno_lo_dice(self):
-        for hora in ('09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30'):
+        for hora in ('09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00'):
             self.cita(hora=hora)
         self.esperar(vet=self.vet)
         self.assertContains(self.client.get('/citas/espera/'), 'Todavía no hay horas libres ese día')
@@ -1794,3 +1797,87 @@ class HorariosDelEquipoTest(RecepcionLogueada):
         respuesta = self.client.get('/citas/hoy/')
         self.assertEqual(respuesta.context['atienden_hoy'][0]['horario'], '09:00 a 13:00')
         self.assertContains(respuesta, 'Hoy atienden')
+
+
+class SoloUrgenciasFinDeSemanaTest(AgendarTest):
+    """Sábado y domingo solo se agendan urgencias; lo demás, de lunes a viernes."""
+
+    def setUp(self):
+        super().setUp()
+        from .models import HorarioAtencion
+        for dia in (5, 6):
+            HorarioAtencion.objects.create(veterinario=self.vet, dia_semana=dia, hora_inicio='10:00', hora_fin='14:00')
+        self.urgencia = TipoAtencion.objects.create(nombre='Urgencia', duracion_minutos=40, precio=45000)
+        self.sabado = self.lunes + timedelta(days=5)
+
+    def agendar(self, tipo, fecha):
+        return self.client.post(self.url(), {'mascota': self.bruno.pk, 'tipo_atencion': tipo.pk,
+                                             'veterinario': self.vet.pk, 'fecha': fecha.isoformat(),
+                                             'hora': '10:30', 'notas': ''})
+
+    def test_un_control_no_se_agenda_el_sabado(self):
+        respuesta = self.agendar(self.control, self.sabado)
+        self.assertContains(respuesta, 'solo se atienden urgencias')
+        self.assertFalse(Cita.objects.exists())
+
+    def test_una_urgencia_si_se_agenda_el_sabado(self):
+        self.agendar(self.urgencia, self.sabado)
+        self.assertEqual(Cita.objects.count(), 1)
+
+    def test_un_control_si_se_agenda_el_lunes(self):
+        self.agendar(self.control, self.lunes)
+        self.assertEqual(Cita.objects.count(), 1)
+
+    def test_no_se_puede_reagendar_un_control_al_domingo(self):
+        from .forms import ReagendarForm
+        cita = Cita.objects.create(veterinario=self.vet, mascota=self.bruno, cliente=self.ana,
+                                   tipo_atencion=self.control, fecha=self.lunes, hora=datetime.strptime('10:00', '%H:%M').time())
+        domingo = self.lunes + timedelta(days=6)
+        form = ReagendarForm({'veterinario': self.vet.pk, 'fecha': domingo.isoformat(), 'hora': '10:30'}, instance=cita)
+        self.assertFalse(form.is_valid())
+        self.assertIn('solo se atienden urgencias', str(form.errors['fecha']))
+
+
+class UltimaHoraTest(TestCase):
+    """La hora en que termina la atención del día es la última para tomar hora."""
+
+    def test_se_puede_agendar_a_las_19_pero_no_en_la_colacion(self):
+        import datetime as dt
+        from .forms import atiende_a
+        from .models import HorarioAtencion
+        manana = HorarioAtencion(hora_inicio=dt.time(9), hora_fin=dt.time(13))
+        tarde = HorarioAtencion(hora_inicio=dt.time(15), hora_fin=dt.time(19))
+        tramos = [manana, tarde]
+        self.assertTrue(atiende_a(tramos, dt.time(19, 0)))       # última hora del día
+        self.assertTrue(atiende_a(tramos, dt.time(18, 30)))
+        self.assertFalse(atiende_a(tramos, dt.time(13, 0)))      # colación
+        self.assertFalse(atiende_a(tramos, dt.time(14, 30)))
+        self.assertFalse(atiende_a(tramos, dt.time(19, 30)))     # ya cerró
+
+
+class VacunaFinDeSemanaTest(SoloUrgenciasFinDeSemanaTest):
+    """La vacuna se puede agendar sábado o domingo solo si ese día le toca la próxima dosis."""
+
+    def setUp(self):
+        super().setUp()
+        self.vacunacion = TipoAtencion.objects.create(nombre='Vacunación', duracion_minutos=20, precio=15000)
+
+    def test_vacuna_el_sabado_sin_dosis_ese_dia_no_se_agenda(self):
+        respuesta = self.agendar(self.vacunacion, self.sabado)
+        self.assertContains(respuesta, 'solo se atienden urgencias')
+        self.assertFalse(Cita.objects.exists())
+
+    def test_vacuna_el_sabado_si_ese_dia_le_toca_la_dosis(self):
+        from mascotas.models import Vacuna
+        Vacuna.objects.create(mascota=self.bruno, nombre='Antirrábica',
+                              fecha_aplicacion=self.sabado - timedelta(days=365), proxima_dosis=self.sabado)
+        self.agendar(self.vacunacion, self.sabado)
+        self.assertEqual(Cita.objects.count(), 1)
+
+    def test_la_pantalla_trae_las_proximas_dosis(self):
+        from mascotas.models import Vacuna
+        Vacuna.objects.create(mascota=self.bruno, nombre='Antirrábica',
+                              fecha_aplicacion=self.sabado - timedelta(days=365), proxima_dosis=self.sabado)
+        respuesta = self.client.get(self.url())
+        self.assertContains(respuesta, 'id="dosisMascotas"')
+        self.assertContains(respuesta, self.sabado.isoformat())

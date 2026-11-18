@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load estaticos %}
 
 {% block titulo %}Foto de {{ mascota.nombre }}{% endblock %}
 {% block migas %}<a href="{% url 'portal' %}">Mi PreVet</a><span class="sep">›</span><span>Foto de {{ mascota.nombre }}</span>{% endblock %}
@@ -16,6 +17,7 @@
         {% else %}
         <div class="foto-grande" id="fotoActual">{{ mascota.especie.emoji }}</div>
         {% endif %}
+        {% include 'mascotas/_recorte.html' %}
     </div>
     <form method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
@@ -26,4 +28,5 @@
         </div>
     </form>
 </div>
+<script src="{% static_v 'js/recortar_foto.js' %}"></script>
 {% endblock %}

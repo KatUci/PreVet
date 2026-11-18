@@ -55,9 +55,9 @@
                         <b>{{ t.mascota.nombre }}</b>
                         <div class="celda-sub">{{ t.mascota.especie.nombre }}{% if t.mascota.raza %} · {{ t.mascota.raza.nombre }}{% endif %}{% if t.mascota.edad %} · {{ t.mascota.edad }}{% endif %}</div>
                         {% if t.mascota.alergias %}<div><span class="etiqueta etiqueta-mal">⚠ Alergias: {{ t.mascota.alergias|truncatechars:40 }}</span></div>{% endif %}
-                        <div class="celda-sub">
-                            <a href="{% url 'portal_mascota_editar' t.mascota.pk %}">Editar datos</a> ·
-                            <a href="{% url 'portal_mascota_foto_subir' t.mascota.pk %}">📷 {% if t.mascota.foto_version %}Cambiar{% else %}Subir{% endif %} foto</a>
+                        <div class="ficha-mascota-acciones">
+                            <a href="{% url 'portal_mascota_editar' t.mascota.pk %}" class="btn btn-suave btn-chico" title="Cambiar el nombre, el peso, las alergias y los demás datos">✏️ Editar</a>
+                            <a href="{% url 'portal_mascota_foto_subir' t.mascota.pk %}" class="btn btn-suave btn-chico">📷 {% if t.mascota.foto_version %}Cambiar foto{% else %}Subir foto{% endif %}</a>
                         </div>
                     </div>
                 </div>
@@ -78,6 +78,32 @@
                 </li>
                 {% empty %}
                 <li class="flujo-vacio">Todavía no tienes atenciones registradas.</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        {# ---------- Mis recetas ---------- #}
+        <section class="card">
+            <div class="card-titulo">
+                <h2><span class="icono" style="text-align:center">💊</span> Mis recetas</h2>
+                <a href="{% url 'portal_recetas' %}">Ver todas</a>
+            </div>
+            <ul class="lista-recetas">
+                {% for a in recetas %}
+                <li>
+                    <div>
+                        <b>{{ a.cita.fecha|date:"d/m/Y" }} · {{ a.cita.mascota.nombre }} · {{ a.cita.tipo_atencion.nombre }}</b>
+                        <div class="celda-sub">Con {{ a.cita.veterinario.get_full_name }}</div>
+                        {% if a.tratamiento %}<div class="receta-indicaciones"><span>Indicaciones:</span> {{ a.tratamiento|linebreaksbr }}</div>{% endif %}
+                    </div>
+                    <div class="receta-archivos">
+                        {% for d in a.documentos.all %}
+                        <a href="{% url 'portal_receta' d.pk %}" class="btn btn-suave btn-chico">📎 Descargar receta</a>
+                        {% endfor %}
+                    </div>
+                </li>
+                {% empty %}
+                <li class="flujo-vacio">Cuando el veterinario te deje indicaciones o una receta, las verás aquí.</li>
                 {% endfor %}
             </ul>
         </section>

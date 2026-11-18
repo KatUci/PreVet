@@ -71,15 +71,19 @@ def adjuntar(request, pk):
     return redirect('mascota_ficha', atencion.cita.mascota_id)
 
 
-@login_required
-@permission_required('citas.view_atencion', raise_exception=True)
-def descargar(request, pk):
-    documento = get_object_or_404(DocumentoAtencion, pk=pk)
+def respuesta_documento(documento):
+    """Entrega el archivo para descargarlo, con su nombre original."""
     extension = os.path.splitext(documento.nombre)[1].lower()
     respuesta = HttpResponse(bytes(documento.archivo),
                              content_type=TIPOS.get(extension, 'application/octet-stream'))
     respuesta['Content-Disposition'] = content_disposition_header(True, documento.nombre)
     return respuesta
+
+
+@login_required
+@permission_required('citas.view_atencion', raise_exception=True)
+def descargar(request, pk):
+    return respuesta_documento(get_object_or_404(DocumentoAtencion, pk=pk))
 
 
 @require_POST

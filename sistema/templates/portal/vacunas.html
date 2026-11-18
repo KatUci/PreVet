@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Mis vacunas{% endblock %}
+{% block migas %}<a href="{% url 'portal' %}">Mi PreVet</a><span class="sep">›</span><span>Mis vacunas</span>{% endblock %}
+{% block encabezado %}Mis vacunas{% endblock %}
+{% block subtitulo %}Revisa en el calendario qué día le toca la próxima vacuna a cada una de tus mascotas{% endblock %}
+
+{% block acciones %}
+<a href="{% url 'portal_pedir_hora' %}" class="btn btn-primario"><svg class="icono-sm"><use href="#i-calendario"/></svg> Pedir hora</a>
+{% endblock %}
+
+{% block contenido %}
+{% include 'mascotas/_calendario_vacunas.html' %}
+
+<section class="card">
+    <div class="card-titulo"><h2>¿Qué vacuna le toca a cada mascota?</h2></div>
+    <ul class="lista-dosis">
+        {% for v in dosis %}
+        <li class="dosis dosis-{{ v.estado.color }}">
+            <span class="dosis-emoji">{{ v.mascota.especie.emoji }}</span>
+            <div class="dosis-info">
+                <b>{{ v.mascota.nombre }} · le toca {{ v.nombre }}</b>
+                <span>{{ v.proxima_dosis|date:"l j \d\e F \d\e Y"|capfirst }} · última dosis el {{ v.fecha_aplicacion|date:"d/m/Y" }}</span>
+                <span class="dosis-aviso">{{ v.estado.aviso }}{% if v.proxima_dosis.weekday >= 5 and v.estado.clave != 'atrasada' %} Cae en fin de semana: igual puedes pedir la hora ese día.{% endif %}</span>
+            </div>
+            <span class="etiqueta etiqueta-{{ v.estado.color }}">{{ v.estado.nombre }}</span>
+        </li>
+        {% empty %}
+        <li class="flujo-vacio">Tus mascotas no tienen próximas vacunas registradas.</li>
+        {% endfor %}
+    </ul>
+</section>
+
+{% include 'mascotas/_avisos_vacunas.html' %}
+{% include 'mascotas/_esquema_canino.html' %}
+{% endblock %}

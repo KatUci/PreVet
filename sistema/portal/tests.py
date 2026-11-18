@@ -141,7 +141,8 @@ class PedirHoraTest(PortalTest):
         respuesta = self.client.get('/mi-prevet/pedir-hora/')
         self.assertContains(respuesta, 'Bruno')
         self.assertNotContains(respuesta, 'Toby')
-        self.assertContains(respuesta, 'Lun a Sáb 09:00 a 13:00')
+        self.assertContains(respuesta, '<b>Lun a Sáb</b>', html=False)
+        self.assertContains(respuesta, '09:00 a 13:00')
 
     def test_pide_hora_y_queda_a_su_nombre(self):
         from citas.models import Cita
@@ -209,3 +210,158 @@ class ProfesionalesEnElPortalTest(TestCase):
         self.assertContains(respuesta, 'Paz Herrera')
         self.assertContains(respuesta, 'Urgencias')
         self.assertContains(respuesta, 'Atiende hoy')
+
+
+class EditarMascotaDesdeElPortalTest(TestCase):
+    """El cliente corrige los datos de su mascota, por ejemplo el nombre."""
+
+    def setUp(self):
+        from usuarios.models import Perfil
+        self.ana_user = User.objects.create_user('15234871-1')
+        Perfil.objects.create(usuario=self.ana_user, rol='dueno')
+        self.ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto', usuario=self.ana_user)
+        self.perro = Especie.objects.create(nombre='Perro')
+        self.bruno = Mascota.objects.create(nombre='Bruon', especie=self.perro, sexo='macho')
+        Tenencia.objects.create(cliente=self.ana, mascota=self.bruno, es_principal=True)
+        self.client.force_login(self.ana_user)
+
+    def test_cada_mascota_tiene_su_boton_editar(self):
+        respuesta = self.client.get('/mi-prevet/')
+        self.assertContains(respuesta, f'href="/mi-prevet/mascotas/{self.bruno.pk}/"')
+        self.assertContains(respuesta, '✏️ Editar')
+
+    def test_corrige_el_nombre(self):
+        respuesta = self.client.post(f'/mi-prevet/mascotas/{self.bruno.pk}/',
+                                     {'especie': self.perro.pk, 'nombre': 'Bruno', 'sexo': 'macho', 'tiene_microchip': ''})
+        self.assertRedirects(respuesta, '/mi-prevet/')
+        self.bruno.refresh_from_db()
+        self.assertEqual(self.bruno.nombre, 'Bruno')
+
+    def test_no_puede_editar_la_mascota_de_otro(self):
+        otra = Mascota.objects.create(nombre='Kira', especie=self.perro, sexo='hembra')
+        self.assertEqual(self.client.get(f'/mi-prevet/mascotas/{otra.pk}/').status_code, 404)
+
+
+class MisRecetasTest(TestCase):
+    """El cliente ve las indicaciones y descarga las recetas de sus mascotas."""
+
+    def setUp(self):
+        from django.utils import timezone
+        from citas.models import Atencion, Cita, DocumentoAtencion, TipoAtencion
+        from usuarios.models import Perfil
+        vet = User.objects.create_user('vet', first_name='Paz', last_name='Herrera')
+        Perfil.objects.create(usuario=vet, rol='veterinario')
+        self.ana_user = User.objects.create_user('15234871-1')
+        Perfil.objects.create(usuario=self.ana_user, rol='dueno')
+        ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto', usuario=self.ana_user)
+        perro = Especie.objects.create(nombre='Perro')
+        bruno = Mascota.objects.create(nombre='Bruno', especie=perro, sexo='macho')
+        Tenencia.objects.create(cliente=ana, mascota=bruno, es_principal=True)
+        tipo = TipoAtencion.objects.create(nombre='Control', duracion_minutos=30, precio=20000)
+        cita = Cita.objects.create(veterinario=vet, mascota=bruno, cliente=ana, tipo_atencion=tipo,
+                                   fecha=timezone.localdate(), hora='10:00', estado='completada')
+        atencion = Atencion.objects.create(cita=cita, motivo='Control', diagnostico='Sano',
+                                           tratamiento='Antiparasitario 1 comprimido')
+        self.receta = DocumentoAtencion.objects.create(atencion=atencion, nombre='receta.pdf',
+                                                       archivo=b'%PDF-1.4 receta', tamano=15)
+
+    def test_ve_sus_recetas_y_las_descarga(self):
+        self.client.force_login(self.ana_user)
+        respuesta = self.client.get('/mi-prevet/')
+        self.assertContains(respuesta, 'Mis recetas')
+        self.assertContains(respuesta, 'Antiparasitario 1 comprimido')
+        descarga = self.client.get(f'/mi-prevet/recetas/{self.receta.pk}/')
+        self.assertEqual(descarga.content, b'%PDF-1.4 receta')
+
+    def test_no_descarga_la_receta_de_otro(self):
+        from usuarios.models import Perfil
+        otro = User.objects.create_user('16890342-1')
+        Perfil.objects.create(usuario=otro, rol='dueno')
+        Cliente.objects.create(rut='16890342-1', nombres='Matías', apellidos='Silva', usuario=otro)
+        self.client.force_login(otro)
+        self.assertEqual(self.client.get(f'/mi-prevet/recetas/{self.receta.pk}/').status_code, 404)
+
+
+class PaginaMisRecetasTest(MisRecetasTest):
+    """La página Mis recetas: cada atención con sus indicaciones y la receta para descargar."""
+
+    def test_la_pagina_muestra_las_recetas(self):
+        self.client.force_login(self.ana_user)
+        respuesta = self.client.get('/mi-prevet/recetas/')
+        self.assertContains(respuesta, 'Indicaciones generales')
+        self.assertContains(respuesta, 'Antiparasitario 1 comprimido')
+        self.assertContains(respuesta, f'/mi-prevet/recetas/{self.receta.pk}/')
+        self.assertContains(respuesta, 'Descargar receta')
+
+    def test_el_menu_del_cliente_tiene_mis_recetas(self):
+        self.client.force_login(self.ana_user)
+        self.assertContains(self.client.get('/mi-prevet/'), 'href="/mi-prevet/recetas/"')
+
+
+class MisVacunasTest(TestCase):
+    """El cliente ve en un calendario qué día le toca la vacuna a cada mascota."""
+
+    def setUp(self):
+        import datetime
+        from mascotas.models import Vacuna
+        from usuarios.models import Perfil
+        self.ana_user = User.objects.create_user('15234871-1')
+        Perfil.objects.create(usuario=self.ana_user, rol='dueno')
+        ana = Cliente.objects.create(rut='15234871-1', nombres='Ana', apellidos='Soto', usuario=self.ana_user)
+        perro = Especie.objects.create(nombre='Perro')
+        bruno = Mascota.objects.create(nombre='Bruno', especie=perro, sexo='macho')
+        Tenencia.objects.create(cliente=ana, mascota=bruno, es_principal=True)
+        self.sabado = datetime.date(2026, 11, 28)
+        Vacuna.objects.create(mascota=bruno, nombre='Antirrábica', fecha_aplicacion=datetime.date(2025, 11, 28),
+                              proxima_dosis=self.sabado)
+        otra = Mascota.objects.create(nombre='Kira', especie=perro, sexo='hembra')
+        Vacuna.objects.create(mascota=otra, nombre='Óctuple', fecha_aplicacion=datetime.date(2025, 11, 28),
+                              proxima_dosis=self.sabado)
+        self.client.force_login(self.ana_user)
+
+    def test_el_calendario_marca_el_sabado_28(self):
+        respuesta = self.client.get('/mi-prevet/vacunas/?mes=2026-11')
+        self.assertContains(respuesta, 'Noviembre 2026')
+        self.assertContains(respuesta, 'Bruno · Antirrábica')
+        self.assertNotContains(respuesta, 'Kira')          # solo sus mascotas
+
+    def test_el_menu_tiene_mis_vacunas(self):
+        self.assertContains(self.client.get('/mi-prevet/'), 'href="/mi-prevet/vacunas/"')
+
+
+class AvisosDeVacunasTest(MisVacunasTest):
+    """Cada vacuna muestra qué le toca y su aviso: al día, próxima o atrasada."""
+
+    def setUp(self):
+        super().setUp()
+        import datetime
+        from django.utils import timezone
+        from mascotas.models import Mascota, Vacuna
+        hoy = timezone.localdate()
+        bruno = Mascota.objects.get(nombre='Bruno')
+        Vacuna.objects.create(mascota=bruno, nombre='Bordetella', fecha_aplicacion=hoy - datetime.timedelta(days=400),
+                              proxima_dosis=hoy - datetime.timedelta(days=5))
+        Vacuna.objects.create(mascota=bruno, nombre='Óctuple', fecha_aplicacion=hoy - datetime.timedelta(days=10),
+                              proxima_dosis=hoy + datetime.timedelta(days=90))
+        # Una Óctuple vieja que ya quedó cubierta por la nueva: no debe aparecer como atrasada.
+        Vacuna.objects.create(mascota=bruno, nombre='óctuple', fecha_aplicacion=hoy - datetime.timedelta(days=400),
+                              proxima_dosis=hoy - datetime.timedelta(days=20))
+
+    def test_muestra_que_le_toca_y_el_aviso(self):
+        respuesta = self.client.get('/mi-prevet/vacunas/')
+        self.assertContains(respuesta, 'Bruno · le toca Bordetella')
+        self.assertContains(respuesta, 'La fecha programada ya pasó')
+        self.assertContains(respuesta, 'Bruno · le toca Óctuple')
+        self.assertContains(respuesta, 'Vacunación vigente.')
+        dosis = respuesta.context['dosis']
+        self.assertEqual([v.estado['clave'] for v in dosis], ['atrasada', 'proxima', 'al_dia'])
+
+    def test_el_personal_ve_el_aviso(self):
+        from django.contrib.auth.models import Permission
+        vet = User.objects.create_user('vet.prueba')
+        vet.user_permissions.add(Permission.objects.get(codename='view_vacuna'))
+        self.client.force_login(vet)
+        respuesta = self.client.get('/mascotas/vacunas/')
+        self.assertContains(respuesta, 'etiqueta-mal">Atrasada')
+        self.assertContains(respuesta, 'Bordetella')
+        self.assertContains(respuesta, 'Calendario de vacunación canina')

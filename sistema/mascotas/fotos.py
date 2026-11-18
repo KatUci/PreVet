@@ -28,8 +28,8 @@ class FotoForm(forms.Form):
     foto = forms.ImageField(
         label='Foto de la mascota',
         help_text='JPG, PNG o WEBP de hasta 10 MB. Se achica automáticamente.',
-        # La vista previa reemplaza la foto actual de la pantalla (ver prevet.js).
-        widget=forms.FileInput(attrs={'data-vista-previa': 'fotoActual'}))
+        # Al elegirla se abre el editor para moverla y acercarla (ver recortar_foto.js).
+        widget=forms.FileInput(attrs={'data-recortar': '1'}))
 
     def clean_foto(self):
         foto = self.cleaned_data['foto']

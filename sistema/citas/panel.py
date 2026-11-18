@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from .calendario import _enlace_whatsapp, _veterinarios
 from .contacto import guion_llamada
-from .forms import BLOQUES
+from .forms import BLOQUES, atiende_a
 from .models import Cita, HorarioAtencion, Pago
 
 # Minutos de espera desde los que la tarjeta se marca en ámbar.
@@ -44,8 +44,8 @@ def _huecos(fecha, desde_hora, vets, horarios, ocupadas, maximo=5):
             continue
         disponibles = [vet for vet in vets
                        if (vet.pk, fecha, bloque) not in ocupadas
-                       and any(h.veterinario_id == vet.pk and h.dia_semana == fecha.weekday()
-                               and h.hora_inicio <= bloque < h.hora_fin for h in horarios)]
+                       and atiende_a([h for h in horarios if h.veterinario_id == vet.pk
+                                      and h.dia_semana == fecha.weekday()], bloque)]
         if disponibles:
             libres.append({'hora': bloque, 'vets': disponibles})
             if len(libres) >= maximo:
@@ -119,9 +119,9 @@ def panel_dia(request):
                    .exclude(estado='cancelada')
                    .values_list('veterinario_id', 'fecha', 'hora'))
 
-    bloques_hoy = sum(1 for b in BLOQUES for v in vets for h in horarios
-                      if h.veterinario_id == v.pk and h.dia_semana == hoy.weekday()
-                      and h.hora_inicio <= b < h.hora_fin)
+    bloques_hoy = sum(1 for b in BLOQUES for v in vets
+                      if atiende_a([h for h in horarios if h.veterinario_id == v.pk
+                                    and h.dia_semana == hoy.weekday()], b))
     ocupacion = round(len(activas) / bloques_hoy * 100) if bloques_hoy else None
 
     # ---------- Confirmar mañana, de mayor a menor riesgo ----------

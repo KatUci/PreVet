@@ -82,6 +82,12 @@
             <a href="{% url 'portal' %}" class="sb-link {% if seccion == 'portal' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-inicio"/></svg> Mis mascotas y citas
             </a>
+            <a href="{% url 'portal_recetas' %}" class="sb-link {% if seccion == 'portal_recetas' %}activo{% endif %}">
+                <span class="icono" style="text-align:center">💊</span> Mis recetas
+            </a>
+            <a href="{% url 'portal_vacunas' %}" class="sb-link {% if seccion == 'portal_vacunas' %}activo{% endif %}">
+                <span class="icono" style="text-align:center">💉</span> Mis vacunas
+            </a>
             <a href="{% url 'portal_pedir_hora' %}" class="sb-link {% if seccion == 'portal_hora' %}activo{% endif %}">
                 <svg class="icono"><use href="#i-calendario"/></svg> Pedir hora
             </a>
@@ -349,6 +355,7 @@
 {% endif %}
 
 <script src="{% static_v 'js/prevet.js' %}"></script>
+<script src="{% static_v 'js/borradores.js' %}"></script>
 
 </body>
 </html>

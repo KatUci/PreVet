@@ -31,7 +31,12 @@ SECRET_KEY = 'django-insecure-#3898)r_n7ktq#m^j-se$=6ti-6ddg*u%t=7a0_r^#1taog=hi
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Para abrir PreVet desde otro aparato de la misma red (por ejemplo, el celular
+# en una demo), se indica la dirección del computador al levantar el sistema:
+#   PREVET_HOSTS=10.0.0.5 python manage.py runserver 0.0.0.0:8000
+ALLOWED_HOSTS = [h for h in os.getenv('PREVET_HOSTS', '').split(',') if h]
+if ALLOWED_HOSTS:
+    ALLOWED_HOSTS += ['localhost', '127.0.0.1']
 
 
 # Application definition

@@ -6,17 +6,21 @@
 {% block subtitulo %}Próximas dosis de los siguientes {{ dias }} días y las atrasadas, para recordarle al tutor{% endblock %}
 
 {% block contenido %}
+{% include 'mascotas/_calendario_vacunas.html' %}
+{% include 'mascotas/_avisos_vacunas.html' %}
+
 <section class="card">
     <div class="tabla-wrap">
         <table>
-            <thead><tr><th>Próxima dosis</th><th>Mascota</th><th>Vacuna</th><th>Tutor</th><th>Contactar</th></tr></thead>
+            <thead><tr><th>Próxima dosis</th><th>Aviso</th><th>Mascota</th><th>Le toca</th><th>Tutor</th><th>Contactar</th></tr></thead>
             <tbody>
                 {% for f in filas %}
                 <tr>
                     <td class="sin-corte">
                         {{ f.vacuna.proxima_dosis|date:"d/m/Y" }}
-                        {% if f.atrasada %}<span class="badge badge-cancelada">Atrasada</span>{% endif %}
+                        <div class="celda-sub">{{ f.vacuna.proxima_dosis|date:"l"|capfirst }}</div>
                     </td>
+                    <td><span class="etiqueta etiqueta-{{ f.estado.color }}">{{ f.estado.nombre }}</span><div class="celda-sub">{{ f.estado.aviso }}</div></td>
                     <td><a href="{% url 'mascota_ficha' f.vacuna.mascota.pk %}">{{ f.vacuna.mascota.especie.emoji }} {{ f.vacuna.mascota.nombre }}</a></td>
                     <td>{{ f.vacuna.nombre }}<div class="celda-sub">aplicada el {{ f.vacuna.fecha_aplicacion|date:"d/m/Y" }}</div></td>
                     <td>{% if f.tutor %}{{ f.tutor.nombre_completo }}<div class="celda-sub">{{ f.tutor.telefono|default:"sin teléfono" }}</div>{% else %}<span style="color:var(--gris)">Sin tutor principal</span>{% endif %}</td>
@@ -26,10 +30,12 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="5" class="flujo-vacio">No hay vacunas por vencer en los próximos {{ dias }} días. 🎉</td></tr>
+                <tr><td colspan="6" class="flujo-vacio">No hay vacunas por vencer en los próximos {{ dias }} días. 🎉</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
+
+{% include 'mascotas/_esquema_canino.html' %}
 {% endblock %}

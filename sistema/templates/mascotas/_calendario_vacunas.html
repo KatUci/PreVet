@@ -1,0 +1,26 @@
+{# Calendario mensual de vacunas (próximas dosis y citas de vacunación). Ver calendario_vacunas() en mascotas/vacunas.py. #}
+<section class="card cal-vacunas">
+    <div class="cal-cabeza">
+        <a href="?mes={{ calendario.anterior }}" class="btn btn-suave btn-chico" aria-label="Mes anterior">‹</a>
+        <h2>💉 {{ calendario.titulo }}</h2>
+        <a href="?mes={{ calendario.siguiente }}" class="btn btn-suave btn-chico" aria-label="Mes siguiente">›</a>
+    </div>
+    <div class="cal-leyenda">
+        <span><i class="cal-punto cal-punto-ok"></i> Al día</span>
+        <span><i class="cal-punto cal-punto-warn"></i> Próxima vacuna</span>
+        <span><i class="cal-punto cal-punto-mal"></i> Atrasada</span>
+        <span><i class="cal-punto cal-punto-cita"></i> Hora de vacunación agendada</span>
+        <span><i class="cal-punto cal-punto-finde"></i> Fin de semana</span>
+    </div>
+    <div class="cal-grilla">
+        {% for d in calendario.dias_semana %}<div class="cal-dia-nombre{% if forloop.counter > 5 %} cal-finde-nombre{% endif %}">{{ d }}</div>{% endfor %}
+        {% for semana in calendario.semanas %}{% for d in semana %}
+        <div class="cal-dia{% if not d.del_mes %} cal-otro-mes{% endif %}{% if d.hoy %} cal-hoy{% endif %}{% if d.finde %} cal-finde{% endif %}{% if d.cosas %} cal-con-algo{% endif %}">
+            <span class="cal-numero">{{ d.fecha.day }}</span>
+            {% for c in d.cosas %}
+            <span class="cal-item cal-item-{{ c.tipo }}" title="{{ c.aviso }}: {{ c.texto }}">{{ c.emoji }} {{ c.texto }}</span>
+            {% endfor %}
+        </div>
+        {% endfor %}{% endfor %}
+    </div>
+</section>

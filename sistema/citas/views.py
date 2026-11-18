@@ -16,7 +16,7 @@ from mascotas.models import Cliente
 from mascotas.rut import limpiar_rut, validar_rut
 
 from .disponibilidad import resumen_horarios
-from .forms import AgendarCitaForm, SinHoraForm
+from .forms import AgendarCitaForm, SinHoraForm, proximas_dosis
 from .models import Cita, TipoAtencion
 
 
@@ -274,6 +274,7 @@ def agendar(request):
         'form': form,
         'espera': espera,
         'horarios': resumen_horarios() if cliente else None,
+        'dosis': proximas_dosis(cliente) if cliente else {},
     })
 
 

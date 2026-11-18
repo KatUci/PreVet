@@ -11,13 +11,16 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import PasswordChangeView
 from django.db import transaction
+from django.db.models import Prefetch, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
 
 from citas.disponibilidad import resumen_horarios
-from citas.models import Pago
+from citas.forms import proximas_dosis
+from citas.documentos import respuesta_documento
+from citas.models import Atencion, DocumentoAtencion, Pago
 from mascotas.fotos import FotoForm, guardar_foto
 from mascotas.forms import MascotaEditarForm, MascotaForm
 from mascotas.models import FotoMascota, Mascota, Tenencia
@@ -71,11 +74,64 @@ def inicio(request):
         'proximas': citas.filter(estado='pendiente', fecha__gte=hoy).order_by('fecha', 'hora'),
         'historial': citas.exclude(estado='pendiente', fecha__gte=hoy).order_by('-fecha', '-hora')[:10],
         # Lo que ha pagado en la clínica, con su comprobante (PV-PAG-01).
+        # Las indicaciones y recetas que dejó el veterinario a sus mascotas.
+        'recetas': _mis_recetas(cliente)[:3],     # las últimas; el resto, en Mis recetas
         # Horario de cada profesional y quién atiende urgencias.
         'profesionales': resumen_horarios(),
         'pagos': (Pago.objects.filter(cita__cliente=cliente)
                   .select_related('cita__mascota', 'cita__tipo_atencion')[:10]),
     })
+
+
+def _mis_recetas(cliente):
+    """Las atenciones de sus mascotas que tienen indicaciones o una receta adjunta."""
+    return (Atencion.objects
+            .filter(cita__mascota__tenencias__cliente=cliente)
+            .filter(Q(documentos__isnull=False) | ~Q(tratamiento=''))
+            .distinct()
+            .select_related('cita__mascota__especie', 'cita__veterinario', 'cita__tipo_atencion')
+            # Los documentos sin el archivo, que se carga solo al descargarlo.
+            .prefetch_related(Prefetch('documentos', DocumentoAtencion.objects.defer('archivo')))
+            .order_by('-cita__fecha', '-cita__hora'))
+
+
+@solo_tutores
+def recetas(request):
+    """Mis recetas: cada atención con sus indicaciones, sus detalles y la receta para descargar."""
+    from mascotas.models import Vacuna
+    lista = list(_mis_recetas(request.cliente)[:50])
+    # La próxima dosis sale de la vacuna aplicada ese mismo día, si hubo una.
+    vacunas = {}
+    for v in Vacuna.objects.filter(mascota__tenencias__cliente=request.cliente, proxima_dosis__isnull=False):
+        vacunas.setdefault((v.mascota_id, v.fecha_aplicacion), v)
+    for a in lista:
+        a.vacuna = vacunas.get((a.cita.mascota_id, a.cita.fecha))
+    return render(request, 'portal/recetas.html', {'seccion': 'portal_recetas', 'recetas': lista})
+
+
+@solo_tutores
+def vacunas(request):
+    """Mis vacunas: calendario con las próximas dosis de sus mascotas y sus citas de vacunación."""
+    from citas.models import Cita
+    from mascotas.models import Vacuna
+    from mascotas.vacunas import ESTADOS, calendario_vacunas, ultimas_dosis
+    cliente = request.cliente
+    suyas = Vacuna.objects.filter(mascota__tenencias__cliente=cliente, mascota__activo=True)
+    citas = Cita.objects.filter(cliente=cliente, estado='pendiente', tipo_atencion__nombre__icontains='vacuna')
+    return render(request, 'portal/vacunas.html', {
+        'seccion': 'portal_vacunas',
+        'calendario': calendario_vacunas(request, suyas, citas),
+        'dosis': ultimas_dosis(suyas),
+        'estados': ESTADOS.values(),
+    })
+
+
+@solo_tutores
+def receta(request, pk):
+    """Descarga una receta de sus mascotas. Si es de otra persona, no existe."""
+    documento = get_object_or_404(DocumentoAtencion, pk=pk,
+                                  atencion__cita__mascota__tenencias__cliente=request.cliente)
+    return respuesta_documento(documento)
 
 
 @solo_tutores
@@ -111,6 +167,7 @@ def pedir_hora(request):
         return redirect('portal')
     return render(request, 'portal/pedir_hora.html', {
         'seccion': 'portal_hora', 'form': form, 'horarios': resumen_horarios(),
+        'dosis': proximas_dosis(request.cliente),
     })
 
 
@@ -143,7 +200,7 @@ def mascota_editar(request, pk):
         return redirect('portal')
     return render(request, 'portal/formulario.html', {
         'seccion': 'portal', 'form': form, 'titulo': f'Datos de {mascota.nombre}',
-        'subtitulo': 'Mantén al día su peso, alergias y cuidados: así la clínica la atiende mejor.', 'razas': True,
+        'subtitulo': 'Corrige su nombre o mantén al día su peso, alergias y cuidados: así la clínica la atiende mejor.', 'razas': True,
     })
 
 
