@@ -50,9 +50,13 @@ class BaseTablero(TestCase):
 
 class TableroTest(BaseTablero):
 
-    def test_exige_haber_iniciado_sesion(self):
+    def test_sin_sesion_se_ve_la_presentacion(self):
         self.client.logout()
-        self.assertEqual(self.client.get('/').status_code, 302)
+        respuesta = self.client.get('/')
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTemplateUsed(respuesta, 'core/bienvenida.html')
+        self.assertContains(respuesta, 'href="/login/"')
+        self.assertNotIn('total_ocurridas', respuesta.context)
 
     def test_la_tasa_se_calcula_sobre_las_citas_ya_ocurridas(self):
         for _ in range(3):
@@ -254,3 +258,27 @@ class CargarDemoTest(TestCase):
         self.assertEqual(pagos, Cita.objects.filter(estado='completada', fecha__lt=timezone.localdate()).count())
         call_command('cargar_demo', stdout=StringIO())      # antes fallaba: los pagos protegen su cita
         self.assertEqual(Pago.objects.count(), pagos)
+
+
+class PaginasParaGoogleTest(TestCase):
+
+    def test_robots_permite_la_presentacion_y_oculta_lo_privado(self):
+        texto = self.client.get('/robots.txt').content.decode()
+        self.assertIn('Allow: /$', texto)
+        self.assertIn('Disallow: /citas/', texto)
+        self.assertIn('Sitemap: http://testserver/sitemap.xml', texto)
+
+    def test_sitemap_lista_las_paginas_publicas(self):
+        respuesta = self.client.get('/sitemap.xml')
+        self.assertEqual(respuesta['Content-Type'], 'application/xml')
+        self.assertContains(respuesta, '<loc>http://testserver/</loc>')
+        self.assertContains(respuesta, '<loc>http://testserver/registro/</loc>')
+
+    def test_codigo_de_google_solo_si_esta_configurado(self):
+        self.assertNotContains(self.client.get('/'), 'google-site-verification')
+        with self.settings(GOOGLE_SITE_VERIFICATION='abc123'):
+            self.assertContains(self.client.get('/'), '<meta name="google-site-verification" content="abc123">')
+
+    def test_archivo_de_verificacion_de_google(self):
+        respuesta = self.client.get('/googlee562d0708513dc3a.html')
+        self.assertContains(respuesta, 'google-site-verification: googlee562d0708513dc3a.html')

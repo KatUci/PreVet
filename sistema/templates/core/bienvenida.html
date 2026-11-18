@@ -1,0 +1,112 @@
+{% load static estaticos %}
+{# Página pública de PreVet: la ve quien llega sin haber iniciado sesión, y es la que encuentra Google. #}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PreVet · Agenda veterinaria que anticipa las horas perdidas</title>
+    <meta name="description" content="PreVet es un sistema web para clínicas veterinarias pequeñas: registra la inasistencia, calcula el riesgo de que cada cita se pierda y sugiere qué hacer con cada una.">
+    {% if verificacion_google %}<meta name="google-site-verification" content="{{ verificacion_google }}">{% endif %}
+    <link rel="canonical" href="{{ direccion }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="PreVet · Agenda veterinaria que anticipa las horas perdidas">
+    <meta property="og:description" content="Registra la inasistencia, calcula el riesgo de cada cita y sugiere qué hacer con cada una.">
+    <meta property="og:url" content="{{ direccion }}">
+    <meta property="og:image" content="{{ direccion }}static/img/prevet-logo.png">
+    <meta name="theme-color" content="#1a1338">
+    <link rel="icon" type="image/png" sizes="64x64" href="{% static 'img/favicon-64.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+    <link rel="stylesheet" href="{% static_v 'css/bienvenida.css' %}">
+</head>
+<body>
+
+    <header class="cabecera">
+        <img class="logo" src="{% static 'img/prevet-logo.png' %}" alt="PreVet Veterinaria">
+        <a class="boton boton-chico" href="{% url 'login' %}">Iniciar sesión</a>
+    </header>
+
+    <main>
+        {# ---------- Portada ---------- #}
+        <section class="portada">
+            <p class="etiqueta">Sistema web para clínicas veterinarias</p>
+            <h1>La agenda que anticipa las horas que se van a perder</h1>
+            <p class="bajada">PreVet registra cuándo un tutor no llega, calcula el riesgo de que cada cita se pierda
+                y le dice a la clínica qué hacer con cada una, antes de que el box quede vacío.</p>
+            <div class="acciones">
+                <a class="boton" href="{% url 'login' %}">Iniciar sesión</a>
+                <a class="boton boton-borde" href="{% url 'registro' %}">Soy cliente: crear cuenta</a>
+            </div>
+        </section>
+
+        {# ---------- El problema ---------- #}
+        <section class="bloque">
+            <h2>El problema</h2>
+            <p class="texto">Las clínicas pequeñas agendan por teléfono o WhatsApp. Cuando un tutor no llega, la hora
+                se pierde y ese ingreso no entra. Casi nadie lo mide, y los sistemas del mercado mandan el mismo
+                recordatorio a todos los clientes.</p>
+        </section>
+
+        {# ---------- Qué hace ---------- #}
+        <section class="bloque">
+            <h2>Qué hace PreVet</h2>
+            <div class="tarjetas">
+                <article class="tarjeta">
+                    <h3>Riesgo de 0 a 100</h3>
+                    <p>Cada cita recibe un puntaje según el historial del tutor, la anticipación, el día y el tipo de atención.</p>
+                </article>
+                <article class="tarjeta">
+                    <h3>Qué hacer con cada cita</h3>
+                    <p>Riesgo alto: llamar y confirmar. Riesgo medio: reforzar el recordatorio. Con la lista de llamadas lista cada mañana.</p>
+                </article>
+                <article class="tarjeta">
+                    <h3>Lo que se pierde, en pesos</h3>
+                    <p>Indicadores de inasistencia por mes, por día y por profesional, con los ingresos que la clínica no percibió.</p>
+                </article>
+                <article class="tarjeta">
+                    <h3>Agenda y panel del día</h3>
+                    <p>Recepción agenda por RUT, ve quién llegó, quién está en sala y quién está en atención.</p>
+                </article>
+                <article class="tarjeta">
+                    <h3>Ficha clínica y vacunas</h3>
+                    <p>Historial de cada mascota, recetas y calendario de vacunas con avisos de la próxima dosis.</p>
+                </article>
+                <article class="tarjeta">
+                    <h3>Mi PreVet para los tutores</h3>
+                    <p>Cada cliente entra con su RUT para ver sus citas, sus mascotas, sus recetas y sus comprobantes.</p>
+                </article>
+            </div>
+        </section>
+
+        {# ---------- Cómo funciona ---------- #}
+        <section class="bloque">
+            <h2>Cómo funciona</h2>
+            <ol class="pasos">
+                <li><span>1</span><div><h3>Se agenda la hora</h3><p>Por teléfono, en recepción o desde Mi PreVet.</p></div></li>
+                <li><span>2</span><div><h3>PreVet calcula el riesgo</h3><p>Con lo que ya sabe de ese tutor y de citas parecidas.</p></div></li>
+                <li><span>3</span><div><h3>La clínica actúa a tiempo</h3><p>Llama, refuerza el aviso u ofrece la hora a quien está en lista de espera.</p></div></li>
+            </ol>
+        </section>
+
+        {# ---------- Para quién ---------- #}
+        <section class="bloque">
+            <h2>Para todo el equipo</h2>
+            <ul class="roles">
+                <li>Recepción</li>
+                <li>Veterinarios</li>
+                <li>Administración</li>
+                <li>Tutores de mascotas</li>
+            </ul>
+            <div class="acciones acciones-centro">
+                <a class="boton" href="{% url 'login' %}">Entrar a PreVet</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="pie">
+        <p>Proyecto Capstone · Ingeniería en Informática · Duoc UC Plaza Norte · 2026</p>
+        <p>Desarrollado por Katalina Mora Quiñones y Uciell Madrid</p>
+    </footer>
+
+</body>
+</html>

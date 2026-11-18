@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
+from django.http import HttpResponse
 from django.db.models import Q, Sum
 from django.shortcuts import render
 from django.utils import timezone
@@ -6,9 +8,16 @@ from django.utils import timezone
 from citas.models import Cita
 
 
-@login_required
 def inicio(request):
     """Tablero con los indicadores de inasistencia."""
+
+    # Quien llega sin haber iniciado sesión (por ejemplo, desde Google) ve la
+    # página de presentación de PreVet, con los botones para entrar.
+    if not request.user.is_authenticated:
+        return render(request, 'core/bienvenida.html', {
+            'verificacion_google': settings.GOOGLE_SITE_VERIFICATION,
+            'direccion': request.build_absolute_uri('/'),
+        })
 
     # Es la página a la que llega todo el mundo al iniciar sesión. Quien
     # todavía no tiene permisos ve un aviso en vez de un error.
@@ -473,3 +482,30 @@ def buscar(request):
         'totales': totales,
         'total': sum(totales.values()),
     })
+
+
+def robots(request):
+    """Le dice a Google qué puede revisar: solo la presentación y el registro."""
+
+    privadas = ['/admin/', '/citas/', '/mascotas/', '/clientes/', '/administracion/',
+                '/mi-prevet/', '/indicadores/', '/riesgo/', '/buscar/', '/importar/']
+    lineas = ['User-agent: *', 'Allow: /$', 'Allow: /registro/']
+    lineas += [f'Disallow: {p}' for p in privadas]
+    lineas.append(f"Sitemap: {request.build_absolute_uri('/sitemap.xml')}")
+    return HttpResponse('\n'.join(lineas) + '\n', content_type='text/plain')
+
+
+def sitemap(request):
+    """Lista de las páginas públicas, para que Google las encuentre."""
+
+    paginas = [request.build_absolute_uri('/'), request.build_absolute_uri('/registro/')]
+    urls = ''.join(f'<url><loc>{p}</loc></url>' for p in paginas)
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>'
+           f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>')
+    return HttpResponse(xml, content_type='application/xml')
+
+
+def verificacion_google(request):
+    """Archivo que pide Google Search Console para comprobar que el sitio es nuestro."""
+
+    return HttpResponse('google-site-verification: googlee562d0708513dc3a.html', content_type='text/html')

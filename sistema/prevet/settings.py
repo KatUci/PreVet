@@ -32,6 +32,9 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-#3898)r_n7ktq#m^j-s
 # DJANGO_DEBUG=0 apaga el modo depuración (obligatorio en internet).
 DEBUG = os.getenv('DJANGO_DEBUG', '1') == '1'
 
+# Código que entrega Google Search Console para comprobar que el sitio es nuestro.
+GOOGLE_SITE_VERIFICATION = os.getenv('GOOGLE_SITE_VERIFICATION', '')
+
 # Para abrir PreVet desde otro aparato de la misma red (por ejemplo, el celular
 # en una demo), se indica la dirección del computador al levantar el sistema:
 #   PREVET_HOSTS=10.0.0.5 python manage.py runserver 0.0.0.0:8000

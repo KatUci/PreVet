@@ -4,6 +4,9 @@ from . import importar, views
 
 urlpatterns = [
     path('', views.inicio, name='inicio'),
+    path('robots.txt', views.robots, name='robots'),
+    path('sitemap.xml', views.sitemap, name='sitemap'),
+    path('googlee562d0708513dc3a.html', views.verificacion_google),
     path('indicadores/', views.indicadores, name='indicadores'),
     path('buscar/', views.buscar, name='buscar'),
     path('riesgo/', views.riesgo, name='riesgo'),
