@@ -56,7 +56,7 @@
                 {% for m in mensual %}
                 <div class="barra-col" title="{{ m.faltas }} de {{ m.total }} citas">
                     <span class="barra-valor">{{ m.tasa }}%</span>
-                    <span class="barra" style="height:{{ m.alto }}%"></span>
+                    <span class="barra-zona"><span class="barra" style="height:{{ m.alto }}%"></span></span>
                     <span class="barra-etq">{{ m.mes }}</span>
                     <span class="barra-sub">{{ m.faltas }}/{{ m.total }}</span>
                 </div>
@@ -74,7 +74,7 @@
                 {% for d in por_dia %}
                 <div class="barra-col" title="{{ d.faltas }} de {{ d.total }} citas">
                     <span class="barra-valor">{{ d.tasa }}%</span>
-                    <span class="barra barra-suave" style="height:{{ d.alto }}%"></span>
+                    <span class="barra-zona"><span class="barra barra-suave" style="height:{{ d.alto }}%"></span></span>
                     <span class="barra-etq">{{ d.dia }}</span>
                     <span class="barra-sub">{{ d.faltas }}/{{ d.total }}</span>
                 </div>
