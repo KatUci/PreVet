@@ -25,11 +25,12 @@ load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#3898)r_n7ktq#m^j-se$=6ti-6ddg*u%t=7a0_r^#1taog=hi'
+# En internet (Vercel) la clave secreta y el modo depuración vienen de las
+# variables de entorno. En el computador, si no existen, se usa lo de siempre.
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-#3898)r_n7ktq#m^j-se$=6ti-6ddg*u%t=7a0_r^#1taog=hi')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DJANGO_DEBUG=0 apaga el modo depuración (obligatorio en internet).
+DEBUG = os.getenv('DJANGO_DEBUG', '1') == '1'
 
 # Para abrir PreVet desde otro aparato de la misma red (por ejemplo, el celular
 # en una demo), se indica la dirección del computador al levantar el sistema:
@@ -37,6 +38,15 @@ DEBUG = True
 ALLOWED_HOSTS = [h for h in os.getenv('PREVET_HOSTS', '').split(',') if h]
 if ALLOWED_HOSTS:
     ALLOWED_HOSTS += ['localhost', '127.0.0.1']
+
+# Vercel crea la variable VERCEL=1 en sus servidores. Ahí PreVet responde en
+# su dirección .vercel.app y siempre por https.
+if os.getenv('VERCEL'):
+    ALLOWED_HOSTS += ['.vercel.app']
+    CSRF_TRUSTED_ORIGINS = ['https://*.vercel.app']
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 
 # Application definition
@@ -60,6 +70,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Entrega los estilos e imágenes cuando el modo depuración está apagado.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -156,6 +168,11 @@ STATIC_URL = 'static/'
 
 # Carpeta con los estilos, scripts e imágenes propios de PreVet.
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# WhiteNoise busca los archivos directo en las carpetas de cada app, sin
+# necesidad de correr collectstatic antes de subir el sistema.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+WHITENOISE_USE_FINDERS = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

@@ -14,3 +14,6 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'prevet.settings')
 
 application = get_wsgi_application()
+
+# Vercel busca una variable llamada app.
+app = application
